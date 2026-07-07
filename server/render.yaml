@@ -4,8 +4,8 @@ services:
     env: node
     region: singapore
     plan: free
-    buildCommand: npm install && npx prisma generate
-    startCommand: npx tsx src/index.ts
+    buildCommand: npx prisma generate && npm run build
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
@@ -24,7 +24,7 @@ services:
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
       - key: FRONTEND_URL
-        value: https://gamerhub.vercel.app
+        value: https://web-drab-nu-21.vercel.app
       - key: ENCRYPTION_KEY
         sync: false
       - key: STRIPE_SECRET_KEY

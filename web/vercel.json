@@ -1,6 +1,6 @@
 {
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://gamerhub-server-production.up.railway.app/api",
-    "NEXT_PUBLIC_SOCKET_URL": "https://gamerhub-server-production.up.railway.app"
+    "NEXT_PUBLIC_API_URL": "https://gamerhub-api.onrender.com/api",
+    "NEXT_PUBLIC_SOCKET_URL": "https://gamerhub-api.onrender.com"
   }
 }
