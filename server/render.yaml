@@ -16,19 +16,23 @@ services:
           name: gamerhub-db
           property: connectionString
       - key: JWT_SECRET
-        value: super-secret-jwt-key-change-in-production
+        sync: false
       - key: JWT_REFRESH_SECRET
-        value: super-secret-refresh-key-change-in-production
+        sync: false
       - key: JWT_EXPIRES_IN
         value: 15m
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
       - key: FRONTEND_URL
-        value: https://web-drab-nu-21.vercel.app
+        value: https://gamerhub.vercel.app
       - key: FIREBASE_PROJECT_ID
         value: gamerhub-3ebc5
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
       - key: ENCRYPTION_KEY
-        value: super-secret-encryption-key-32chars
+        sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET

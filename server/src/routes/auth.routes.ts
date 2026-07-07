@@ -7,6 +7,7 @@ import { authLimiter } from '../middleware/rateLimiter';
 const router = Router();
 router.post('/register', authLimiter, registerValidation, validate, authController.register.bind(authController));
 router.post('/login', authLimiter, loginValidation, validate, authController.login.bind(authController));
+router.post('/firebase', authLimiter, authController.firebaseLogin.bind(authController));
 router.post('/refresh-token', authController.refreshToken.bind(authController));
 router.post('/logout', authController.logout.bind(authController));
 router.post('/forgot-password', authLimiter, forgotPasswordValidation, validate, authController.forgotPassword.bind(authController));

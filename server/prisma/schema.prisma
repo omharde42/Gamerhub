@@ -7,20 +7,103 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole { USER MODERATOR ADMIN SUPER_ADMIN }
-enum AccountProvider { GOOGLE DISCORD STEAM CREDENTIALS }
-enum PostType { POST ARTICLE CLIP POLL }
-enum NotificationType { LIKE COMMENT FOLLOW MESSAGE TEAM_INVITE TEAM_APPLICATION TOURNAMENT_START TOURNAMENT_RESULT JOB_APPLICATION ACHIEVEMENT SYSTEM MATCH_FOUND }
-enum TeamRole { CAPTAIN MANAGER COACH MEMBER TRIAL }
-enum TeamStatus { ACTIVE INACTIVE DISBANDED }
-enum TournamentStatus { DRAFT REGISTRATION_OPEN IN_PROGRESS COMPLETED CANCELLED }
-enum TournamentType { SINGLE_ELIMINATION DOUBLE_ELIMINATION ROUND_ROBIN SWISS }
-enum MatchStatus { SCHEDULED IN_PROGRESS COMPLETED CANCELLED }
-enum OrgMemberRole { OWNER ADMIN MEMBER SCOUT }
-enum JobType { PLAYER COACH ANALYST MANAGER CASTER OTHER }
-enum JobStatus { DRAFT OPEN CLOSED FILLED }
-enum ReportReason { HARASSMENT CHEATING TOXICITY SPAM IMPERSONATION OTHER }
-enum SubscriptionTier { PRO ELITE TEAM_PRO }
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+enum AccountProvider {
+  GOOGLE
+  DISCORD
+  STEAM
+  CREDENTIALS
+  FIREBASE
+}
+enum PostType {
+  POST
+  ARTICLE
+  CLIP
+  POLL
+}
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  MESSAGE
+  TEAM_INVITE
+  TEAM_APPLICATION
+  TOURNAMENT_START
+  TOURNAMENT_RESULT
+  JOB_APPLICATION
+  ACHIEVEMENT
+  SYSTEM
+  MATCH_FOUND
+}
+enum TeamRole {
+  CAPTAIN
+  MANAGER
+  COACH
+  MEMBER
+  TRIAL
+}
+enum TeamStatus {
+  ACTIVE
+  INACTIVE
+  DISBANDED
+}
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+enum TournamentType {
+  SINGLE_ELIMINATION
+  DOUBLE_ELIMINATION
+  ROUND_ROBIN
+  SWISS
+}
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+enum OrgMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  SCOUT
+}
+enum JobType {
+  PLAYER
+  COACH
+  ANALYST
+  MANAGER
+  CASTER
+  OTHER
+}
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  FILLED
+}
+enum ReportReason {
+  HARASSMENT
+  CHEATING
+  TOXICITY
+  SPAM
+  IMPERSONATION
+  OTHER
+}
+enum SubscriptionTier {
+  PRO
+  ELITE
+  TEAM_PRO
+}
 
 model User {
   id              String   @id @default(uuid())
@@ -59,6 +142,13 @@ model User {
   matchHistory    MatchHistory[]
   subscription    Subscription?
   auditLogs       AuditLog[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  pollVotes       PollVoter[]
+  messageReads    MessageRead[]
+  ownedOrganizations Organization[]
+  organizationMemberships OrganizationMember[]
+  savedJobs       SavedJob[]
   @@index([email])
   @@index([role])
 }
@@ -500,6 +590,8 @@ model TournamentTeam {
   teamId        String
   team          Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
   members       TournamentTeamMember[]
+  matchesAsTeam1 Match[] @relation("Team1")
+  matchesAsTeam2 Match[] @relation("Team2")
   @@unique([tournamentId, teamId])
 }
 

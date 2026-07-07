@@ -46,18 +46,23 @@ docker-compose up --build
 4. Add env vars: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SOCKET_URL`
 5. Deploy
 
-## Railway Deployment (Backend)
-1. Install Railway CLI: `npm i -g @railway/cli`
-2. Login: `railway login`
-3. Link: `railway link`
-4. Deploy: `railway up`
-5. Set environment variables in Railway dashboard
+## Render Deployment (Backend)
+1. Push the repo to GitHub
+2. In Render dashboard, create a new **Web Service**
+3. Connect your GitHub repo
+4. Set:
+   - **Root Directory**: `server`
+   - **Build Command**: `npm install && npx prisma generate`
+   - **Start Command**: `npx tsx src/index.ts`
+5. Add a **PostgreSQL database** in Render (region: Singapore)
+6. Set all required environment variables in Render dashboard (secrets marked `sync: false` in `render.yaml`)
+7. Deploy
 
 ## Production Architecture
 - Frontend: Vercel (auto-scaling, CDN)
-- Backend: Railway/Supabase (managed PostgreSQL)
-- Database: Supabase PostgreSQL
-- Cache: Redis (Railway plugin)
+- Backend: Render (managed Node.js)
+- Database: Render PostgreSQL
+- Cache: Redis (Render / Upstash)
 - Storage: Cloudinary
 - AI: OpenAI API
 - Realtime: Socket.IO (same server)
