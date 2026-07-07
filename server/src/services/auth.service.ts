@@ -92,6 +92,7 @@ export class AuthService {
   }
 
   async setPassword(userId: string, password: string) {
+    if (!password || password.length < 6) throw new ValidationError({ password: ['Password must be at least 6 characters'] });
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundError('User');
     if (user.password) throw new ValidationError({ password: ['User already has a password. Use change password instead.'] });
@@ -100,6 +101,7 @@ export class AuthService {
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    if (!newPassword || newPassword.length < 6) throw new ValidationError({ password: ['New password must be at least 6 characters'] });
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundError('User');
     if (!user.password) throw new ValidationError({ password: ['No password set. Use set password instead.'] });
