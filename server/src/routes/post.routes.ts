@@ -10,5 +10,6 @@ router.get('/:id', authenticate, postController.getById.bind(postController));
 router.post('/', authenticate, createPostValidation, validate, postController.create.bind(postController));
 router.delete('/:id', authenticate, postController.delete.bind(postController));
 router.post('/:id/like', authenticate, postController.like.bind(postController));
+router.get('/:id/comments', authenticate, postController.getComments.bind(postController));
 router.post('/:id/comment', authenticate, postController.comment.bind(postController));
 export default router;

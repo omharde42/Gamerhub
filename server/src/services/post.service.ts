@@ -23,6 +23,7 @@ export class PostService {
     if (existing) { await prisma.like.delete({ where: { id: existing.id } }); return { liked: false }; }
     await prisma.like.create({ data: { userId, postId } }); return { liked: true };
   }
+  async getComments(postId: string) { return prisma.comment.findMany({ where: { postId, parentId: null }, include: { user: { select: { id: true, profile: true } }, replies: { include: { user: { select: { id: true, profile: true } } }, orderBy: { createdAt: 'asc' } } }, orderBy: { createdAt: 'desc' } }); }
   async comment(postId: string, userId: string, content: string) { return prisma.comment.create({ data: { postId, userId, content }, include: { user: { select: { id: true, profile: true } } } }); }
   async getTrending() { const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); return prisma.hashtag.findMany({ where: { posts: { some: { post: { createdAt: { gte: sevenDaysAgo } } } } }, orderBy: { count: 'desc' }, take: 20 }); }
 }

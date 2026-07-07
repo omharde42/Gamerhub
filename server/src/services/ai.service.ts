@@ -11,7 +11,7 @@ export class AIService {
     const ranked = candidates.map((candidate) => {
       let score = 0; const reasons: string[] = [];
       if (profile.rank && candidate.rank) { const rankOrder = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Challenger']; const userRankIdx = rankOrder.indexOf(profile.rank); const candRankIdx = rankOrder.indexOf(candidate.rank); const rankDiff = Math.abs(userRankIdx - candRankIdx); if (rankDiff <= 1) { score += 30; reasons.push('Similar rank'); } }
-      if (profile.region && candidate.region === profile.region) { score += 20; reasons.push('Same region'); }
+      if (profile.country && candidate.country === profile.country) { score += 20; reasons.push('Same region'); }
       if (profile.role && candidate.role === profile.role) { score += 15; reasons.push('Same role'); }
       if (profile.playStyle && candidate.playStyle === profile.playStyle) { score += 10; reasons.push('Same playstyle'); }
       if (profile.communicationStyle && candidate.communicationStyle === profile.communicationStyle) { score += 10; reasons.push('Same communication style'); }

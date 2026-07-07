@@ -4,6 +4,7 @@ const PRICE_IDS: Record<string, string> = { PRO: 'price_pro', ELITE: 'price_elit
 export class SubscriptionService {
   async createCheckoutSession(userId: string, tier: string) {
     const user = await prisma.user.findUnique({ where: { id: userId } }); if (!user) throw new Error('User not found');
+    if (!stripe) throw new Error('Stripe not configured');
     const session = await stripe.checkout.sessions.create({ customer_email: user.email, mode: 'subscription', line_items: [{ price: PRICE_IDS[tier], quantity: 1 }], metadata: { userId, tier }, success_url: `${process.env.FRONTEND_URL}/premium/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${process.env.FRONTEND_URL}/premium` });
     return { url: session.url };
   }
@@ -20,6 +21,7 @@ export class SubscriptionService {
   async getUserSubscription(userId: string) { return prisma.subscription.findUnique({ where: { userId } }); }
   async cancelSubscription(userId: string) {
     const sub = await prisma.subscription.findUnique({ where: { userId } }); if (!sub?.stripeId) throw new Error('No active subscription');
+    if (!stripe) throw new Error('Stripe not configured');
     await stripe.subscriptions.update(sub.stripeId, { cancel_at_period_end: true }); await prisma.subscription.update({ where: { userId }, data: { cancelAtPeriodEnd: true } });
   }
 }
