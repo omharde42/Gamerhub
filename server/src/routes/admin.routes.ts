@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { adminController } from '../controllers/admin.controller';
+import { authenticate, authorize } from '../middleware/auth';
+const router = Router();
+router.get('/dashboard', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), adminController.getDashboardStats.bind(adminController));
+router.get('/users', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), adminController.getUsers.bind(adminController));
+router.post('/users/:id/ban', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), adminController.banUser.bind(adminController));
+router.post('/users/:id/unban', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), adminController.unbanUser.bind(adminController));
+router.get('/reports', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), adminController.getReports.bind(adminController));
+router.post('/reports/:id/resolve', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), adminController.resolveReport.bind(adminController));
+router.get('/audit-logs', authenticate, authorize('SUPER_ADMIN'), adminController.getAuditLogs.bind(adminController));
+export default router;

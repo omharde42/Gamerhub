@@ -1,0 +1,14 @@
+import { Router } from 'express';
+import { profileController } from '../controllers/profile.controller';
+import { authenticate, optionalAuth } from '../middleware/auth';
+import { updateProfileValidation } from '../validators/profile';
+import { validate } from '../middleware/validate';
+import { uploadAvatar, uploadBanner } from '../middleware/upload';
+const router = Router();
+router.get('/search', authenticate, profileController.searchProfiles.bind(profileController));
+router.get('/:username', optionalAuth, profileController.getProfile.bind(profileController));
+router.put('/', authenticate, updateProfileValidation, validate, profileController.updateProfile.bind(profileController));
+router.post('/avatar', authenticate, uploadAvatar, profileController.uploadAvatar.bind(profileController));
+router.post('/banner', authenticate, uploadBanner, profileController.uploadBanner.bind(profileController));
+router.get('/analytics/optimize', authenticate, profileController.getProfileAnalytics.bind(profileController));
+export default router;

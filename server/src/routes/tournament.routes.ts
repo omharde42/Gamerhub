@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { tournamentController } from '../controllers/tournament.controller';
+import { authenticate } from '../middleware/auth';
+const router = Router();
+router.get('/', authenticate, tournamentController.list.bind(tournamentController));
+router.get('/:id', authenticate, tournamentController.getById.bind(tournamentController));
+router.post('/', authenticate, tournamentController.create.bind(tournamentController));
+router.post('/:id/register', authenticate, tournamentController.registerTeam.bind(tournamentController));
+router.post('/:id/brackets', authenticate, tournamentController.generateBrackets.bind(tournamentController));
+export default router;

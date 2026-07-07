@@ -1,0 +1,16 @@
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
+import { config } from '../config';
+import { JWTPayload } from '../types';
+export const generateToken = (payload: JWTPayload): string => jwt.sign(payload, config.jwt.secret, { expiresIn: config.jwt.expiresIn } as jwt.SignOptions);
+export const generateRefreshToken = (payload: JWTPayload): string => jwt.sign(payload, config.jwt.refreshSecret, { expiresIn: config.jwt.refreshExpiresIn } as jwt.SignOptions);
+export const verifyToken = (token: string): JWTPayload => jwt.verify(token, config.jwt.secret) as JWTPayload;
+export const verifyRefreshToken = (token: string): JWTPayload => jwt.verify(token, config.jwt.refreshSecret) as JWTPayload;
+export const hashPassword = async (password: string): Promise<string> => bcrypt.hash(password, 12);
+export const comparePassword = async (password: string, hash: string): Promise<boolean> => bcrypt.compare(password, hash);
+export const generateUUID = (): string => uuidv4();
+export const sanitizeUser = (user: any) => { const { password, twoFactorSecret, ...sanitized } = user; return sanitized; };
+export const generateVerificationCode = (length: number = 6): string => Math.random().toString(36).substring(2, 2 + length).toUpperCase();
+export const calculatePagination = (page: number = 1, limit: number = 20) => ({ skip: (page - 1) * limit, take: limit });
+export const generateSlug = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

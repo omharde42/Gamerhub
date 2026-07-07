@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { aiController } from '../controllers/ai.controller';
+import { authenticate } from '../middleware/auth';
+const router = Router();
+router.get('/recommendations', authenticate, aiController.getRecommendations.bind(aiController));
+router.get('/profile-analysis', authenticate, aiController.getProfileAnalysis.bind(aiController));
+router.get('/match-analysis', authenticate, aiController.getMatchAnalysis.bind(aiController));
+router.get('/training-plan', authenticate, aiController.getTrainingPlan.bind(aiController));
+router.post('/detect-toxicity', authenticate, aiController.detectToxicity.bind(aiController));
+export default router;

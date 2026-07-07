@@ -1,0 +1,14 @@
+import { Router } from 'express';
+import { postController } from '../controllers/post.controller';
+import { authenticate } from '../middleware/auth';
+import { createPostValidation } from '../validators/post';
+import { validate } from '../middleware/validate';
+const router = Router();
+router.get('/trending', authenticate, postController.getTrending.bind(postController));
+router.get('/', authenticate, postController.list.bind(postController));
+router.get('/:id', authenticate, postController.getById.bind(postController));
+router.post('/', authenticate, createPostValidation, validate, postController.create.bind(postController));
+router.delete('/:id', authenticate, postController.delete.bind(postController));
+router.post('/:id/like', authenticate, postController.like.bind(postController));
+router.post('/:id/comment', authenticate, postController.comment.bind(postController));
+export default router;

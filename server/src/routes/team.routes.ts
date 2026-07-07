@@ -1,0 +1,15 @@
+import { Router } from 'express';
+import { teamController } from '../controllers/team.controller';
+import { authenticate } from '../middleware/auth';
+import { createTeamValidation } from '../validators/team';
+import { validate } from '../middleware/validate';
+const router = Router();
+router.get('/', authenticate, teamController.list.bind(teamController));
+router.get('/:id', authenticate, teamController.getById.bind(teamController));
+router.post('/', authenticate, createTeamValidation, validate, teamController.create.bind(teamController));
+router.put('/:id', authenticate, teamController.update.bind(teamController));
+router.post('/:id/invite', authenticate, teamController.invite.bind(teamController));
+router.post('/:id/accept-invite', authenticate, teamController.acceptInvite.bind(teamController));
+router.post('/:id/apply', authenticate, teamController.apply.bind(teamController));
+router.post('/:id/kick', authenticate, teamController.kick.bind(teamController));
+export default router;

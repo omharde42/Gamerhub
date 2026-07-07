@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { chatController } from '../controllers/chat.controller';
+import { authenticate } from '../middleware/auth';
+const router = Router();
+router.get('/', authenticate, chatController.getUserChats.bind(chatController));
+router.get('/:id/messages', authenticate, chatController.getChatMessages.bind(chatController));
+router.post('/direct', authenticate, chatController.createDirectMessage.bind(chatController));
+router.post('/group', authenticate, chatController.createGroupChat.bind(chatController));
+router.post('/:id/messages', authenticate, chatController.sendMessage.bind(chatController));
+router.post('/:id/read', authenticate, chatController.markAsRead.bind(chatController));
+router.post('/:id/typing', authenticate, chatController.setTyping.bind(chatController));
+export default router;

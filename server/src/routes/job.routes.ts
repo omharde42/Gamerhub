@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { jobController } from '../controllers/job.controller';
+import { authenticate } from '../middleware/auth';
+const router = Router();
+router.get('/', authenticate, jobController.list.bind(jobController));
+router.post('/', authenticate, jobController.create.bind(jobController));
+router.post('/:id/apply', authenticate, jobController.apply.bind(jobController));
+router.post('/:id/save', authenticate, jobController.save.bind(jobController));
+router.post('/:id/unsave', authenticate, jobController.unsave.bind(jobController));
+export default router;
