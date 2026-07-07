@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "cd web && npm install",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "@api_url",
+    "NEXT_PUBLIC_SOCKET_URL": "@socket_url"
+  }
+}
