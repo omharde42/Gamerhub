@@ -18,7 +18,6 @@ enum AccountProvider {
   DISCORD
   STEAM
   CREDENTIALS
-  FIREBASE
 }
 enum PostType {
   POST

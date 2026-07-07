@@ -5,8 +5,6 @@ import { sendEmail } from './email.service';
 import { redis } from '../config/redis';
 import crypto from 'crypto';
 import speakeasy from 'speakeasy';
-import { firebaseApp } from '../config/firebase';
-
 export class AuthService {
   async register(email: string, password: string, username: string) {
     const existingEmail = await prisma.user.findUnique({ where: { email } });
@@ -40,38 +38,6 @@ export class AuthService {
     const refreshToken = generateRefreshToken(payload);
     await prisma.session.create({ data: { refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
     return { user: sanitizeUser(user), accessToken, refreshToken, requiresTwoFactor: user.isTwoFactorEnabled };
-  }
-
-  async firebaseLogin(idToken: string) {
-    if (!firebaseApp) throw new UnauthorizedError('Firebase is not configured');
-    const decoded = await firebaseApp.auth().verifyIdToken(idToken);
-    const { uid, email, name, picture } = decoded;
-    if (!email) throw new ValidationError({ email: ['Email is required from Firebase'] });
-    let account = await prisma.account.findUnique({ where: { provider_providerId: { provider: 'FIREBASE', providerId: uid } }, include: { user: { include: { profile: true } } } });
-    if (account) {
-      if (account.user.banned) throw new UnauthorizedError(`Account banned: ${account.user.banReason || 'No reason provided'}`);
-      const payload = { userId: account.user.id, email: account.user.email, role: account.user.role };
-      const accessToken = generateToken(payload);
-      const refreshTokenVal = generateRefreshToken(payload);
-      await prisma.session.create({ data: { refreshToken: refreshTokenVal, userId: account.user.id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
-      return { user: sanitizeUser(account.user), accessToken, refreshToken: refreshTokenVal, requiresTwoFactor: account.user.isTwoFactorEnabled };
-    }
-    let user = email ? await prisma.user.findUnique({ where: { email } }) : null;
-    if (!user) {
-      user = await prisma.user.create({
-        data: { email, emailVerified: new Date(), profile: { create: { username: email.split('@')[0] + '_' + uid.substring(0, 5), displayName: name || email.split('@')[0], avatar: picture || undefined } }, notificationSettings: { create: {} } },
-        include: { profile: true },
-      });
-    }
-    await prisma.account.create({ data: { provider: 'FIREBASE', providerId: uid, providerUsername: name || email, userId: user.id } });
-    if (!user.emailVerified) await prisma.user.update({ where: { id: user.id }, data: { emailVerified: new Date() } });
-    if (picture && user.profile && !user.profile.avatar) await prisma.profile.update({ where: { userId: user.id }, data: { avatar: picture } });
-    if (user.banned) throw new UnauthorizedError(`Account banned: ${user.banReason || 'No reason provided'}`);
-    const payload = { userId: user.id, email: user.email, role: user.role };
-    const accessToken = generateToken(payload);
-    const refreshTokenVal = generateRefreshToken(payload);
-    await prisma.session.create({ data: { refreshToken: refreshTokenVal, userId: user.id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
-    return { user: sanitizeUser(user), accessToken, refreshToken: refreshTokenVal, requiresTwoFactor: user.isTwoFactorEnabled };
   }
 
   async refreshToken(token: string) {

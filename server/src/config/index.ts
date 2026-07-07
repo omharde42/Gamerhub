@@ -13,6 +13,5 @@ export const config = {
   stripe: { secretKey: process.env.STRIPE_SECRET_KEY || '', webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '' },
   openai: { apiKey: process.env.OPENAI_API_KEY || '' },
   email: { host: process.env.SMTP_HOST || 'smtp.gmail.com', port: parseInt(process.env.SMTP_PORT || '587', 10), user: process.env.SMTP_USER || '', pass: process.env.SMTP_PASS || '', from: process.env.EMAIL_FROM || 'noreply@gamerhub.com' },
-  firebase: { projectId: process.env.FIREBASE_PROJECT_ID || '', privateKey: process.env.FIREBASE_PRIVATE_KEY || '', clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '' },
   encryption: { key: process.env.ENCRYPTION_KEY || 'default-encryption-key-32bytes!!' },
 };
