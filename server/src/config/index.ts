@@ -8,7 +8,6 @@ export const config = {
   database: { url: process.env.DATABASE_URL || '' },
   redis: { url: process.env.REDIS_URL || 'redis://localhost:6379' },
   jwt: { secret: process.env.JWT_SECRET || 'fallback-secret', refreshSecret: process.env.JWT_REFRESH_SECRET || 'fallback-refresh-secret', expiresIn: process.env.JWT_EXPIRES_IN || '15m', refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' },
-  oauth: { google: { clientId: process.env.GOOGLE_CLIENT_ID || '', clientSecret: process.env.GOOGLE_CLIENT_SECRET || '', callbackUrl: process.env.GOOGLE_CALLBACK_URL || '' }, discord: { clientId: process.env.DISCORD_CLIENT_ID || '', clientSecret: process.env.DISCORD_CLIENT_SECRET || '', callbackUrl: process.env.DISCORD_CALLBACK_URL || '' }, steam: { apiKey: process.env.STEAM_API_KEY || '', callbackUrl: process.env.STEAM_CALLBACK_URL || '' } },
   cloudinary: { cloudName: process.env.CLOUDINARY_CLOUD_NAME || '', apiKey: process.env.CLOUDINARY_API_KEY || '', apiSecret: process.env.CLOUDINARY_API_SECRET || '' },
   stripe: { secretKey: process.env.STRIPE_SECRET_KEY || '', webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '' },
   openai: { apiKey: process.env.OPENAI_API_KEY || '' },
