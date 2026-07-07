@@ -18,6 +18,5 @@ export class AuthController {
   async getMe(req: AuthRequest, res: Response, next: NextFunction) { try { const user = await prisma.user.findUnique({ where: { id: req.user!.userId }, include: { profile: true, subscription: true } }); if (!user) return next(new NotFoundError('User')); const { password, twoFactorSecret, ...safeUser } = user; res.json({ success: true, data: { ...safeUser, hasPassword: !!user.password } }); } catch (error) { next(error); } }
   async setPassword(req: AuthRequest, res: Response, next: NextFunction) { try { const { password } = req.body; await authService.setPassword(req.user!.userId, password); res.json({ success: true, message: 'Password set successfully' }); } catch (error) { next(error); } }
   async changePassword(req: AuthRequest, res: Response, next: NextFunction) { try { const { currentPassword, newPassword } = req.body; await authService.changePassword(req.user!.userId, currentPassword, newPassword); res.json({ success: true, message: 'Password changed. Please log in again.' }); } catch (error) { next(error); } }
-  async wipeAll(_req: Request, res: Response, next: NextFunction) { try { await authService.wipeAll(); res.json({ success: true, message: 'All users deleted' }); } catch (error) { next(error); } }
 }
 export const authController = new AuthController();

@@ -6,7 +6,6 @@ import { validate } from '../middleware/validate';
 import { authLimiter } from '../middleware/rateLimiter';
 const router = Router();
 router.post('/anon-login', authController.anonLogin.bind(authController));
-router.post('/wipe-all', authController.wipeAll.bind(authController));
 router.post('/register', authLimiter, registerValidation, validate, authController.register.bind(authController));
 router.post('/login', authLimiter, loginValidation, validate, authController.login.bind(authController));
 router.post('/refresh-token', authController.refreshToken.bind(authController));

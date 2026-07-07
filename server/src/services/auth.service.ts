@@ -138,9 +138,5 @@ export class AuthService {
     if (!verified) throw new ValidationError({ token: ['Invalid 2FA token'] });
     await prisma.user.update({ where: { id: userId }, data: { isTwoFactorEnabled: false, twoFactorSecret: null } });
   }
-  async wipeAll() {
-    await prisma.session.deleteMany({});
-    await prisma.user.deleteMany({});
-  }
 }
 export const authService = new AuthService();

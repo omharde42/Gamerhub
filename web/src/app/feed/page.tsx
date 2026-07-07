@@ -1,51 +1,113 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { ImagePlus, Video, BarChart3, Send, Heart, MessageCircle, Share2, Bookmark, Play, TrendingUp } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { TrendingUp, Users, Gamepad2, RefreshCw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { formatRelativeTime, formatNumber, getInitials } from '@/lib/utils';
-import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
-import Link from 'next/link';
+import { getInitials } from '@/lib/utils';
+import { PostCard } from '@/components/post/post-card';
+import { CreatePost } from '@/components/post/create-post';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const SUGGESTED_PLAYERS = [
+  { username: 'ProGamerX', rank: 'Diamond', role: 'Entry Fragger', game: 'Valorant' },
+  { username: 'AceStriker', rank: 'Master', role: 'AWPer', game: 'CS2' },
+  { username: 'ShadowBlade', rank: 'Platinum', role: 'Support', game: 'League of Legends' },
+];
 
 export default function FeedPage() {
-  const [postContent, setPostContent] = useState('');
-  const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
   const { user } = useAuthStore();
-  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<string>('all');
 
-  const { data: feedData, isLoading } = useQuery({ queryKey: ['feed'], queryFn: () => api.get('/feed').then(r => r.data) });
-  const { data: trending } = useQuery({ queryKey: ['trending'], queryFn: () => api.get('/posts/trending').then(r => r.data.data).catch(() => []) });
+  const { data: feedData, isLoading, refetch } = useQuery({
+    queryKey: ['feed', filter],
+    queryFn: () => api.get(`/feed${filter !== 'all' ? `?hashtag=${filter}` : ''}`).then(r => r.data),
+  });
 
-  const createPost = useMutation({ mutationFn: () => api.post('/posts', { content: postContent, tags }), onSuccess: () => { setPostContent(''); setTags([]); queryClient.invalidateQueries({ queryKey: ['feed'] }); toast.success('Post created!'); }, onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to post') });
-  const likePost = useMutation({ mutationFn: (postId: string) => api.post(`/posts/${postId}/like`), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }) });
-  const followUser = useMutation({ mutationFn: (userId: string) => api.post(`/feed/follow/${userId}`), onSuccess: () => toast.success('Followed!') });
+  const { data: trending } = useQuery({
+    queryKey: ['trending'],
+    queryFn: () => api.get('/posts/trending').then(r => r.data.data).catch(() => []),
+  });
 
-  const addTag = () => { if (tagInput && !tags.includes(tagInput)) { setTags([...tags, tagInput]); setTagInput(''); } };
-
-  return (<div className="max-w-4xl mx-auto space-y-6">
-    <div className="flex items-center justify-between"><h1 className="text-2xl font-bold">Feed</h1><Link href="/feed/trending"><Button variant="outline" size="sm" className="gap-2"><TrendingUp className="h-4 w-4" />Trending</Button></Link></div>
-
-    <div className="grid lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        <Card className="glass-card"><CardContent className="p-4"><div className="flex gap-3"><Avatar className="h-10 w-10"><AvatarImage src={user?.profile?.avatar || ''} /><AvatarFallback>{getInitials(user?.profile?.username || 'U')}</AvatarFallback></Avatar><div className="flex-1 space-y-3"><Textarea placeholder="Share something with the gaming community..." value={postContent} onChange={(e) => setPostContent(e.target.value)} className="min-h-[80px] resize-none border-0 bg-muted/50" /><div className="flex items-center gap-2 flex-wrap">{tags.map((tag, i) => (<Badge key={i} variant="secondary" className="gap-1">#{tag}<button onClick={() => setTags(tags.filter((_, j) => j !== i))} className="text-xs ml-1">&times;</button></Badge>))}</div><div className="flex items-center justify-between"><div className="flex gap-1"><Button variant="ghost" size="sm"><ImagePlus className="h-4 w-4" /></Button><Button variant="ghost" size="sm"><Video className="h-4 w-4" /></Button><Button variant="ghost" size="sm"><BarChart3 className="h-4 w-4" /></Button><div className="flex items-center gap-1"><Input placeholder="#tag" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTag()} className="h-8 w-20 text-xs" /><Button variant="ghost" size="sm" onClick={addTag}>+</Button></div></div><Button variant="gradient" size="sm" disabled={!postContent || createPost.isPending} onClick={() => createPost.mutate()} className="gap-2"><Send className="h-4 w-4" />Post</Button></div></div></div></CardContent></Card>
-
-        {feedData?.data?.map((post: any, i: number) => (<motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}><Card className="glass-card"><CardContent className="p-4 space-y-4"><div className="flex items-start justify-between"><div className="flex items-center gap-3"><Link href={`/profile/${post.user?.profile?.username}`}><Avatar className="h-10 w-10"><AvatarImage src={post.user?.profile?.avatar || ''} /><AvatarFallback>{getInitials(post.user?.profile?.username || 'U')}</AvatarFallback></Avatar></Link><div><Link href={`/profile/${post.user?.profile?.username}`} className="font-medium hover:underline">{post.user?.profile?.displayName || post.user?.profile?.username}</Link><p className="text-xs text-muted-foreground">{formatRelativeTime(post.createdAt)}</p></div></div><Button variant="ghost" size="sm" onClick={() => followUser.mutate(post.user.id)}>Follow</Button></div><p className="text-sm leading-relaxed">{post.content}</p>{post.tags?.length > 0 && (<div className="flex gap-2 flex-wrap">{post.tags.map((tag: string, j: number) => (<Link key={j} href={`/feed?hashtag=${tag}`}><Badge variant="outline" className="cursor-pointer hover:bg-accent">#{tag}</Badge></Link>))}</div>)}<div className="flex items-center gap-4 text-muted-foreground"><Button variant="ghost" size="sm" className="gap-1.5" onClick={() => likePost.mutate(post.id)}><Heart className={`h-4 w-4 ${post.isLiked ? 'fill-red-500 text-red-500' : ''}`} />{formatNumber(post._count?.likes || 0)}</Button><Button variant="ghost" size="sm" className="gap-1.5"><MessageCircle className="h-4 w-4" />{formatNumber(post._count?.comments || 0)}</Button><Button variant="ghost" size="sm" className="gap-1.5"><Share2 className="h-4 w-4" /></Button><Button variant="ghost" size="sm" className="gap-1.5 ml-auto"><Bookmark className="h-4 w-4" /></Button></div></CardContent></Card></motion.div>))}
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Feed</h1>
+          <p className="text-sm text-muted-foreground">See what the community is talking about</p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => refetch()}>
+          <RefreshCw className="h-4 w-4" /> Refresh
+        </Button>
       </div>
 
-      <div className="space-y-6">
-        <Card className="glass-card"><CardHeader className="pb-2"><h3 className="font-semibold text-sm">Trending Topics</h3></CardHeader><CardContent className="space-y-2">{trending?.map((h: any, i: number) => (<Link key={i} href={`/feed?hashtag=${h.name}`}><div className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/50 transition-all cursor-pointer"><span className="text-sm font-medium">#{h.name}</span><Badge variant="secondary" className="text-xs">{h.count}</Badge></div></Link>))}</CardContent></Card>
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          <CreatePost />
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="glass-card"><CardContent className="p-4 space-y-3"><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-20" /></div></div><Skeleton className="h-20 w-full" /><Skeleton className="h-8 w-full" /></CardContent></Card>
+              ))}
+            </div>
+          ) : (
+            feedData?.data?.map((post: any) => (
+              <PostCard key={post.id} post={post} onDelete={(id) => refetch()} />
+            ))
+          )}
+          {feedData?.data?.length === 0 && (
+            <Card className="glass-card"><CardContent className="p-8 text-center"><p className="text-muted-foreground">No posts yet. Be the first to share something!</p></CardContent></Card>
+          )}
+        </div>
 
-        <Card className="glass-card"><CardHeader className="pb-2"><h3 className="font-semibold text-sm">Suggested Players</h3></CardHeader><CardContent className="space-y-3">{[1, 2, 3].map((i) => (<div key={i} className="flex items-center gap-2"><Avatar className="h-8 w-8"><AvatarFallback className="text-xs">P{i}</AvatarFallback></Avatar><div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">Player_{i}</p><p className="text-xs text-muted-foreground">Gold • Entry Fragger</p></div><Button variant="ghost" size="sm" className="text-xs">+</Button></div>))}</CardContent></Card>
+        <div className="space-y-4">
+          <Card className="glass-card sticky top-20">
+            <CardHeader className="pb-2">
+              <h3 className="font-semibold text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-gaming-purple" /> Trending Topics</h3>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {trending?.slice(0, 8).map((h: any, i: number) => (
+                <button key={i} onClick={() => setFilter(h.name)} className={`w-full flex items-center justify-between p-2 rounded-lg hover:bg-accent/50 transition-all text-left ${filter === h.name ? 'bg-primary/10 text-primary' : ''}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground w-5 text-right">{i + 1}</span>
+                    <span className="text-sm font-medium">#{h.name}</span>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px]">{h.count}</Badge>
+                </button>
+              ))}
+              {filter !== 'all' && (
+                <Button variant="ghost" size="sm" className="w-full text-xs mt-2" onClick={() => setFilter('all')}>Clear filter</Button>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader className="pb-2">
+              <h3 className="font-semibold text-sm flex items-center gap-2"><Users className="h-4 w-4 text-gaming-pink" /> Suggested Players</h3>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {SUGGESTED_PLAYERS.map((p, i) => (
+                <div key={i} className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/50 transition-all cursor-pointer">
+                  <Avatar className="h-9 w-9"><AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(p.username)}</AvatarFallback></Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{p.username}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.rank} • {p.role}</p>
+                  </div>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Gamepad2 className="h-3 w-3" />
+                    <span className="text-[10px]">{p.game}</span>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
-  </div>);
+  );
 }
