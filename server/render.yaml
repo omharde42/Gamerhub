@@ -1,0 +1,66 @@
+services:
+  - type: web
+    name: gamerhub-api
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install && npx prisma generate
+    startCommand: npx tsx src/index.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gamerhub-db
+          property: connectionString
+      - key: JWT_SECRET
+        value: super-secret-jwt-key-change-in-production
+      - key: JWT_REFRESH_SECRET
+        value: super-secret-refresh-key-change-in-production
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: FRONTEND_URL
+        value: https://web-drab-nu-21.vercel.app
+      - key: FIREBASE_PROJECT_ID
+        value: gamerhub-3ebc5
+      - key: ENCRYPTION_KEY
+        value: super-secret-encryption-key-32chars
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: STEAM_API_KEY
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: REDIS_URL
+        sync: false
+
+databases:
+  - name: gamerhub-db
+    plan: free
+    region: singapore
+    databaseName: gamerhub
+    user: gamerhub
