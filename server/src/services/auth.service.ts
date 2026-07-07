@@ -91,6 +91,25 @@ export class AuthService {
     return { verified: true };
   }
 
+  async setPassword(userId: string, password: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundError('User');
+    if (user.password) throw new ValidationError({ password: ['User already has a password. Use change password instead.'] });
+    const hashedPassword = await hashPassword(password);
+    await prisma.user.update({ where: { id: userId }, data: { password: hashedPassword } });
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundError('User');
+    if (!user.password) throw new ValidationError({ password: ['No password set. Use set password instead.'] });
+    const isValid = await comparePassword(currentPassword, user.password);
+    if (!isValid) throw new UnauthorizedError('Current password is incorrect');
+    const hashedPassword = await hashPassword(newPassword);
+    await prisma.user.update({ where: { id: userId }, data: { password: hashedPassword } });
+    await prisma.session.deleteMany({ where: { userId } });
+  }
+
   async disableTwoFactor(userId: string, token: string) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user?.twoFactorSecret) throw new ValidationError({ token: ['2FA not set up'] });

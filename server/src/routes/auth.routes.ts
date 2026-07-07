@@ -16,4 +16,6 @@ router.post('/2fa/setup', authenticate, authController.setupTwoFactor.bind(authC
 router.post('/2fa/verify', authenticate, twoFactorValidation, validate, authController.verifyTwoFactor.bind(authController));
 router.post('/2fa/disable', authenticate, authController.disableTwoFactor.bind(authController));
 router.get('/me', authenticate, authController.getMe.bind(authController));
+router.post('/set-password', authenticate, authController.setPassword.bind(authController));
+router.post('/change-password', authenticate, authController.changePassword.bind(authController));
 export default router;
