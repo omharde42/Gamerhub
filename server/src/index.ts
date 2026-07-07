@@ -28,6 +28,7 @@ import organizationRoutes from './routes/organization.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import adminRoutes from './routes/admin.routes';
 import matchmakingRoutes from './routes/matchmaking.routes';
+import oauthRoutes from './routes/oauth.routes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -100,6 +101,7 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/matchmaking', matchmakingRoutes);
+app.use('/api/auth', oauthRoutes);
 
 // Error handling
 app.use(notFoundHandler);
