@@ -6,25 +6,6 @@ import { redis } from '../config/redis';
 import crypto from 'crypto';
 import speakeasy from 'speakeasy';
 export class AuthService {
-  async anonLogin(username: string) {
-    const existingProfile = await prisma.profile.findUnique({ where: { username } });
-    let userId: string;
-    if (existingProfile) {
-      userId = existingProfile.userId;
-    } else {
-      const user = await prisma.user.create({
-        data: { email: `${username}@anon.gamerhub.com`, profile: { create: { username } }, notificationSettings: { create: {} } },
-        include: { profile: true },
-      });
-      userId = user.id;
-    }
-    const user = await prisma.user.findUnique({ where: { id: userId }, include: { profile: true } })!;
-    const payload = { userId: user!.id, email: user!.email, role: user!.role };
-    const accessToken = generateToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-    await prisma.session.create({ data: { refreshToken, userId: user!.id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
-    return { user: sanitizeUser(user!), profile: user!.profile, accessToken, refreshToken };
-  }
   async register(email: string, password: string, username: string) {
     const existingEmail = await prisma.user.findUnique({ where: { email } });
     if (existingEmail) throw new ConflictError('Email already registered');

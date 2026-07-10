@@ -1,14 +1,9 @@
 ﻿'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Gamepad2, Loader2, Sparkles, Zap, Trophy, Users, Globe, Star, ChevronRight, LogIn, UserPlus } from 'lucide-react';
+import { Gamepad2, Sparkles, Zap, Trophy, Users, Globe, Star, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import api from '@/lib/api';
-import { useAuthStore } from '@/store/authStore';
-import toast from 'react-hot-toast';
 
 const PARTICLE_COUNT = 40;
 const typewriterTexts = [
@@ -104,28 +99,6 @@ const stats = [
 ];
 
 export default function EnterPage() {
-  const [username, setUsername] = useState('');
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const { setUser, setTokens } = useAuthStore();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username.trim()) return;
-    setLoading(true);
-    try {
-      const { data } = await api.post('/auth/anon-login', { username: username.trim() });
-      setUser(data.data.user);
-      setTokens(data.data.accessToken, data.data.refreshToken);
-      toast.success(`Welcome to GamerHub, ${data.data.profile?.username || username.trim()}!`);
-      router.push('/feed');
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to join. Try another username.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       {/* Animated background */}
@@ -215,66 +188,22 @@ export default function EnterPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
+              className="space-y-4"
             >
-              <form onSubmit={handleSubmit} className="space-y-4 max-w-sm mx-auto">
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Gamepad2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                      placeholder="Choose your gamertag"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="h-14 pl-12 text-lg rounded-2xl bg-card/50 border-border/50 focus-visible:ring-gaming-purple/50 focus-visible:border-gaming-purple text-center"
-                      maxLength={30}
-                      autoFocus
-                      disabled={loading}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">This will be your identity across GamerHub</p>
-                </div>
-                <Button
-                  type="submit"
-                  variant="gradient"
-                  size="xl"
-                  className="w-full h-14 text-lg rounded-2xl relative overflow-hidden group"
-                  disabled={loading || !username.trim()}
-                  animate
-                >
-                  {loading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      Enter GamerHub
-                      <ChevronRight className="h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
-                    </span>
-                  )}
-                </Button>
-              </form>
-
-              {/* Auth divider */}
-              <div className="relative max-w-sm mx-auto">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border/30" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground/60">or</span>
-                </div>
-              </div>
-
               <div className="flex items-center gap-3 justify-center">
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link href="/auth/login">
-                    <Button variant="outline" size="lg" className="gap-2 h-12 px-6 rounded-xl">
-                      <LogIn className="h-4 w-4" />
-                      Sign In
+                  <Link href="/auth/register">
+                    <Button variant="gradient" size="xl" className="h-14 px-10 text-lg rounded-2xl gap-2" animate>
+                      <UserPlus className="h-5 w-5" />
+                      Create Account
                     </Button>
                   </Link>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link href="/auth/register">
-                    <Button variant="default" size="lg" className="gap-2 h-12 px-6 rounded-xl">
-                      <UserPlus className="h-4 w-4" />
-                      Create Account
+                  <Link href="/auth/login">
+                    <Button variant="outline" size="xl" className="h-14 px-8 text-lg rounded-2xl gap-2">
+                      <LogIn className="h-5 w-5" />
+                      Sign In
                     </Button>
                   </Link>
                 </motion.div>

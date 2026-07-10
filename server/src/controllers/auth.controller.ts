@@ -4,7 +4,6 @@ import { AuthRequest } from '../types';
 import { NotFoundError } from '../utils/errors';
 import prisma from '../config/database';
 export class AuthController {
-  async anonLogin(req: Request, res: Response, next: NextFunction) { try { const { username } = req.body; const result = await authService.anonLogin(username); res.json({ success: true, data: result }); } catch (error) { next(error); } }
   async register(req: Request, res: Response, next: NextFunction) { try { const { email, password, username } = req.body; const result = await authService.register(email, password, username); res.status(201).json({ success: true, message: 'Account created successfully!', data: result }); } catch (error) { next(error); } }
   async login(req: Request, res: Response, next: NextFunction) { try { const { email, password } = req.body; const result = await authService.login(email, password); res.json({ success: true, data: result }); } catch (error) { next(error); } }
   async refreshToken(req: Request, res: Response, next: NextFunction) { try { const { refreshToken } = req.body; const result = await authService.refreshToken(refreshToken); res.json({ success: true, data: result }); } catch (error) { next(error); } }
