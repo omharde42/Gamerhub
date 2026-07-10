@@ -32,12 +32,9 @@ export class AuthService {
     if (existingUsername) throw new ConflictError('Username already taken');
     const hashedPassword = await hashPassword(password);
     const user = await prisma.user.create({
-      data: { email, password: hashedPassword, profile: { create: { username } }, notificationSettings: { create: {} } },
+      data: { email, password: hashedPassword, emailVerified: new Date(), profile: { create: { username } }, notificationSettings: { create: {} } },
       include: { profile: true },
     });
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    await prisma.emailVerificationToken.create({ data: { token: verificationToken, userId: user.id, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) } });
-    sendEmail({ to: email, subject: 'Verify your GamerHub email', html: `<p>Click <a href="${process.env.FRONTEND_URL}/auth/verify-email?token=${verificationToken}">here</a> to verify your email.</p>` }).catch(() => {});
     const payload = { userId: user.id, email: user.email, role: user.role };
     const accessToken = generateToken(payload);
     const refreshToken = generateRefreshToken(payload);

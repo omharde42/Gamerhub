@@ -26,7 +26,13 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`;
           return api(originalRequest);
         }
-      } catch { localStorage.removeItem('accessToken'); localStorage.removeItem('refreshToken'); if (typeof window !== 'undefined') window.location.href = '/'; }
+      } catch {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        const { useAuthStore } = await import('@/store/authStore');
+        useAuthStore.getState().logout();
+        if (typeof window !== 'undefined') window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }
