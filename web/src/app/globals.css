@@ -271,3 +271,72 @@
   98% { opacity: 0.3; }
 }
 
+/* ─── Animation Utility Classes ─── */
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+.animate-scanline-overlay {
+  position: relative;
+  overflow: hidden;
+}
+.animate-scanline-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, hsl(var(--neon-cyan)/0.03) 50%, transparent 100%);
+  height: 20%;
+  animation: scanline 2s linear infinite;
+  pointer-events: none;
+}
+
+.animate-border-glow {
+  position: relative;
+}
+.animate-border-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, hsl(var(--neon-cyan)), hsl(var(--neon-pink)), hsl(var(--neon-purple)), hsl(var(--neon-blue)), hsl(var(--neon-cyan)));
+  z-index: -1;
+  animation: spin-slow 3s linear infinite;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 2px;
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+.animate-glitch-target {
+  animation: glitch-text 0.6s ease-in-out infinite;
+}
+
+.animate-card-enter {
+  animation: slide-up 0.15s ease-out both;
+}
+.animate-card-enter:nth-child(1) { animation-delay: 0ms; }
+.animate-card-enter:nth-child(2) { animation-delay: 30ms; }
+.animate-card-enter:nth-child(3) { animation-delay: 60ms; }
+.animate-card-enter:nth-child(4) { animation-delay: 90ms; }
+.animate-card-enter:nth-child(5) { animation-delay: 120ms; }
+.animate-card-enter:nth-child(6) { animation-delay: 150ms; }
+.animate-card-enter:nth-child(7) { animation-delay: 180ms; }
+.animate-card-enter:nth-child(8) { animation-delay: 210ms; }
+.animate-card-enter:nth-child(9) { animation-delay: 240ms; }
+.animate-card-enter:nth-child(10) { animation-delay: 270ms; }
+.animate-card-enter:nth-child(11) { animation-delay: 300ms; }
+.animate-card-enter:nth-child(12) { animation-delay: 330ms; }
+.animate-card-enter:nth-child(13) { animation-delay: 360ms; }
+.animate-card-enter:nth-child(14) { animation-delay: 390ms; }
+.animate-card-enter:nth-child(15) { animation-delay: 420ms; }
+.animate-card-enter:nth-child(16) { animation-delay: 450ms; }
+.animate-card-enter:nth-child(17) { animation-delay: 480ms; }
+.animate-card-enter:nth-child(18) { animation-delay: 510ms; }
+.animate-card-enter:nth-child(19) { animation-delay: 540ms; }
+.animate-card-enter:nth-child(20) { animation-delay: 570ms; }
+

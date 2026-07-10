@@ -62,7 +62,7 @@ export default function RegisterPage() {
   };
 
   const CheckIcon = ({ ok }: { ok: boolean }) => ok
-    ? <Check className="h-3.5 w-3.5 text-success" />
+    ? <Check className="h-3.5 w-3.5 text-success animate-bounce-in" />
     : <X className="h-3.5 w-3.5 text-muted-foreground/50" />;
 
   return (
@@ -124,7 +124,7 @@ export default function RegisterPage() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors group-hover:animate-wiggle"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>

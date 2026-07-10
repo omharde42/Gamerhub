@@ -251,7 +251,7 @@ function DiscordMessagesPage() {
                   <motion.div
                     key={chat.id}
                     onClick={() => handleSelectChat(chat.id)}
-                    className={`flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer text-sm transition-all duration-200
+                    className={`flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer text-sm transition-all duration-200 animate-card-enter
                       ${isSelected ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'}`}
                     whileHover={{ x: 2 }}
                     layout

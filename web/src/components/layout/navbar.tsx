@@ -85,7 +85,7 @@ export function Navbar() {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center shadow-lg shadow-gaming-purple/20 group-hover:shadow-gaming-purple/40 transition-all duration-300">
             <Gamepad2 className="h-4 w-4 text-white" />
           </div>
-          <span className="text-lg font-bold hidden sm:block bg-gradient-to-r from-gaming-purple to-gaming-cyan bg-clip-text text-transparent">GamerHub</span>
+          <span className="text-lg font-bold hidden sm:block bg-gradient-to-r from-gaming-purple to-gaming-cyan bg-clip-text text-transparent animate-glow-rainbow">GamerHub</span>
         </Link>
 
         <div className="hidden md:flex relative flex-1 max-w-sm">
@@ -103,7 +103,7 @@ export function Navbar() {
               <Link key={item.href} href={item.href}
                 className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
                   ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
-                <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]' : ''}`} />
+                <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)] animate-bounce-in' : ''}`} />
                 <span>{item.label}</span>
                 {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full glow-sm" />}
               </Link>

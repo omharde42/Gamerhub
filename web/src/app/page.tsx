@@ -116,21 +116,21 @@ export default function EnterPage() {
 
       {/* Floating game icons */}
       <motion.div
-        className="absolute top-20 left-[15%] text-gaming-purple/10 pointer-events-none"
+        className="absolute top-20 left-[15%] text-gaming-purple/10 pointer-events-none animate-breathe"
         animate={{ y: [0, -15, 0], rotate: [0, 5, -5, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
       >
         <Gamepad2 className="h-24 w-24" />
       </motion.div>
       <motion.div
-        className="absolute bottom-32 right-[12%] text-gaming-cyan/10 pointer-events-none"
+        className="absolute bottom-32 right-[12%] text-gaming-cyan/10 pointer-events-none animate-breathe"
         animate={{ y: [0, -20, 0], rotate: [0, -10, 10, 0] }}
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       >
         <Zap className="h-20 w-20" />
       </motion.div>
       <motion.div
-        className="absolute top-1/3 right-[20%] text-gaming-pink/10 pointer-events-none"
+        className="absolute top-1/3 right-[20%] text-gaming-pink/10 pointer-events-none animate-breathe"
         animate={{ y: [0, -12, 0], rotate: [0, 15, -15, 0] }}
         transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
       >
@@ -170,7 +170,7 @@ export default function EnterPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <span className="bg-gradient-to-r from-gaming-purple via-gaming-cyan to-gaming-pink bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-gaming-purple via-gaming-cyan to-gaming-pink bg-clip-text text-transparent animate-glow-rainbow">
                   Welcome to GamerHub
                 </span>
               </motion.h1>
@@ -235,18 +235,18 @@ export default function EnterPage() {
       >
         <div className="max-w-4xl mx-auto py-6 px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {stats.map((stat, i) => {
+              {stats.map((stat, i) => {
               const Icon = stat.icon;
               return (
                 <motion.div
                   key={i}
-                  className="text-center space-y-1"
+                  className="text-center space-y-1 animate-card-enter"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.3 + i * 0.1 }}
                 >
                   <Icon className="h-5 w-5 mx-auto text-primary/60" />
-                  <p className="text-xl font-bold text-gradient">{stat.value}</p>
+                  <p className="text-xl font-bold text-gradient animate-bounce-in">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </motion.div>
               );

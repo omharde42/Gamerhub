@@ -9,13 +9,14 @@ export default function Loading() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          className="animate-glow-rainbow"
         >
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gaming-purple via-gaming-pink to-gaming-cyan flex items-center justify-center mx-auto shadow-lg shadow-gaming-purple/20">
             <Gamepad2 className="h-8 w-8 text-white" />
           </div>
         </motion.div>
         <motion.p
-          className="text-muted-foreground"
+          className="text-muted-foreground animate-pulse-soft"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >

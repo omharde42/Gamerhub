@@ -96,7 +96,7 @@ export default function StudioPage() {
     <div className="h-[calc(100vh-5rem)] flex flex-col gap-0 p-0">
       <div className="flex items-center justify-between px-6 py-3 border-b border-border/50 bg-muted/5">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center animate-breathe">
             <Film className="h-4 w-4 text-white" />
           </div>
           <h1 className="text-lg font-bold">Game Studio</h1>
@@ -119,13 +119,13 @@ export default function StudioPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
             <div className="px-6 pt-3 border-b border-border/30 bg-muted/5">
               <TabsList className="bg-muted/20 p-0.5 rounded-lg">
-                <TabsTrigger value="record" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md gap-1.5 text-xs px-3 py-1.5">
+                <TabsTrigger value="record" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md gap-1.5 text-xs px-3 py-1.5 animate-scale-in">
                   <Monitor className="h-3.5 w-3.5" /> Record
                 </TabsTrigger>
-                <TabsTrigger value="edit" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md gap-1.5 text-xs px-3 py-1.5">
+                <TabsTrigger value="edit" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md gap-1.5 text-xs px-3 py-1.5 animate-scale-in" style={{ animationDelay: '0.05s' }}>
                   <Scissors className="h-3.5 w-3.5" /> Edit
                 </TabsTrigger>
-                <TabsTrigger value="export" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md gap-1.5 text-xs px-3 py-1.5">
+                <TabsTrigger value="export" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md gap-1.5 text-xs px-3 py-1.5 animate-scale-in" style={{ animationDelay: '0.1s' }}>
                   <Download className="h-3.5 w-3.5" /> Export
                 </TabsTrigger>
               </TabsList>
@@ -160,12 +160,13 @@ export default function StudioPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {clips.map((clip) => (
+                {clips.map((clip, idx) => (
                   <motion.div
                     key={clip.id}
-                    className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${
+                    className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all animate-scale-in ${
                       selectedClipId === clip.id ? 'border-primary' : 'border-border/30 hover:border-border/60'
                     }`}
+                    style={{ animationDelay: `${idx * 0.03}s` }}
                     onClick={() => setSelectedClipId(clip.id)}
                     layout
                   >

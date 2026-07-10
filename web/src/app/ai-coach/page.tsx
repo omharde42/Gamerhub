@@ -141,7 +141,7 @@ export default function AICoachPage() {
                           <motion.button
                             key={i}
                             onClick={() => { setMessage(action.prompt); }}
-                            className="text-[11px] px-2.5 py-1 rounded-full bg-muted/50 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all duration-200 text-muted-foreground border border-primary/20"
+                            className="text-[11px] px-2.5 py-1 rounded-full bg-muted/50 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all duration-200 text-muted-foreground border border-primary/20 animate-card-enter group"
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                           >

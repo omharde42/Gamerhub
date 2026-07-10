@@ -88,7 +88,7 @@ export default function FriendsPage() {
                       const isFriend = friendIds.has(profile.userId);
                       const hasPending = requestIds.has(profile.userId);
                       return (
-                        <div key={profile.id} className="flex items-center gap-3 p-3 hover:bg-accent/30 transition-colors">
+                        <div key={profile.id} className="flex items-center gap-3 p-3 hover:bg-accent/30 transition-colors animate-card-enter">
                           <Avatar className="h-10 w-10">
                             <AvatarImage src={profile.avatar || ''} />
                             <AvatarFallback className="text-xs">{getInitials(profile.username)}</AvatarFallback>

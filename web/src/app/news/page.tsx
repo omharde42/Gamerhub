@@ -104,7 +104,7 @@ export default function NewsPage() {
             {news?.length || 0} Stories
           </Badge>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => refetch()}>
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            <RefreshCw className="h-3.5 w-3.5 group-hover:animate-spin" /> Refresh
           </Button>
         </div>
       </motion.div>
@@ -114,7 +114,7 @@ export default function NewsPage() {
           <Card className="border-neon-cyan/30 bg-gradient-to-br from-neon-cyan/5 to-transparent">
             <CardContent className="p-5">
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="h-5 w-5 text-neon-cyan" />
+                <Sparkles className="h-5 w-5 text-neon-cyan animate-twinkle" />
                 <h3 className="font-semibold text-sm text-gradient-cyan">AI News Summary</h3>
                 {summaryLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
               </div>
@@ -149,17 +149,17 @@ export default function NewsPage() {
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
           {filteredNews.map((item: any, i: number) => (
-            <motion.div
+              <motion.div
               key={i}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
             >
-              <a href={item.url} target="_blank" rel="noopener noreferrer" className="block">
-                <Card variant="glass" className="h-full border-primary/20 hover:border-primary/40 transition-all duration-300">
+              <a href={item.url} target="_blank" rel="noopener noreferrer" className="block group">
+                <Card variant="glass" className="h-full border-primary/20 hover:border-primary/40 transition-all duration-300 animate-card-enter">
                   <CardContent className="p-5">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gaming-cyan/20 to-gaming-blue/20 flex items-center justify-center shrink-0 border border-neon-cyan/20">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gaming-cyan/20 to-gaming-blue/20 flex items-center justify-center shrink-0 border border-neon-cyan/20 group-hover:animate-wiggle">
                         <Globe className="h-5 w-5 text-neon-cyan" />
                       </div>
                       <div className="flex-1 min-w-0">

@@ -27,7 +27,7 @@ function AnimatedStat({ value, label, icon: Icon, color, bg }: { value: string; 
             <div className="space-y-0.5">
               <p className="text-xs text-muted-foreground">{label}</p>
               <motion.p
-                className="text-2xl font-bold"
+                className="text-2xl font-bold animate-bounce-in"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5 }}
@@ -35,7 +35,7 @@ function AnimatedStat({ value, label, icon: Icon, color, bg }: { value: string; 
                 {value}
               </motion.p>
             </div>
-            <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center border border-primary/20`}>
+            <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center border border-primary/20 animate-breathe`}>
               <Icon className={`h-5 w-5 ${color}`} />
             </div>
           </div>
@@ -70,7 +70,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             Welcome back, {user?.profile?.username || 'Gamer'}
-            <Sparkles className="h-5 w-5 text-yellow-500" />
+            <Sparkles className="h-5 w-5 text-yellow-500 animate-twinkle" />
           </h1>
           <p className="text-sm text-muted-foreground">Here's your gaming overview</p>
         </div>
@@ -97,12 +97,12 @@ export default function DashboardPage() {
                 {quickActions.map((action, i) => (
                   <Link key={i} href={action.href}>
                     <motion.div
-                      className="flex flex-col items-center text-center p-3 rounded-xl border border-border/50 hover:border-primary/30 hover:bg-accent/50 transition-all duration-200 cursor-pointer group"
+                      className="flex flex-col items-center text-center p-3 rounded-xl border border-border/50 hover:border-primary/30 hover:bg-accent/50 transition-all duration-200 cursor-pointer group animate-card-enter"
                       whileHover={{ y: -2, scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-all">
-                        <action.icon className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+                        <action.icon className="h-5 w-5 text-primary group-hover:scale-110 group-hover:animate-wiggle transition-transform" />
                       </div>
                       <p className="text-xs font-medium">{action.title}</p>
                       <p className="text-[10px] text-muted-foreground">{action.desc}</p>

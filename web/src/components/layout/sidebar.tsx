@@ -56,7 +56,7 @@ export function Sidebar() {
         <div className="glass rounded-xl overflow-hidden border-primary/20">
           {user ? (
             <>
-              <div className="h-14 bg-gradient-to-r from-gaming-purple/30 via-gaming-pink/20 to-gaming-blue/30 relative overflow-hidden">
+              <div className="h-14 bg-gradient-to-r from-gaming-purple/30 via-gaming-pink/20 to-gaming-blue/30 relative overflow-hidden animate-shimmer" style={{ backgroundSize: '200% 100%' }}>
                 <div className="absolute inset-0 bg-grid opacity-20" />
               </div>
               <div className="px-3 pb-3 -mt-8 text-center">
@@ -117,7 +117,7 @@ export function Sidebar() {
                     ? 'text-primary bg-primary/10 shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                 )}>
-                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-full glow-sm" />}
+                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-full glow-sm animate-scale-in" />}
                 <Icon className={cn('h-5 w-5 shrink-0 transition-all duration-200', isActive && 'drop-shadow-[0_0_6px_hsl(var(--primary)/0.5)]')} />
                 {item.label}
               </Link>
