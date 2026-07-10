@@ -175,4 +175,22 @@ declare module 'lucide-react' {
   export const StopCircle: Icon;
   export const RotateCcw: Icon;
   export const Cut: Icon;
+  export const Pen: Icon;
+  export const Highlighter: Icon;
+  export const Split: Icon;
+  export const FastForward: Icon;
+  export const Circle: Icon;
+  export const Pointer: Icon;
+  export const SmilePlus: Icon;
+  export const Laugh: Icon;
+  export const Cat: Icon;
+  export const Dog: Icon;
+  export const Ghost: Icon;
+  export const Skull: Icon;
+  export const Flame: Icon;
+  export const Swords: Icon;
+  export const Frown: Icon;
+  export const Meh: Icon;
+  export const ThumbsUp: Icon;
+  export const ThumbsDown: Icon;
 }

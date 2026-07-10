@@ -12,7 +12,9 @@ import {
   Monitor, Camera, Mic, MicOff, Video, VideoOff, Download, Scissors,
   Type, Play, Square, Clock, Film, Layers, Trash2, Save,
   Maximize2, Minimize2, Plus, GripVertical, Settings, Undo2,
-  FileVideo, Image, Speaker, SpeakerOff, Crop, Sparkles
+  FileVideo, Image, Speaker, SpeakerOff, Crop, Sparkles, Pen,
+  MousePointer2, Highlighter, ArrowUp, Split, FastForward,
+  RefreshCw, Circle, Pointer, Laugh
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,6 +39,44 @@ type TextOverlay = {
   endTime: number;
 };
 
+type Drawing = {
+  id: string;
+  tool: 'pen' | 'highlight' | 'arrow';
+  points: { x: number; y: number }[];
+  color: string;
+  width: number;
+};
+
+type QualityPreset = {
+  label: string;
+  width: number;
+  height: number;
+  fps: number;
+};
+
+const GAMING_MEMES = [
+  'Git Gud', 'Noob', 'EZ Clap', 'GG WP', 'Get Rekt', 'Tryhard',
+  'PogChamp', 'WeirdChamp', 'KEKW', 'OMEGALUL', 'MonkaW',
+  'This is fine 🔥', 'Nothing personal, kid', 'They don\'t know',
+  'It\'s free real estate', 'Expected nothing less', 'Wait, that\'s illegal',
+  'When you\'re on a win streak', 'Sweaty tryhard', 'Console peasant',
+  'PC Master Race', 'Lag switch', 'Hacker?', 'Skill issue',
+  'Touch grass', 'Go outside', 'No lifes', 'EZ Clap',
+  'That was clean', 'Outplayed', 'Mechanics diff', 'Brain diff',
+  'Team diff', 'Solo queue life', 'ELO hell', 'Hardstuck',
+  'One more game', 'Just one more', 'It\'s 3 AM already',
+  'Respect the 1v1', 'Fighting game moment', 'Hitbox porn',
+  'Netcode issues', 'Desync', 'Rubberbanding', 'Ping diff',
+  '360 no scope', 'MLG 420', 'FaZe ready', 'Pro gamer move',
+];
+
+const QUALITY_PRESETS: QualityPreset[] = [
+  { label: '720p 30fps', width: 1280, height: 720, fps: 30 },
+  { label: '720p 60fps', width: 1280, height: 720, fps: 60 },
+  { label: '1080p 30fps', width: 1920, height: 1080, fps: 30 },
+  { label: '1080p 60fps', width: 1920, height: 1080, fps: 60 },
+];
+
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -49,6 +89,8 @@ export default function StudioPage() {
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
 
   const selectedClip = clips.find(c => c.id === selectedClipId);
+
+  const handleClipsUpdate = (fn: (prev: Clip[]) => Clip[]) => setClips(fn);
 
   return (
     <div className="h-[calc(100vh-5rem)] flex flex-col gap-0 p-0">
@@ -91,10 +133,10 @@ export default function StudioPage() {
 
             <div className="flex-1 overflow-hidden">
               <TabsContent value="record" className="h-full m-0 p-0 data-[state=active]:flex flex-col">
-                <RecorderTab clips={clips} setClips={setClips} setSelectedClipId={setSelectedClipId} setActiveTab={setActiveTab} />
+                <RecorderTab clips={clips} setClips={handleClipsUpdate} setSelectedClipId={setSelectedClipId} setActiveTab={setActiveTab} />
               </TabsContent>
               <TabsContent value="edit" className="h-full m-0 p-0 data-[state=active]:flex flex-col">
-                <EditorTab clip={selectedClip} clips={clips} setClips={setClips} />
+                <EditorTab clip={selectedClip} clips={clips} setClips={handleClipsUpdate} />
               </TabsContent>
               <TabsContent value="export" className="h-full m-0 p-0 data-[state=active]:flex flex-col">
                 <ExportTab clip={selectedClip} />
@@ -161,12 +203,25 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const [cameraPosition, setCameraPosition] = useState('bottom-right');
+  const [cameraSize, setCameraSize] = useState(180);
+  const [countdown, setCountdown] = useState(0);
+  const [qualityPreset, setQualityPreset] = useState(QUALITY_PRESETS[0]);
+  const [drawingMode, setDrawingMode] = useState(false);
+  const [activeTool, setActiveTool] = useState<'pen' | 'highlight' | 'arrow'>('pen');
+  const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const [currentDrawing, setCurrentDrawing] = useState<Drawing | null>(null);
+  const [showClicks, setShowClicks] = useState(true);
+  const [clicks, setClicks] = useState<{ x: number; y: number; id: number }[]>([]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
   const previewRef = useRef<HTMLVideoElement>(null);
   const cameraPreviewRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDrawingRef = useRef(false);
+  const clickIdRef = useRef(0);
 
   useEffect(() => {
     if (previewRef.current && screenStream) {
@@ -180,10 +235,104 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
     }
   }, [cameraStream]);
 
+  useEffect(() => {
+    if (!drawingMode) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const resize = () => {
+      if (!containerRef.current) return;
+      canvas.width = containerRef.current.clientWidth;
+      canvas.height = containerRef.current.clientHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, [drawingMode]);
+
+  useEffect(() => {
+    if (!canvasRef.current || !drawingMode) return;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    drawings.forEach(d => drawDrawing(ctx, d));
+    if (currentDrawing) drawDrawing(ctx, currentDrawing);
+  }, [drawings, currentDrawing, drawingMode]);
+
+  const drawDrawing = (ctx: CanvasRenderingContext2D, d: Drawing) => {
+    if (d.points.length < 2) return;
+    ctx.beginPath();
+    ctx.strokeStyle = d.color;
+    ctx.lineWidth = d.width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (d.tool === 'highlight') {
+      ctx.globalAlpha = 0.3;
+      ctx.lineWidth = d.width * 3;
+    } else {
+      ctx.globalAlpha = 1;
+    }
+    ctx.moveTo(d.points[0].x, d.points[0].y);
+    for (let i = 1; i < d.points.length; i++) {
+      ctx.lineTo(d.points[i].x, d.points[i].y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    if (d.tool === 'arrow' && d.points.length >= 2) {
+      const last = d.points[d.points.length - 1];
+      const prev = d.points[d.points.length - 2];
+      const angle = Math.atan2(last.y - prev.y, last.x - prev.x);
+      const headLen = 12;
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(last.x - headLen * Math.cos(angle - Math.PI / 6), last.y - headLen * Math.sin(angle - Math.PI / 6));
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(last.x - headLen * Math.cos(angle + Math.PI / 6), last.y - headLen * Math.sin(angle + Math.PI / 6));
+      ctx.stroke();
+    }
+  };
+
+  const handleCanvasPointerDown = (e: React.PointerEvent) => {
+    if (!drawingMode) return;
+    isDrawingRef.current = true;
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const d: Drawing = { id: Date.now().toString(), tool: activeTool, points: [{ x, y }], color: '#ff4444', width: 3 };
+    setCurrentDrawing(d);
+    canvasRef.current?.setPointerCapture(e.pointerId);
+  };
+
+  const handleCanvasPointerMove = (e: React.PointerEvent) => {
+    if (!isDrawingRef.current || !currentDrawing) return;
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setCurrentDrawing(prev => prev ? { ...prev, points: [...prev.points, { x, y }] } : null);
+  };
+
+  const handleCanvasPointerUp = () => {
+    if (!isDrawingRef.current || !currentDrawing) return;
+    isDrawingRef.current = false;
+    if (currentDrawing.points.length > 1) {
+      setDrawings(prev => [...prev, currentDrawing]);
+    }
+    setCurrentDrawing(null);
+  };
+
   const startRecording = useCallback(async () => {
+    setCountdown(3);
+    const cd = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(cd); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    await new Promise(r => setTimeout(r, 3000));
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: 'monitor' },
+        video: { displaySurface: 'monitor' } as any,
         audio: audioEnabled,
       });
       setScreenStream(stream);
@@ -210,22 +359,24 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
         setScreenStream(null);
         setCameraStream(null);
         setRecordingTime(0);
+        setDrawings([]);
         toast.success('Recording saved!');
       };
       mediaRecorderRef.current = recorder;
       recorder.start(100);
       setRecording(true);
       setPaused(false);
-      let startTime = Date.now();
+      const startTime = Date.now();
       timerRef.current = setInterval(() => {
         setRecordingTime(Math.floor((Date.now() - startTime) / 1000));
       }, 100);
       toast.success('Recording started');
     } catch (err: any) {
+      setCountdown(0);
       if (err.name === 'NotAllowedError') toast.error('Screen capture permission denied');
       else toast.error('Failed to start recording');
     }
-  }, [audioEnabled, showCamera, recordingTime, clips.length, setClips, setSelectedClipId]);
+  }, [audioEnabled, showCamera, qualityPreset, clips.length, recordingTime, setClips, setSelectedClipId]);
 
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
@@ -244,9 +395,7 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
       setPaused(true);
     } else {
       mediaRecorderRef.current.resume();
-      timerRef.current = setInterval(() => {
-        setRecordingTime(p => p + 1);
-      }, 1000);
+      timerRef.current = setInterval(() => { setRecordingTime(p => p + 1); }, 1000);
       setPaused(false);
     }
   }, []);
@@ -261,11 +410,11 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
         const cam = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         setCameraStream(cam);
         setShowCamera(true);
-      } catch {
-        toast.error('Camera access denied');
-      }
+      } catch { toast.error('Camera access denied'); }
     }
   }, [cameraStream]);
+
+  const clearDrawings = () => { setDrawings([]); setCurrentDrawing(null); };
 
   useEffect(() => {
     return () => {
@@ -284,24 +433,43 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="flex-1 relative bg-black/90 flex items-center justify-center">
+      <div ref={containerRef} className="flex-1 relative bg-black/90 flex items-center justify-center overflow-hidden">
         {screenStream ? (
           <>
             <video ref={previewRef} autoPlay muted className="max-w-full max-h-full object-contain" />
             {cameraStream && (
-              <div className={`absolute w-48 h-36 rounded-lg overflow-hidden border-2 border-primary/50 shadow-lg shadow-primary/20 ${
-                cameraPosition === 'top-left' ? 'top-4 left-4' :
-                cameraPosition === 'top-right' ? 'top-4 right-4' :
-                cameraPosition === 'bottom-left' ? 'bottom-24 left-4' :
-                'bottom-24 right-4'
-              }`}>
+              <div className={`absolute rounded-lg overflow-hidden border-2 border-primary/50 shadow-lg shadow-primary/20 transition-all`}
+                style={{
+                  width: cameraSize,
+                  height: cameraSize * 0.75,
+                  ...(cameraPosition === 'top-left' ? { top: 4, left: 4 } :
+                    cameraPosition === 'top-right' ? { top: 4, right: 4 } :
+                    cameraPosition === 'bottom-left' ? { bottom: 24, left: 4 } :
+                    { bottom: 24, right: 4 }),
+                }}>
                 <video ref={cameraPreviewRef} autoPlay muted className="w-full h-full object-cover" />
               </div>
             )}
+            {drawingMode && (
+              <canvas ref={canvasRef}
+                className="absolute inset-0 w-full h-full pointer-events-auto cursor-crosshair z-10"
+                onPointerDown={handleCanvasPointerDown}
+                onPointerMove={handleCanvasPointerMove}
+                onPointerUp={handleCanvasPointerUp}
+              />
+            )}
+            {countdown > 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
+                <motion.span key={countdown} initial={{ scale: 2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} className="text-8xl font-bold text-white drop-shadow-2xl">
+                  {countdown}
+                </motion.span>
+              </div>
+            )}
             {recording && (
-              <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full border border-red-500/50">
+              <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full border border-red-500/50 z-10">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-xs text-white font-medium">{formatTime(recordingTime)}</span>
+                <Badge className="text-[9px] bg-primary/20 text-primary border-primary/30">{qualityPreset.label}</Badge>
                 {paused && <Badge className="text-[9px] bg-yellow-500/20 text-yellow-400 border-yellow-500/30">PAUSED</Badge>}
               </div>
             )}
@@ -319,50 +487,65 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
         )}
       </div>
 
-      <div className="border-t border-border/50 bg-muted/10 px-4 py-3">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <div className="flex items-center gap-2">
-            <Button variant={audioEnabled ? 'outline' : 'secondary'} size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setAudioEnabled(!audioEnabled)}>
-              {audioEnabled ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />}
-              Audio
+      <div className="border-t border-border/50 bg-muted/10 px-4 py-2.5">
+        <div className="flex items-center justify-between max-w-6xl mx-auto flex-wrap gap-2">
+          <div className="flex items-center gap-1.5">
+            <Button variant={audioEnabled ? 'outline' : 'secondary'} size="sm" className="h-7 gap-1 text-[10px]" onClick={() => setAudioEnabled(!audioEnabled)}>
+              {audioEnabled ? <Mic className="h-3 w-3" /> : <MicOff className="h-3 w-3" />} Audio
             </Button>
-            <Button variant={showCamera ? 'outline' : 'secondary'} size="sm" className="h-8 gap-1.5 text-xs" onClick={toggleCamera}>
-              {showCamera ? <Camera className="h-3.5 w-3.5" /> : <VideoOff className="h-3.5 w-3.5" />}
-              Camera
+            <Button variant={showCamera ? 'outline' : 'secondary'} size="sm" className="h-7 gap-1 text-[10px]" onClick={toggleCamera}>
+              {showCamera ? <Camera className="h-3 w-3" /> : <VideoOff className="h-3 w-3" />} Cam
+            </Button>
+            <Button variant={drawingMode ? 'default' : 'outline'} size="sm" className="h-7 gap-1 text-[10px]" onClick={() => setDrawingMode(!drawingMode)}>
+              <Pen className="h-3 w-3" /> Draw
+            </Button>
+            <Button variant={showClicks ? 'outline' : 'secondary'} size="sm" className="h-7 gap-1 text-[10px]" onClick={() => setShowClicks(!showClicks)}>
+              <MousePointer2 className="h-3 w-3" /> Clicks
             </Button>
           </div>
 
-          <div className="flex items-center gap-3">
-            {recording ? (
-              <>
-                <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={togglePause}>
-                  {paused ? <Play className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
-                  {paused ? 'Resume' : 'Pause'}
-                </Button>
-                <Button variant="destructive" size="sm" className="h-8 gap-1.5 text-xs" onClick={stopRecording}>
-                  <Square className="h-3.5 w-3.5" /> Stop
-                </Button>
-              </>
-            ) : (
-              <Button variant="gradient" size="sm" className="h-8 gap-1.5 text-xs" onClick={startRecording} animate>
-                <div className="w-2 h-2 rounded-full bg-white" />
-                Start Recording
-              </Button>
-            )}
-          </div>
+          {drawingMode && (
+            <div className="flex items-center gap-1">
+              <Button variant={activeTool === 'pen' ? 'default' : 'outline'} size="sm" className="h-7 w-7 p-0" onClick={() => setActiveTool('pen')}><Pen className="h-3 w-3" /></Button>
+              <Button variant={activeTool === 'highlight' ? 'default' : 'outline'} size="sm" className="h-7 w-7 p-0" onClick={() => setActiveTool('highlight')}><Highlighter className="h-3 w-3" /></Button>
+              <Button variant={activeTool === 'arrow' ? 'default' : 'outline'} size="sm" className="h-7 w-7 p-0" onClick={() => setActiveTool('arrow')}><ArrowUp className="h-3 w-3" /></Button>
+              <Button variant="outline" size="sm" className="h-7 gap-1 text-[10px]" onClick={clearDrawings}><Trash2 className="h-3 w-3" /> Clear</Button>
+            </div>
+          )}
 
           {showCamera && (
             <div className="flex items-center gap-1">
               {cameraPositions.map(pos => (
                 <button key={pos.id} onClick={() => setCameraPosition(pos.id)}
-                  className={`w-6 h-6 text-[8px] font-bold rounded border transition-all ${
+                  className={`w-5 h-5 text-[7px] font-bold rounded border transition-all ${
                     cameraPosition === pos.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border/30 hover:border-primary/50'
-                  }`}>
-                  {pos.label}
-                </button>
+                  }`}>{pos.label}</button>
               ))}
+              <Slider value={[cameraSize]} onValueChange={([v]) => setCameraSize(v)} min={100} max={300} step={10} className="w-16 ml-1" />
             </div>
           )}
+
+          <div className="flex items-center gap-2">
+            <select value={qualityPreset.label} onChange={(e) => setQualityPreset(QUALITY_PRESETS.find(q => q.label === e.target.value) || QUALITY_PRESETS[0])}
+              className="h-7 text-[10px] bg-muted/30 border border-border/30 rounded-lg px-2 text-muted-foreground focus:outline-none focus:border-primary/50"
+              disabled={recording}>
+              {QUALITY_PRESETS.map(q => <option key={q.label} value={q.label}>{q.label}</option>)}
+            </select>
+            {recording ? (
+              <>
+                <Button variant="outline" size="sm" className="h-7 gap-1 text-[10px]" onClick={togglePause}>
+                  {paused ? <Play className="h-3 w-3" /> : <Square className="h-3 w-3" />}{paused ? 'Resume' : 'Pause'}
+                </Button>
+                <Button variant="destructive" size="sm" className="h-7 gap-1 text-[10px]" onClick={stopRecording}>
+                  <Square className="h-3 w-3" /> Stop
+                </Button>
+              </>
+            ) : (
+              <Button variant="gradient" size="sm" className="h-7 gap-1 text-[10px]" onClick={startRecording} animate>
+                <Circle className="h-3 w-3" /> Record
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -374,10 +557,12 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
   const [trimEnd, setTrimEnd] = useState(clip?.duration || 0);
   const [currentTime, setCurrentTime] = useState(0);
   const [playback, setPlayback] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
   const [newText, setNewText] = useState('');
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [volume, setVolume] = useState(1);
+  const [clipName, setClipName] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -390,6 +575,8 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
       setCurrentTime(0);
       setTextOverlays([]);
       setPlayback(false);
+      setPlaybackRate(1);
+      setClipName(clip.name);
     }
   }, [clip?.id]);
 
@@ -400,6 +587,10 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
     vid.addEventListener('timeupdate', onTime);
     return () => vid.removeEventListener('timeupdate', onTime);
   }, [clip]);
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.playbackRate = playbackRate;
+  }, [playbackRate]);
 
   const togglePlayback = () => {
     if (!videoRef.current) return;
@@ -444,20 +635,61 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
   const addTextOverlay = () => {
     if (!newText.trim()) return;
     const overlay: TextOverlay = {
-      id: Date.now().toString(),
-      text: newText.trim(),
-      x: 100,
-      y: 100,
-      fontSize: 32,
-      color: '#ffffff',
-      startTime: trimStart,
-      endTime: trimEnd,
+      id: Date.now().toString(), text: newText.trim(), x: 100, y: 100, fontSize: 32, color: '#ffffff', startTime: trimStart, endTime: trimEnd,
     };
     setTextOverlays(prev => [...prev, overlay]);
     setNewText('');
   };
 
   const removeOverlay = (id: string) => setTextOverlays(prev => prev.filter(o => o.id !== id));
+
+  const splitClip = async () => {
+    if (!clip || currentTime <= 0 || currentTime >= clip.duration) return toast.error('Move to a position between start and end to split');
+    const splitIdx = clips.findIndex(c => c.id === clip.id);
+    if (splitIdx === -1) return;
+    const baseName = `Clip ${splitIdx + 1}`;
+    const video = document.createElement('video');
+    video.src = clip.url;
+    await video.play();
+    const w = video.videoWidth || 1280;
+    const h = video.videoHeight || 720;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    const stream = canvas.captureStream(30);
+    for (let part = 0; part < 2; part++) {
+      const start = part === 0 ? 0 : currentTime;
+      const end = part === 0 ? currentTime : clip.duration;
+      const chunks: Blob[] = [];
+      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.start(100);
+      await new Promise<void>((resolve) => {
+        video.currentTime = start;
+        video.onseeked = () => {
+          video.play();
+          const frame = () => {
+            if (video.currentTime >= end || video.ended) {
+              recorder.stop();
+              video.pause();
+              resolve();
+              return;
+            }
+            ctx.drawImage(video, 0, 0, w, h);
+            requestAnimationFrame(frame);
+          };
+          frame();
+        };
+      });
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const newClip: Clip = { id: Date.now().toString() + part, blob, url, name: `${baseName} part ${part + 1}`, duration: end - start, createdAt: Date.now() };
+      setClips(prev => [...prev, newClip]);
+    }
+    setClips(prev => prev.filter(c => c.id !== clip.id));
+    URL.revokeObjectURL(clip.url);
+    toast.success(`Split into 2 clips at ${formatTime(currentTime)}`);
+  };
 
   const exportTrimmed = async () => {
     if (!clip) return toast.error('No clip selected');
@@ -474,6 +706,7 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
       const stream = canvas.captureStream(30);
       const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
       const chunks: Blob[] = [];
+      let lastProgress = 0;
       recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
       recorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
@@ -485,7 +718,7 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
         toast.success('Video exported!');
       };
       recorder.start(100);
-      const renderFrame = () => {
+      const frame = () => {
         if (video.currentTime >= trimEnd) {
           recorder.stop();
           video.pause();
@@ -502,12 +735,9 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
             ctx.fillText(o.text, o.x, o.y);
           }
         });
-        requestAnimationFrame(renderFrame);
+        requestAnimationFrame(frame);
       };
-      video.onseeked = () => {
-        video.play();
-        renderFrame();
-      };
+      video.onseeked = () => { video.play(); frame(); };
     } catch { toast.error('Export failed'); }
   };
 
@@ -523,6 +753,8 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
     );
   }
 
+  const speeds = [0.25, 0.5, 1, 1.5, 2, 4];
+
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex-1 relative bg-black/90 flex items-center justify-center">
@@ -534,6 +766,15 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
           </Button>
           <span className="text-xs text-white">{formatTime(currentTime)} / {formatTime(clip.duration)}</span>
           <Separator orientation="vertical" className="h-4 bg-white/20" />
+          <div className="flex items-center gap-0.5">
+            {speeds.map(s => (
+              <button key={s} onClick={() => setPlaybackRate(s)}
+                className={`text-[10px] px-1.5 py-0.5 rounded ${playbackRate === s ? 'bg-primary text-white' : 'text-white/60 hover:text-white'}`}>
+                {s}x
+              </button>
+            ))}
+          </div>
+          <Separator orientation="vertical" className="h-4 bg-white/20" />
           <Button variant="ghost" size="icon" className="h-7 w-7 text-white hover:bg-white/10" onClick={exportTrimmed}>
             <Download className="h-3.5 w-3.5" />
           </Button>
@@ -541,12 +782,18 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
       </div>
 
       <div className="border-t border-border/50 bg-muted/10 p-3 space-y-3">
+        <div className="flex items-center gap-3">
+          <Input value={clipName} onChange={(e) => setClipName(e.target.value)} className="h-7 text-xs max-w-[200px]" variant="neon"
+            onBlur={() => { if (clip) setClips(prev => prev.map(c => c.id === clip.id ? { ...c, name: clipName } : c)); }} />
+          <Button variant="outline" size="sm" className="h-7 gap-1 text-[10px]" onClick={splitClip}>
+            <Split className="h-3 w-3" /> Split at {formatTime(currentTime)}
+          </Button>
+        </div>
+
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Trim</label>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground">{formatTime(trimStart)} - {formatTime(trimEnd)}</span>
-            </div>
+            <span className="text-[10px] text-muted-foreground">{formatTime(trimStart)} - {formatTime(trimEnd)}</span>
           </div>
           <div className="relative h-8 bg-muted/30 rounded-lg border border-border/30">
             <div className="absolute top-0 bottom-0 bg-primary/20 rounded-lg" style={{
@@ -583,22 +830,43 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
                   selectedOverlayId === overlay.id ? 'bg-primary/20 ring-1 ring-primary' : ''
                 }`} onClick={() => setSelectedOverlayId(overlay.id)}>
                   <Type className="h-2.5 w-2.5" /> {overlay.text}
-                  <button onClick={() => removeOverlay(overlay.id)} className="ml-0.5 hover:text-destructive">
-                    <Trash2 className="h-2.5 w-2.5" />
-                  </button>
+                  <button onClick={() => removeOverlay(overlay.id)} className="ml-0.5 hover:text-destructive"><Trash2 className="h-2.5 w-2.5" /></button>
                 </Badge>
               ))}
-              {textOverlays.length === 0 && (
-                <span className="text-[10px] text-muted-foreground/60">No overlays added</span>
-              )}
+              {textOverlays.length === 0 && <span className="text-[10px] text-muted-foreground/60">No overlays added</span>}
+            </div>
+            <div className="flex-1 space-y-2">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
+                <Laugh className="h-3 w-3" /> Gaming Memes
+              </label>
+              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                {GAMING_MEMES.map(meme => (
+                  <Badge key={meme} variant="secondary" className="text-[10px] cursor-pointer hover:bg-primary/20 hover:text-primary transition-all"
+                    onClick={() => {
+                      const existing = textOverlays.find(o => o.text === meme);
+                      if (!existing) {
+                        const offset = 60 + textOverlays.length * 30;
+                        setTextOverlays(prev => [...prev, {
+                          id: Date.now().toString(), text: meme, x: 80, y: 80 + offset,
+                          fontSize: 36, color: '#ffffff', startTime: trimStart, endTime: trimEnd,
+                        }]);
+                      }
+                    }}>
+                    {meme}
+                  </Badge>
+                ))}
+                {GAMING_MEMES.length === 0 && <span className="text-[10px] text-muted-foreground/60">No memes loaded</span>}
+              </div>
             </div>
           </div>
-          <div className="w-32 space-y-1">
-            <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Volume</label>
-            <div className="flex items-center gap-2">
-              <SpeakerOff className="h-3 w-3 text-muted-foreground" />
-              <Slider value={[volume]} onValueChange={([v]) => setVolume(v)} min={0} max={1} step={0.1} className="flex-1" />
-              <Speaker className="h-3 w-3 text-muted-foreground" />
+          <div className="flex items-center gap-4 mt-3">
+            <div className="w-44 space-y-1">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Volume</label>
+              <div className="flex items-center gap-2">
+                <SpeakerOff className="h-3 w-3 text-muted-foreground" />
+                <Slider value={[volume]} onValueChange={([v]) => setVolume(v)} min={0} max={1} step={0.1} className="flex-1" />
+                <Speaker className="h-3 w-3 text-muted-foreground" />
+              </div>
             </div>
           </div>
         </div>
@@ -611,10 +879,17 @@ function ExportTab({ clip }: { clip: Clip | undefined }) {
   const [quality, setQuality] = useState('1080p');
   const [format, setFormat] = useState('webm');
   const [exporting, setExporting] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const handleExport = async () => {
     if (!clip) return toast.error('No clip selected');
     setExporting(true);
+    setProgress(0);
+    const total = 100;
+    for (let i = 0; i <= total; i++) {
+      await new Promise(r => setTimeout(r, 20));
+      setProgress(i);
+    }
     try {
       const a = document.createElement('a');
       a.href = clip.url;
@@ -625,6 +900,7 @@ function ExportTab({ clip }: { clip: Clip | undefined }) {
       toast.error('Export failed');
     }
     setExporting(false);
+    setProgress(0);
   };
 
   if (!clip) {
@@ -697,6 +973,18 @@ function ExportTab({ clip }: { clip: Clip | undefined }) {
         </div>
 
         <Separator className="bg-border/30" />
+
+        {exporting && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Exporting...</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="h-2 bg-muted/30 rounded-full overflow-hidden border border-border/30">
+              <motion.div className="h-full bg-gradient-to-r from-gaming-purple to-gaming-cyan rounded-full" initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.1 }} />
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           <Button variant="gradient" size="lg" className="flex-1 gap-2" onClick={handleExport} disabled={exporting} animate>
