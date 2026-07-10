@@ -48,18 +48,33 @@ export default function ProfilePage() {
   const { username } = useParams();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
-  const socketRef = useSocket();
+  const socket = useSocket();
 
   const { data: profile, isLoading } = useQuery({ queryKey: ['profile', username], queryFn: () => api.get(`/profiles/${username}`).then(r => r.data.data) });
   const { data: posts } = useQuery({ queryKey: ['profile-posts', username], queryFn: () => api.get(`/posts?userId=${profile?.user?.id}`).then(r => r.data.data).catch(() => []), enabled: !!profile?.user?.id });
 
   const [following, setFollowing] = useState(false);
+  const [friendStatus, setFriendStatus] = useState<string | null>(null);
   const { data: followingList } = useQuery({ queryKey: ['following-me'], queryFn: () => api.get('/feed/following').then(r => r.data.data.map((f: any) => f.following?.id)).catch(() => []), enabled: !!user });
   useEffect(() => { if (followingList && profile?.user?.id) setFollowing(followingList.includes(profile.user.id)); }, [followingList, profile?.user?.id]);
+  const { data: friendList } = useQuery({ queryKey: ['friends'], queryFn: () => api.get('/friends').then(r => r.data.data.map((f: any) => f.id)).catch(() => []), enabled: !!user });
+  const { data: friendRequests } = useQuery({ queryKey: ['friend-requests'], queryFn: () => api.get('/friends/requests').then(r => r.data.data.map((r: any) => r.sender?.id)).catch(() => []), enabled: !!user });
+  useEffect(() => {
+    if (!profile?.user?.id || !user) return;
+    if (friendList?.includes(profile.user.id)) setFriendStatus('friends');
+    else if (friendRequests?.includes(profile.user.id)) setFriendStatus('pending');
+    else setFriendStatus(null);
+  }, [friendList, friendRequests, profile?.user?.id, user]);
 
   const toggleFollow = useMutation({
     mutationFn: () => following ? api.post(`/feed/unfollow/${profile?.user?.id}`) : api.post(`/feed/follow/${profile?.user?.id}`),
     onSuccess: () => { setFollowing(!following); queryClient.invalidateQueries({ queryKey: ['following-me'] }); toast.success(following ? 'Unfollowed' : `Following @${profile?.username}`); },
+  });
+
+  const sendFriendReq = useMutation({
+    mutationFn: () => api.post('/friends/request', { userId: profile!.user!.id }),
+    onSuccess: () => { setFriendStatus('pending'); toast.success('Friend request sent!'); },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed'),
   });
 
   // Full-screen chat
@@ -88,24 +103,28 @@ export default function ProfilePage() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   useEffect(() => {
-    if (socketRef.current) {
-      socketRef.current.on('user:online', (userId: string) => setOnlineUsers(p => new Set(p).add(userId)));
-      socketRef.current.on('user:offline', (userId: string) => setOnlineUsers(p => { const n = new Set(p); n.delete(userId); return n; }));
+    if (socket) {
+      const onOnline = (userId: string) => setOnlineUsers(p => new Set(p).add(userId));
+      const onOffline = (userId: string) => setOnlineUsers(p => { const n = new Set(p); n.delete(userId); return n; });
+      socket.on('user:online', onOnline);
+      socket.on('user:offline', onOffline);
+      return () => { socket.off('user:online', onOnline); socket.off('user:offline', onOffline); };
     }
-  }, [socketRef]);
+  }, [socket]);
 
   useEffect(() => {
-    if (socketRef.current && chatId) {
-      socketRef.current.emit('join:chat', chatId);
-      socketRef.current.on('message:new', (msg: any) => setMessages(prev => [...prev, msg]));
-      return () => { socketRef.current?.emit('leave:chat', chatId); };
+    if (socket && chatId) {
+      socket.emit('join:chat', chatId);
+      const onMessage = (msg: any) => setMessages(prev => [...prev, msg]);
+      socket.on('message:new', onMessage);
+      return () => { socket.emit('leave:chat', chatId); socket.off('message:new', onMessage); };
     }
-  }, [chatId, socketRef]);
+  }, [chatId, socket]);
 
   const sendMessage = () => {
     if (!msgText.trim() || !chatId) return;
-    if (socketRef.current) {
-      socketRef.current.emit('message:send', { chatId, content: msgText });
+    if (socket) {
+      socket.emit('message:send', { chatId, content: msgText });
     } else {
       api.post(`/chat/${chatId}/messages`, { content: msgText }).then(() => queryClient.invalidateQueries({ queryKey: ['messages', chatId] }));
     }
@@ -229,7 +248,7 @@ export default function ProfilePage() {
                   value={msgText}
                   onChange={(e) => {
                     setMsgText(e.target.value);
-                    if (socketRef.current && chatId) socketRef.current.emit('typing:start', chatId);
+                    if (socket && chatId) socket.emit('typing:start', chatId);
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
                   className="flex-1 h-10 border-0 bg-transparent text-sm focus-visible:ring-0 px-0"
@@ -275,7 +294,18 @@ export default function ProfilePage() {
               </motion.div>
             </div>
             {!isOwn && (
-              <motion.div className="flex gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+              <motion.div className="flex gap-2 flex-wrap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+                <Button
+                  variant={friendStatus === 'friends' ? 'secondary' : friendStatus === 'pending' ? 'outline' : 'gradient'}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => sendFriendReq.mutate()}
+                  disabled={sendFriendReq.isPending || !!friendStatus}
+                  animate
+                >
+                  {friendStatus === 'friends' ? <UserCheck className="h-4 w-4" /> : friendStatus === 'pending' ? <Loader2 className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                  {friendStatus === 'friends' ? 'Friends' : friendStatus === 'pending' ? 'Pending' : 'Add Friend'}
+                </Button>
                 <Button
                   variant={following ? 'secondary' : 'gradient'}
                   size="sm"

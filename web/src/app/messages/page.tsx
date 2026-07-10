@@ -28,7 +28,7 @@ function DiscordMessagesPage() {
   const [message, setMessage] = useState('');
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
-  const socketRef = useSocket();
+  const socket = useSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
@@ -80,48 +80,52 @@ function DiscordMessagesPage() {
   useEffect(() => { if (messagesData) setMessages(messagesData); }, [messagesData]);
 
   useEffect(() => {
-    if (socketRef.current) {
-      socketRef.current.on('connect', () => {
-        if (user?.id) socketRef.current?.emit('user:online', user.id);
+    if (socket) {
+      socket.on('connect', () => {
+        if (user?.id) socket?.emit('user:online', user.id);
       });
-      socketRef.current.on('user:online', (userId: string) => setOnlineUsers(p => new Set(p).add(userId)));
-      socketRef.current.on('user:offline', (userId: string) => setOnlineUsers(p => { const n = new Set(p); n.delete(userId); return n; }));
-      socketRef.current.on('typing:start', ({ userId: uid, chatId }: { userId: string; chatId: string }) => {
+      socket.on('user:online', (userId: string) => setOnlineUsers(p => new Set(p).add(userId)));
+      socket.on('user:offline', (userId: string) => setOnlineUsers(p => { const n = new Set(p); n.delete(userId); return n; }));
+      socket.on('typing:start', ({ userId: uid, chatId }: { userId: string; chatId: string }) => {
         if (uid !== user?.id) setTypingUsers(p => ({ ...p, [chatId]: [...(p[chatId] || []).filter(id => id !== uid), uid] }));
       });
-      socketRef.current.on('typing:stop', ({ userId: uid, chatId }: { userId: string; chatId: string }) => {
+      socket.on('typing:stop', ({ userId: uid, chatId }: { userId: string; chatId: string }) => {
         setTypingUsers(p => ({ ...p, [chatId]: (p[chatId] || []).filter(id => id !== uid) }));
       });
-      if (user?.id) socketRef.current.emit('user:online', user.id);
+      if (user?.id) socket.emit('user:online', user.id);
     }
-  }, [socketRef, user?.id]);
+  }, [socket, user?.id]);
 
   useEffect(() => {
-    if (socketRef.current && selectedChat) {
-      socketRef.current.emit('join:chat', selectedChat);
-      socketRef.current.on('message:new', (msg: any) => {
+    if (socket && selectedChat) {
+      socket.emit('join:chat', selectedChat);
+      const onMessage = (msg: any) => {
         setMessages(prev => [...prev, msg]);
         queryClient.invalidateQueries({ queryKey: ['chats'] });
-      });
-      return () => { socketRef.current?.emit('leave:chat', selectedChat); };
+      };
+      socket.on('message:new', onMessage);
+      return () => {
+        socket.emit('leave:chat', selectedChat);
+        socket.off('message:new', onMessage);
+      };
     }
-  }, [selectedChat, socketRef, queryClient]);
+  }, [selectedChat, socket, queryClient]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   let typingTimeout: any;
   const handleTyping = () => {
-    if (!selectedChat || !socketRef.current) return;
-    socketRef.current.emit('typing:start', selectedChat);
+    if (!selectedChat || !socket) return;
+    socket.emit('typing:start', selectedChat);
     clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => socketRef.current?.emit('typing:stop', selectedChat), 2000);
+    typingTimeout = setTimeout(() => socket?.emit('typing:stop', selectedChat), 2000);
   };
 
   const sendMessage = () => {
     if ((!message.trim() && !filePreview) || !selectedChat) return;
     const media = filePreview ? [filePreview] : undefined;
-    if (socketRef.current) {
-      socketRef.current.emit('message:send', { chatId: selectedChat, content: message, media });
+    if (socket) {
+      socket.emit('message:send', { chatId: selectedChat, content: message, media });
     } else {
       sendViaApi.mutate({ chatId: selectedChat, content: message, media });
     }

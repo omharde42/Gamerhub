@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,15 +17,27 @@ const STATUS_COLORS: Record<string, string> = { ONLINE: 'bg-success', IDLE: 'bg-
 
 export default function FriendsPage() {
   const queryClient = useQueryClient();
-  const [searchId, setSearchId] = useState('');
+  const { user } = useAuthStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   const { data: friends } = useQuery({ queryKey: ['friends'], queryFn: () => api.get('/friends').then(r => r.data.data) });
   const { data: requests } = useQuery({ queryKey: ['friend-requests'], queryFn: () => api.get('/friends/requests').then(r => r.data.data) });
+  const { data: searchResults, isLoading: searching } = useQuery({
+    queryKey: ['search-profiles', debouncedQuery],
+    queryFn: () => api.get(`/profiles/search?q=${encodeURIComponent(debouncedQuery)}&limit=10`).then(r => r.data.data),
+    enabled: debouncedQuery.trim().length >= 2,
+  });
 
   const sendRequest = useMutation({
-    mutationFn: () => api.post('/friends/request', { userId: searchId }),
-    onSuccess: () => { toast.success('Friend request sent!'); setSearchId(''); },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed'),
+    mutationFn: (userId: string) => api.post('/friends/request', { userId }),
+    onSuccess: () => { toast.success('Friend request sent!'); setSearchQuery(''); },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to send request'),
   });
 
   const acceptRequest = useMutation({
@@ -43,6 +55,9 @@ export default function FriendsPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['friends'] }); toast.success('Friend removed'); },
   });
 
+  const friendIds = new Set(friends?.map((f: any) => f.id) || []);
+  const requestIds = new Set(requests?.map((r: any) => r.sender?.id) || []);
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <motion.div className="flex items-center justify-between" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
@@ -54,17 +69,51 @@ export default function FriendsPage() {
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <Card variant="glass">
-          <CardContent className="p-4">
+          <CardContent className="p-4 space-y-3">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input value={searchId} onChange={(e) => setSearchId(e.target.value)} placeholder="Enter user ID to add friend" className="pl-9" variant="neon" />
+                <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search players by username..." className="pl-9" variant="neon" />
               </div>
-              <Button variant="gradient" className="gap-1.5 shrink-0" onClick={() => sendRequest.mutate()} disabled={!searchId.trim() || sendRequest.isPending} animate>
-                {sendRequest.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-                Add Friend
-              </Button>
             </div>
+            {debouncedQuery.trim().length >= 2 && (
+              <div className="rounded-xl border border-border/30 bg-muted/20 overflow-hidden">
+                {searching ? (
+                  <div className="flex items-center justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                ) : searchResults?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No players found for &quot;{debouncedQuery}&quot;</p>
+                ) : (
+                  <div className="divide-y divide-border/20 max-h-64 overflow-y-auto">
+                    {searchResults?.filter((p: any) => p.userId !== user?.id).map((profile: any) => {
+                      const isFriend = friendIds.has(profile.userId);
+                      const hasPending = requestIds.has(profile.userId);
+                      return (
+                        <div key={profile.id} className="flex items-center gap-3 p-3 hover:bg-accent/30 transition-colors">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={profile.avatar || ''} />
+                            <AvatarFallback className="text-xs">{getInitials(profile.username)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{profile.displayName || profile.username}</p>
+                            <p className="text-xs text-muted-foreground">@{profile.username}</p>
+                          </div>
+                          {isFriend ? (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1"><UserPlus className="h-3 w-3" /> Friends</span>
+                          ) : hasPending ? (
+                            <span className="text-xs text-muted-foreground">Request sent</span>
+                          ) : (
+                            <Button variant="gradient" size="sm" className="h-7 gap-1 text-xs" onClick={() => sendRequest.mutate(profile.userId)} disabled={sendRequest.isPending} animate>
+                              {sendRequest.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                              Add
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
