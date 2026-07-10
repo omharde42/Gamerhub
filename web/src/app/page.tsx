@@ -1,13 +1,107 @@
 ﻿'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Gamepad2, Loader2 } from 'lucide-react';
+import { Gamepad2, Loader2, Sparkles, Zap, Trophy, Users, Globe, Star, ChevronRight, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
+
+const PARTICLE_COUNT = 40;
+const typewriterTexts = [
+  'Connect with pro gamers worldwide',
+  'Compete in epic tournaments',
+  'Level up your gaming career',
+  'Build your ultimate team',
+  'Track every stat, every win',
+];
+
+function Particle({ index }: { index: number }) {
+  const random = useRef({
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 3 + 1,
+    duration: Math.random() * 20 + 10,
+    delay: Math.random() * 5,
+    driftX: (Math.random() - 0.5) * 30,
+    driftY: (Math.random() - 0.5) * 30,
+  });
+  const r = random.current;
+
+  return (
+    <motion.div
+      className="absolute rounded-full"
+      style={{
+        left: `${r.x}%`,
+        top: `${r.y}%`,
+        width: r.size,
+        height: r.size,
+        background: index % 3 === 0
+          ? 'hsl(var(--neon-cyan))'
+          : index % 3 === 1
+          ? 'hsl(var(--neon-purple))'
+          : 'hsl(var(--neon-pink))',
+      }}
+      animate={{
+        x: [0, r.driftX, -r.driftX * 0.5, 0],
+        y: [0, r.driftY, -r.driftY * 0.7, 0],
+        opacity: [0, 0.8, 0.4, 0],
+        scale: [0, 1, 0.8, 0],
+      }}
+      transition={{
+        duration: r.duration,
+        repeat: Infinity,
+        delay: r.delay,
+        ease: 'linear',
+      }}
+    />
+  );
+}
+
+function TypewriterText() {
+  const [textIndex, setTextIndex] = useState(0);
+  const [charIndex, setCharIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    const currentText = typewriterTexts[textIndex];
+    const timeout = setTimeout(() => {
+      if (!isDeleting) {
+        if (charIndex < currentText.length) {
+          setCharIndex(charIndex + 1);
+        } else {
+          setTimeout(() => setIsDeleting(true), 2000);
+        }
+      } else {
+        if (charIndex > 0) {
+          setCharIndex(charIndex - 1);
+        } else {
+          setIsDeleting(false);
+          setTextIndex((textIndex + 1) % typewriterTexts.length);
+        }
+      }
+    }, isDeleting ? 30 : 60);
+
+    return () => clearTimeout(timeout);
+  }, [charIndex, isDeleting, textIndex]);
+
+  return (
+    <span className="text-gradient">
+      {typewriterTexts[textIndex].substring(0, charIndex)}
+      <span className="inline-block w-0.5 h-5 bg-primary ml-0.5 animate-pulse" />
+    </span>
+  );
+}
+
+const stats = [
+  { value: '10K+', label: 'Active Players', icon: Users },
+  { value: '500+', label: 'Teams', icon: Trophy },
+  { value: '100+', label: 'Tournaments', icon: Zap },
+  { value: '50+', label: 'Games Supported', icon: Globe },
+];
 
 export default function EnterPage() {
   const [username, setUsername] = useState('');
@@ -23,8 +117,8 @@ export default function EnterPage() {
       const { data } = await api.post('/auth/anon-login', { username: username.trim() });
       setUser(data.data.user);
       setTokens(data.data.accessToken, data.data.refreshToken);
-      toast.success(`Welcome, ${data.data.profile?.username || username.trim()}!`);
-      router.push('/dashboard');
+      toast.success(`Welcome to GamerHub, ${data.data.profile?.username || username.trim()}!`);
+      router.push('/feed');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to join. Try another username.');
     } finally {
@@ -33,49 +127,202 @@ export default function EnterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gaming-purple/20 rounded-full blur-[128px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gaming-pink/20 rounded-full blur-[128px]" />
+    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Animated background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-gaming-purple/5 via-transparent to-gaming-blue/5" />
+      <div className="absolute inset-0 bg-grid opacity-[0.03]" />
+      <div className="absolute inset-0 bg-dots opacity-[0.03]" />
+      <div className="absolute inset-0 bg-gradient-animate" />
+
+      {/* Particles */}
+      <div className="absolute inset-0 pointer-events-none">
+        {Array.from({ length: PARTICLE_COUNT }).map((_, i) => (
+          <Particle key={i} index={i} />
+        ))}
       </div>
+
+      {/* Floating game icons */}
       <motion.div
+        className="absolute top-20 left-[15%] text-gaming-purple/10 pointer-events-none"
+        animate={{ y: [0, -15, 0], rotate: [0, 5, -5, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <Gamepad2 className="h-24 w-24" />
+      </motion.div>
+      <motion.div
+        className="absolute bottom-32 right-[12%] text-gaming-cyan/10 pointer-events-none"
+        animate={{ y: [0, -20, 0], rotate: [0, -10, 10, 0] }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+      >
+        <Zap className="h-20 w-20" />
+      </motion.div>
+      <motion.div
+        className="absolute top-1/3 right-[20%] text-gaming-pink/10 pointer-events-none"
+        animate={{ y: [0, -12, 0], rotate: [0, 15, -15, 0] }}
+        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+      >
+        <Star className="h-16 w-16" />
+      </motion.div>
+
+      {/* Main content */}
+      <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          className="w-full max-w-md"
+        >
+          <div className="text-center space-y-8">
+            {/* Logo */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+            >
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-gaming-purple via-gaming-pink to-gaming-cyan flex items-center justify-center mx-auto shadow-2xl shadow-gaming-purple/30 relative">
+                <Gamepad2 className="h-10 w-10 text-white" />
+                <motion.div
+                  className="absolute inset-0 rounded-2xl bg-gradient-to-br from-gaming-purple via-gaming-pink to-gaming-cyan"
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  style={{ filter: 'blur(12px)', zIndex: -1 }}
+                />
+              </div>
+            </motion.div>
+
+            <div className="space-y-3">
+              <motion.h1
+                className="text-4xl md:text-5xl font-bold"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <span className="bg-gradient-to-r from-gaming-purple via-gaming-cyan to-gaming-pink bg-clip-text text-transparent">
+                  Welcome to GamerHub
+                </span>
+              </motion.h1>
+              <motion.p
+                className="text-lg text-muted-foreground h-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                <TypewriterText />
+              </motion.p>
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <form onSubmit={handleSubmit} className="space-y-4 max-w-sm mx-auto">
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Gamepad2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      placeholder="Choose your gamertag"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="h-14 pl-12 text-lg rounded-2xl bg-card/50 border-border/50 focus-visible:ring-gaming-purple/50 focus-visible:border-gaming-purple text-center"
+                      maxLength={30}
+                      autoFocus
+                      disabled={loading}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">This will be your identity across GamerHub</p>
+                </div>
+                <Button
+                  type="submit"
+                  variant="gradient"
+                  size="xl"
+                  className="w-full h-14 text-lg rounded-2xl relative overflow-hidden group"
+                  disabled={loading || !username.trim()}
+                  animate
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      Enter GamerHub
+                      <ChevronRight className="h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
+                    </span>
+                  )}
+                </Button>
+              </form>
+
+              {/* Auth divider */}
+              <div className="relative max-w-sm mx-auto">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border/30" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground/60">or</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 justify-center">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Link href="/auth/login">
+                    <Button variant="outline" size="lg" className="gap-2 h-12 px-6 rounded-xl">
+                      <LogIn className="h-4 w-4" />
+                      Sign In
+                    </Button>
+                  </Link>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Link href="/auth/register">
+                    <Button variant="default" size="lg" className="gap-2 h-12 px-6 rounded-xl">
+                      <UserPlus className="h-4 w-4" />
+                      Create Account
+                    </Button>
+                  </Link>
+                </motion.div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="flex items-center justify-center gap-6 pt-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1 }}
+            >
+              {['Valorant', 'CS2', 'League of Legends', 'Fortnite'].map((game) => (
+                <span key={game} className="text-[11px] text-muted-foreground/60 font-medium tracking-wide uppercase">
+                  {game}
+                </span>
+              ))}
+            </motion.div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Stats bar */}
+      <motion.div
+        className="border-t border-border/30 bg-card/30 backdrop-blur-sm"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative w-full max-w-md"
+        transition={{ delay: 1.2 }}
       >
-        <div className="glass-card rounded-2xl p-8 space-y-6 text-center">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 rounded-2xl bg-gaming-purple/10 flex items-center justify-center">
-              <Gamepad2 className="h-8 w-8 text-gaming-purple" />
-            </div>
+        <div className="max-w-4xl mx-auto py-6 px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {stats.map((stat, i) => {
+              const Icon = stat.icon;
+              return (
+                <motion.div
+                  key={i}
+                  className="text-center space-y-1"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.3 + i * 0.1 }}
+                >
+                  <Icon className="h-5 w-5 mx-auto text-primary/60" />
+                  <p className="text-xl font-bold text-gradient">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                </motion.div>
+              );
+            })}
           </div>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-gradient">Welcome to GamerHub</h1>
-            <p className="text-muted-foreground">Choose a username to get started</p>
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Input
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="h-12 text-center text-lg"
-                maxLength={30}
-                autoFocus
-                disabled={loading}
-              />
-              <p className="text-xs text-muted-foreground">Pick a unique username — this will be your identity on GamerHub</p>
-            </div>
-            <Button
-              type="submit"
-              variant="gradient"
-              size="xl"
-              className="w-full h-12 text-lg"
-              disabled={loading || !username.trim()}
-            >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Enter GamerHub'}
-            </Button>
-          </form>
         </div>
       </motion.div>
     </div>

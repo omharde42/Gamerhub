@@ -151,4 +151,11 @@ declare module 'lucide-react' {
   export const Twitch: Icon;
   export const Youtube: Icon;
   export const Newspaper: Icon;
+  export const CheckCircle: Icon;
+  export const Reply: Icon;
+  export const Pin: Icon;
+  export const Hash: Icon;
+  export const Headphones: Icon;
+  export const Link: Icon;
+  export const ExternalLink: Icon;
 }

@@ -3,6 +3,8 @@ import { feedController } from '../controllers/feed.controller';
 import { authenticate } from '../middleware/auth';
 const router = Router();
 router.get('/', authenticate, feedController.getFeed.bind(feedController));
+router.get('/following', authenticate, feedController.getFollowing.bind(feedController));
+router.get('/followers', authenticate, feedController.getFollowers.bind(feedController));
 router.post('/follow/:userId', authenticate, feedController.follow.bind(feedController));
 router.post('/unfollow/:userId', authenticate, feedController.unfollow.bind(feedController));
 export default router;

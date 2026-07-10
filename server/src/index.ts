@@ -28,6 +28,11 @@ import organizationRoutes from './routes/organization.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import adminRoutes from './routes/admin.routes';
 import matchmakingRoutes from './routes/matchmaking.routes';
+import passportRoutes from './routes/passport.routes';
+import serverRoutes from './routes/server.routes';
+import friendRoutes from './routes/friend.routes';
+import presenceRoutes from './routes/presence.routes';
+import newsRoutes from './routes/news.routes';
 const app = express();
 const httpServer = createServer(app);
 
@@ -47,27 +52,45 @@ io.use((socket, next) => {
   } catch { next(new Error('Invalid token')); }
 });
 
+const onlineUsers = new Set<string>();
+
 io.on('connection', (socket) => {
   const userId = (socket as any).userId;
   console.log(`User connected: ${userId}`);
   socket.join(`user:${userId}`);
+  onlineUsers.add(userId);
+  io.emit('user:online', userId);
+
+  socket.on('user:online', (uid: string) => { onlineUsers.add(uid); io.emit('user:online', uid); });
+
+  socket.on('presence:update', (presence: string) => {
+    onlineUsers[presence === 'INVISIBLE' || presence === 'OFFLINE' ? 'delete' : 'add'](userId);
+    io.emit('user:presence', { userId, presence });
+  });
 
   socket.on('join:chat', (chatId: string) => { socket.join(`chat:${chatId}`); });
   socket.on('leave:chat', (chatId: string) => { socket.leave(`chat:${chatId}`); });
+
+  socket.on('server:join', (serverId: string) => { socket.join(`server:${serverId}`); });
+  socket.on('server:leave', (serverId: string) => { socket.leave(`server:${serverId}`); });
   socket.on('typing:start', (chatId: string) => { socket.to(`chat:${chatId}`).emit('typing:start', { userId, chatId }); });
   socket.on('typing:stop', (chatId: string) => { socket.to(`chat:${chatId}`).emit('typing:stop', { userId, chatId }); });
   socket.on('message:send', async (data) => {
     try {
       const prisma = (await import('./config/database')).default;
       const message = await prisma.message.create({
-        data: { chatId: data.chatId, senderId: userId, content: data.content, media: data.media || [], gif: data.gif },
+        data: { chatId: data.chatId, senderId: userId, content: data.content || '', media: data.media || [], gif: data.gif },
         include: { sender: { select: { id: true, profile: true } } },
       });
       await prisma.chat.update({ where: { id: data.chatId }, data: { updatedAt: new Date() } });
       io.to(`chat:${data.chatId}`).emit('message:new', message);
     } catch (error) { socket.emit('error', { message: 'Failed to send message' }); }
   });
-  socket.on('disconnect', () => { console.log(`User disconnected: ${userId}`); });
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${userId}`);
+    onlineUsers.delete(userId);
+    io.emit('user:offline', userId);
+  });
 });
 
 // Middleware
@@ -100,6 +123,11 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/matchmaking', matchmakingRoutes);
+app.use('/api/passport', passportRoutes);
+app.use('/api/servers', serverRoutes);
+app.use('/api/friends', friendRoutes);
+app.use('/api/presence', presenceRoutes);
+app.use('/api/news', newsRoutes);
 
 // Error handling
 app.use(notFoundHandler);

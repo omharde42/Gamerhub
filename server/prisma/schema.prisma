@@ -103,6 +103,30 @@ enum SubscriptionTier {
   ELITE
   TEAM_PRO
 }
+enum ServerMemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+enum ChannelType {
+  TEXT
+  VOICE
+  ANNOUNCEMENT
+}
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  BLOCKED
+}
+enum UserPresence {
+  ONLINE
+  IDLE
+  DND
+  INVISIBLE
+  OFFLINE
+}
 
 model User {
   id              String   @id @default(uuid())
@@ -148,6 +172,14 @@ model User {
   ownedOrganizations Organization[]
   organizationMemberships OrganizationMember[]
   savedJobs       SavedJob[]
+  givenEndorsements Endorsement[]
+  presence            UserPresence @default(OFFLINE)
+  servers             ServerMember[]
+  ownedServers        Server[]     @relation("ServerOwner")
+  friendRequestsSent  FriendRequest[] @relation("FriendRequestsSent")
+  friendRequestsReceived FriendRequest[] @relation("FriendRequestsReceived")
+  serverMessages      ServerMessage[]
+  messageReactions    MessageReaction[]
   @@index([email])
   @@index([role])
 }
@@ -224,6 +256,10 @@ model Profile {
   playStyle         String?
   communicationStyle String?
   activeTime        String?
+  age               Int?
+  timezone          String?
+  availability      String?
+  preferredGamingTime String?
   toxicityScore     Float    @default(0)
   winRate           Float    @default(0)
   kd                Float    @default(0)
@@ -235,12 +271,23 @@ model Profile {
   rankScore         Int      @default(0)
   role              String?
   mainGames         String[]
+  gamerScore        Int      @default(0)
+  skillScore        Int      @default(0)
+  competitiveScore  Int      @default(0)
+  communicationScore Int     @default(0)
+  leadershipScore   Int      @default(0)
+  teamworkScore     Int      @default(0)
+  improvementRate   Float    @default(0)
+  aiSummary         String?
+  verified          Boolean  @default(false)
   twitch            String?
   youtube           String?
   discord           String?
   steam             String?
   twitter           String?
   instagram         String?
+  kick              String?
+  facebookGaming    String?
   website           String?
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -249,11 +296,71 @@ model Profile {
   achievements      Achievement[]
   certifications   Certification[]
   tournamentHistory TournamentHistory[]
+  connectedGames    ConnectedGame[]
+  skills            GamerSkill[]
+  endorsements      Endorsement[]
   @@index([username])
   @@index([rank])
   @@index([country])
   @@index([winRate])
-  @@index([toxicityScore])
+  @@index([gamerScore])
+}
+
+model ConnectedGame {
+  id                String   @id @default(uuid())
+  gameName          String
+  publisher         String?
+  playerId          String?
+  server            String?
+  region            String?
+  level             String?
+  rank              String?
+  highestRank       String?
+  currentRank       String?
+  kdRatio           Float?
+  winRate           Float?
+  accuracy          Float?
+  headshotPct       Float?
+  matchesPlayed     Int      @default(0)
+  wins              Int      @default(0)
+  losses            Int      @default(0)
+  mvpCount          Int      @default(0)
+  favoriteWeapon    String?
+  favoriteCharacter String?
+  preferredRole     String?
+  hoursPlayed       Float    @default(0)
+  lastActive        DateTime?
+  leaderboardPos    Int?
+  verificationStatus String  @default("Manual")
+  dataSource        String   @default("Manual")
+  profileId         String
+  profile           Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([profileId])
+  @@index([gameName])
+}
+
+model GamerSkill {
+  id        String   @id @default(uuid())
+  name      String
+  score     Int      @default(0)
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  @@index([profileId])
+}
+
+model Endorsement {
+  id          String   @id @default(uuid())
+  skill       String
+  message     String?
+  createdAt   DateTime @default(now())
+  endorserId  String
+  endorser    User     @relation(fields: [endorserId], references: [id])
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  @@index([profileId])
+  @@index([endorserId])
 }
 
 model Achievement {
@@ -810,4 +917,95 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+}
+
+model Server {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  avatar       String?
+  banner       String?
+  inviteCode   String   @unique
+  isPublic     Boolean  @default(false)
+  memberCount  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  ownerId      String
+  owner        User     @relation("ServerOwner", fields: [ownerId], references: [id])
+  members      ServerMember[]
+  channels     Channel[]
+  @@index([slug])
+  @@index([inviteCode])
+}
+
+model Channel {
+  id          String      @id @default(uuid())
+  name        String
+  type        ChannelType @default(TEXT)
+  description String?
+  position    Int         @default(0)
+  isPrivate   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  serverId    String
+  server      Server      @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  messages    ServerMessage[]
+  @@index([serverId])
+}
+
+model ServerMember {
+  id        String           @id @default(uuid())
+  role      ServerMemberRole @default(MEMBER)
+  nickname  String?
+  joinedAt  DateTime         @default(now())
+  serverId  String
+  server    Server           @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  @@unique([serverId, userId])
+  @@index([userId])
+}
+
+model ServerMessage {
+  id         String   @id @default(uuid())
+  content    String?
+  media      String[]
+  isEdited   Boolean  @default(false)
+  isPinned   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  channelId  String
+  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id])
+  reactions  MessageReaction[]
+  @@index([channelId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model MessageReaction {
+  id        String        @id @default(uuid())
+  emoji     String
+  createdAt DateTime      @default(now())
+  messageId String
+  message   ServerMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id])
+  @@unique([messageId, userId, emoji])
+}
+
+model FriendRequest {
+  id         String             @id @default(uuid())
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  senderId   String
+  sender     User               @relation("FriendRequestsSent", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User               @relation("FriendRequestsReceived", fields: [receiverId], references: [id])
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
 }

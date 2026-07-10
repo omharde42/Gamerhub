@@ -1,18 +1,19 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Users, Gamepad2, RefreshCw } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { TrendingUp, Users, Gamepad2, RefreshCw, Newspaper, ExternalLink, Loader2, Zap, Sparkles } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { getInitials } from '@/lib/utils';
 import { PostCard } from '@/components/post/post-card';
 import { CreatePost } from '@/components/post/create-post';
 import { Skeleton } from '@/components/ui/skeleton';
+import { motion } from 'framer-motion';
 
 const SUGGESTED_PLAYERS = [
   { username: 'ProGamerX', rank: 'Diamond', role: 'Entry Fragger', game: 'Valorant' },
@@ -22,7 +23,9 @@ const SUGGESTED_PLAYERS = [
 
 export default function FeedPage() {
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>('all');
+  const socketRef = useRef<any>(null);
 
   const { data: feedData, isLoading, refetch } = useQuery({
     queryKey: ['feed', filter],
@@ -34,75 +37,146 @@ export default function FeedPage() {
     queryFn: () => api.get('/posts/trending').then(r => r.data.data).catch(() => []),
   });
 
-  return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Feed</h1>
-          <p className="text-sm text-muted-foreground">See what the community is talking about</p>
-        </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </Button>
-      </div>
+  const { data: newsData } = useQuery({
+    queryKey: ['gaming-news'],
+    queryFn: () => api.get('/news').then(r => r.data.data).catch(() => []),
+    refetchInterval: 60000,
+  });
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          <CreatePost />
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+    const { io } = require('socket.io-client');
+    const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000', { auth: { token } });
+    socketRef.current = socket;
+    socket.on('post:new', (post: any) => {
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    });
+    return () => { socket.disconnect(); };
+  }, [queryClient]);
+
+  return (
+    <div className="space-y-4">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <Newspaper className="h-5 w-5 text-primary" />
+            Feed
+          </h1>
+          <p className="text-xs text-muted-foreground">See what the community is talking about</p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => refetch()}>
+          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+        </Button>
+      </motion.div>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-3">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <CreatePost />
+          </motion.div>
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <Card key={i} className="glass-card"><CardContent className="p-4 space-y-3"><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-20" /></div></div><Skeleton className="h-20 w-full" /><Skeleton className="h-8 w-full" /></CardContent></Card>
+                <Card key={i} variant="glass"><CardContent className="p-4 space-y-3"><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-20" /></div></div><Skeleton className="h-20 w-full" /><Skeleton className="h-8 w-full" /></CardContent></Card>
               ))}
             </div>
           ) : (
-            feedData?.data?.map((post: any) => (
-              <PostCard key={post.id} post={post} onDelete={(id) => refetch()} />
+            feedData?.data?.map((post: any, i: number) => (
+              <motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                <PostCard post={post} onDelete={(id) => refetch()} />
+              </motion.div>
             ))
           )}
           {feedData?.data?.length === 0 && (
-            <Card className="glass-card"><CardContent className="p-8 text-center"><p className="text-muted-foreground">No posts yet. Be the first to share something!</p></CardContent></Card>
+            <Card variant="glass"><CardContent className="p-8 text-center"><Newspaper className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" /><p className="text-muted-foreground">No posts yet. Be the first to share something!</p></CardContent></Card>
           )}
         </div>
 
         <div className="space-y-4">
-          <Card className="glass-card sticky top-20">
+          <Card variant="glass" className="sticky top-20">
             <CardHeader className="pb-2">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-gaming-purple" /> Trending Topics</h3>
+              <h3 className="font-semibold text-sm flex items-center gap-2"><Zap className="h-4 w-4 text-orange-500" /> Trending Topics</h3>
             </CardHeader>
             <CardContent className="space-y-1">
               {trending?.slice(0, 8).map((h: any, i: number) => (
-                <button key={i} onClick={() => setFilter(h.name)} className={`w-full flex items-center justify-between p-2 rounded-lg hover:bg-accent/50 transition-all text-left ${filter === h.name ? 'bg-primary/10 text-primary' : ''}`}>
+                <button key={i} onClick={() => setFilter(h.name)} className={`w-full flex items-center justify-between p-2 rounded-lg hover:bg-accent/50 transition-all text-left group ${filter === h.name ? 'bg-primary/10 text-primary' : ''}`}>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground w-5 text-right">{i + 1}</span>
-                    <span className="text-sm font-medium">#{h.name}</span>
+                    <span className="text-xs font-bold w-5 text-right
+                      ${i === 0 ? 'text-gaming-yellow' : i === 1 ? 'text-muted-foreground' : i === 2 ? 'text-gaming-orange' : 'text-muted-foreground'}">
+                      {i < 3 ? ['🥇', '🥈', '🥉'][i] : `#${i + 1}`}
+                    </span>
+                    <span className="text-sm font-medium group-hover:text-primary transition-colors">#{h.name}</span>
                   </div>
                   <Badge variant="secondary" className="text-[10px]">{h.count}</Badge>
                 </button>
               ))}
               {filter !== 'all' && (
-                <Button variant="ghost" size="sm" className="w-full text-xs mt-2" onClick={() => setFilter('all')}>Clear filter</Button>
+                <Button variant="ghost" size="sm" className="w-full text-xs mt-2 text-muted-foreground" onClick={() => setFilter('all')}>Clear filter</Button>
               )}
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card variant="glass">
             <CardHeader className="pb-2">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><Users className="h-4 w-4 text-gaming-pink" /> Suggested Players</h3>
+              <h3 className="font-semibold text-sm flex items-center gap-2"><Newspaper className="h-4 w-4 text-primary" /> Gaming News</h3>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
+              {newsData?.length > 0 ? newsData.map((article: any, i: number) => (
+                <a key={i} href={article.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 p-2 rounded-lg hover:bg-accent/50 transition-all group">
+                  {article.image && <img src={article.image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />}
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium line-clamp-2 group-hover:text-primary transition-colors">{article.title}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{article.source || 'Gaming News'}</p>
+                  </div>
+                </a>
+              )) : (
+                <>
+                  {[
+                    { title: 'ESL Pro League Season 20: Teams & Schedule Revealed', source: 'ESL Gaming' },
+                    { title: 'Valorant Champions Tour 2026: New Format Announced', source: 'Riot Games' },
+                    { title: 'CS2 Major Championship: Prize Pool Hits $2M', source: 'HLTV' },
+                    { title: 'League of Legends World Championship 2026 Dates', source: 'Riot Games' },
+                    { title: 'BGMI Pro Series Returns with ₹1 Crore Prize', source: 'Krafton' },
+                  ].map((article, i) => (
+                    <motion.div key={i} className="flex items-start gap-2 p-2 rounded-lg hover:bg-accent/50 transition-all cursor-pointer" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-gaming-cyan/20 flex items-center justify-center shrink-0">
+                        <Gamepad2 className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium line-clamp-2">{article.title}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{article.source}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </>
+              )}
+              <Link href="/news">
+                <Button variant="ghost" size="sm" className="w-full text-xs gap-1 mt-1 text-muted-foreground">
+                  <ExternalLink className="h-3 w-3" /> View All News
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card variant="glass">
+            <CardHeader className="pb-2">
+              <h3 className="font-semibold text-sm flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Suggested Players</h3>
+            </CardHeader>
+            <CardContent className="space-y-2">
               {SUGGESTED_PLAYERS.map((p, i) => (
-                <div key={i} className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/50 transition-all cursor-pointer">
-                  <Avatar className="h-9 w-9"><AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(p.username)}</AvatarFallback></Avatar>
+                <motion.div key={i} className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/50 transition-all cursor-pointer group" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                  <Avatar className="h-9 w-9" ring>
+                    <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(p.username)}</AvatarFallback>
+                  </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{p.username}</p>
-                    <p className="text-xs text-muted-foreground truncate">{p.rank} • {p.role}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.rank} &bull; {p.role}</p>
                   </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Gamepad2 className="h-3 w-3" />
-                    <span className="text-[10px]">{p.game}</span>
-                  </div>
-                </div>
+                  <Badge variant="secondary" className="text-[10px] gap-1">
+                    <Gamepad2 className="h-3 w-3" /> {p.game}
+                  </Badge>
+                </motion.div>
               ))}
             </CardContent>
           </Card>

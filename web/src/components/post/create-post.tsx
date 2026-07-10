@@ -6,12 +6,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ImagePlus, Video, BarChart3, Send, X, Loader2 } from 'lucide-react';
+import { ImagePlus, Video, BarChart3, Send, X, Loader2, Sparkles } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
 
 export function CreatePost() {
   const [content, setContent] = useState('');
@@ -28,8 +29,7 @@ export function CreatePost() {
 
   const createPost = useMutation({
     mutationFn: () => api.post('/posts', {
-      content,
-      tags,
+      content, tags,
       media: media.length > 0 ? media : undefined,
       type: media.length > 0 ? 'CLIP' : 'POST',
       poll: showPoll && pollQuestion && pollOptions.filter(Boolean).length >= 2 ? {
@@ -40,7 +40,7 @@ export function CreatePost() {
     onSuccess: () => {
       setContent(''); setTags([]); setMedia([]); setShowPoll(false); setPollQuestion(''); setPollOptions(['', '']);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
-      toast.success('Posted!');
+      toast.success('Posted to the community!');
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to post'),
   });
@@ -65,7 +65,7 @@ export function CreatePost() {
   const addPollOption = () => { if (pollOptions.length < 5) setPollOptions([...pollOptions, '']); };
 
   return (
-    <Card className="glass-card">
+    <Card variant="glass">
       <CardContent className="p-4">
         <div className="flex gap-3">
           <Avatar className="h-10 w-10 ring-2 ring-border shrink-0">
@@ -79,11 +79,11 @@ export function CreatePost() {
               placeholder="Share something with the gaming community..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="min-h-[100px] resize-none border-0 bg-muted/50 rounded-xl p-3 text-sm"
+              className="min-h-[100px] resize-none border-0 bg-muted/30 rounded-xl p-3 text-sm focus-visible:ring-1 focus-visible:ring-primary/20"
             />
 
             {media.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
+              <motion.div className="flex gap-2 flex-wrap" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 {media.map((url, i) => (
                   <div key={i} className="relative group">
                     {url.match(/\.(mp4|webm|ogg)$/i) ? (
@@ -93,22 +93,22 @@ export function CreatePost() {
                     )}
                     <button
                       onClick={() => setMedia(media.filter((_, j) => j !== i))}
-                      className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                      className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
-              </div>
+              </motion.div>
             )}
 
             {showPoll && (
-              <div className="space-y-2 bg-muted/30 rounded-xl p-3">
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2 bg-muted/20 rounded-xl p-3 border border-border/50">
                 <Input
                   placeholder="Ask a question..."
                   value={pollQuestion}
                   onChange={(e) => setPollQuestion(e.target.value)}
-                  className="text-sm"
+                  className="text-sm border-0 bg-muted/30"
                 />
                 {pollOptions.map((opt, i) => (
                   <div key={i} className="flex gap-2">
@@ -120,7 +120,7 @@ export function CreatePost() {
                         newOpts[i] = e.target.value;
                         setPollOptions(newOpts);
                       }}
-                      className="text-sm flex-1"
+                      className="text-sm flex-1 border-0 bg-muted/30"
                     />
                     {pollOptions.length > 2 && (
                       <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}>
@@ -130,9 +130,9 @@ export function CreatePost() {
                   </div>
                 ))}
                 {pollOptions.length < 5 && (
-                  <Button variant="ghost" size="sm" className="text-xs" onClick={addPollOption}>+ Add option</Button>
+                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={addPollOption}>+ Add option</Button>
                 )}
-              </div>
+              </motion.div>
             )}
 
             <div className="flex items-center gap-2 flex-wrap">
@@ -147,7 +147,7 @@ export function CreatePost() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <input type="file" accept="image/*,video/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => fileInputRef.current?.click()}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary" onClick={() => fileInputRef.current?.click()}>
                   <ImagePlus className="h-4 w-4 mr-1" /> Media
                 </Button>
                 <div className="flex items-center gap-1">
@@ -155,12 +155,12 @@ export function CreatePost() {
                     placeholder="Media URL"
                     value={mediaUrl}
                     onChange={(e) => setMediaUrl(e.target.value)}
-                    className="h-8 w-24 text-xs"
+                    className="h-8 w-24 text-xs border-0 bg-muted/30"
                     onKeyDown={(e) => e.key === 'Enter' && addMedia()}
                   />
-                  <Button variant="ghost" size="sm" className="h-8" onClick={addMedia}>+</Button>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={addMedia}>+</Button>
                 </div>
-                <Button variant="ghost" size="sm" className={`text-muted-foreground ${showPoll ? 'text-primary' : ''}`} onClick={() => setShowPoll(!showPoll)}>
+                <Button variant="ghost" size="sm" className={`text-muted-foreground hover:text-primary ${showPoll ? 'text-primary' : ''}`} onClick={() => setShowPoll(!showPoll)}>
                   <BarChart3 className="h-4 w-4 mr-1" /> Poll
                 </Button>
                 <div className="flex items-center gap-1">
@@ -168,7 +168,7 @@ export function CreatePost() {
                     placeholder="#tag"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
-                    className="h-8 w-20 text-xs"
+                    className="h-8 w-20 text-xs border-0 bg-muted/30"
                     onKeyDown={(e) => e.key === 'Enter' && addTag()}
                   />
                 </div>
@@ -179,6 +179,7 @@ export function CreatePost() {
                 disabled={!content.trim() || createPost.isPending}
                 onClick={() => createPost.mutate()}
                 className="gap-2"
+                animate
               >
                 {createPost.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 Post

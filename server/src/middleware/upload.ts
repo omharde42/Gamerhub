@@ -12,3 +12,4 @@ export const uploadAvatar = multer({ storage, limits: { fileSize: 5 * 1024 * 102
 export const uploadBanner = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter }).single('banner');
 export const uploadMedia = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 }, fileFilter }).array('media', 10);
 export const uploadVoice = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter }).single('voiceNote');
+export const uploadScreenshot = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter }).single('screenshot');

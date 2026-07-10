@@ -7,4 +7,6 @@ router.get('/profile-analysis', authenticate, aiController.getProfileAnalysis.bi
 router.get('/match-analysis', authenticate, aiController.getMatchAnalysis.bind(aiController));
 router.get('/training-plan', authenticate, aiController.getTrainingPlan.bind(aiController));
 router.post('/detect-toxicity', authenticate, aiController.detectToxicity.bind(aiController));
+router.post('/chat', authenticate, aiController.chat.bind(aiController));
+router.post('/summarize-news', authenticate, aiController.summarizeNews.bind(aiController));
 export default router;

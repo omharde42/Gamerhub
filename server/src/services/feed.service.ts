@@ -8,5 +8,7 @@ export class FeedService {
   }
   async follow(followerId: string, followingId: string) { return prisma.follow.upsert({ where: { followerId_followingId: { followerId, followingId } }, update: {}, create: { followerId, followingId } }); }
   async unfollow(followerId: string, followingId: string) { await prisma.follow.deleteMany({ where: { followerId, followingId } }); }
+  async getFollowing(userId: string) { return prisma.follow.findMany({ where: { followerId: userId }, include: { following: { select: { id: true, profile: true } } } }); }
+  async getFollowers(userId: string) { return prisma.follow.findMany({ where: { followingId: userId }, include: { follower: { select: { id: true, profile: true } } } }); }
 }
 export const feedService = new FeedService();
