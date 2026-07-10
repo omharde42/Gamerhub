@@ -158,4 +158,21 @@ declare module 'lucide-react' {
   export const Headphones: Icon;
   export const Link: Icon;
   export const ExternalLink: Icon;
+  export const Monitor: Icon;
+  export const Film: Icon;
+  export const Scissors: Icon;
+  export const Type: Icon;
+  export const Square: Icon;
+  export const Save: Icon;
+  export const Undo2: Icon;
+  export const FileVideo: Icon;
+  export const Speaker: Icon;
+  export const SpeakerOff: Icon;
+  export const Crop: Icon;
+  export const MicOff: Icon;
+  export const VideoOff: Icon;
+  export const Clapperboard: Icon;
+  export const StopCircle: Icon;
+  export const RotateCcw: Icon;
+  export const Cut: Icon;
 }

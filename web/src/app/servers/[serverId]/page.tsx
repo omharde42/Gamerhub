@@ -28,7 +28,7 @@ export default function ServerPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const socketRef = useSocket();
+  const socket = useSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -49,23 +49,23 @@ export default function ServerPage() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   useEffect(() => {
-    if (socketRef.current && serverId) {
-      socketRef.current.emit('server:join', serverId);
+    if (socket && serverId) {
+      socket.emit('server:join', serverId);
       const handler = (msg: any) => { if (msg.channelId === selectedChannel) setMessages(prev => [...prev, msg]); };
       const delHandler = (data: any) => { setMessages(prev => prev.filter(m => m.id !== data.id)); };
       const pinHandler = (data: any) => { setMessages(prev => prev.map(m => m.id === data.id ? { ...m, isPinned: data.isPinned } : m)); };
       const reactHandler = (data: any) => { setMessages(prev => prev.map(m => m.id === data.messageId ? { ...m, reactions: [...(m.reactions || []).filter((r: any) => !(r.userId === data.reaction?.userId && r.emoji === data.reaction?.emoji)), data.reaction].filter(Boolean) } : m)); };
-      socketRef.current.on('server:message', handler);
-      socketRef.current.on('server:message:deleted', delHandler);
-      socketRef.current.on('server:message:pinned', pinHandler);
-      socketRef.current.on('server:reaction:added', reactHandler);
-      return () => { socketRef.current?.emit('server:leave', serverId); socketRef.current?.off('server:message', handler); };
+      socket.on('server:message', handler);
+      socket.on('server:message:deleted', delHandler);
+      socket.on('server:message:pinned', pinHandler);
+      socket.on('server:reaction:added', reactHandler);
+      return () => { socket?.emit('server:leave', serverId); socket?.off('server:message', handler); socket?.off('server:message:deleted', delHandler); socket?.off('server:message:pinned', pinHandler); socket?.off('server:reaction:added', reactHandler); };
     }
-  }, [socketRef, serverId, selectedChannel]);
+  }, [socket, serverId, selectedChannel]);
 
   const sendMessage = useMutation({
     mutationFn: () => api.post('/servers/messages', { channelId: selectedChannel, content: message }).then(r => r.data.data),
-    onSuccess: () => { setMessage(''); if (!socketRef.current) refetchMessages(); },
+    onSuccess: () => { setMessage(''); if (!socket) refetchMessages(); },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed'),
   });
 
