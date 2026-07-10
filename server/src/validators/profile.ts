@@ -1,2 +1,0 @@
-import { body } from 'express-validator';
-export const updateProfileValidation = [body('displayName').optional().isLength({ max: 50 }), body('bio').optional().isLength({ max: 500 }), body('country').optional().isString().isLength({ max: 100 }), body('languages').optional().isArray(), body('mainGames').optional().isArray(), body('playStyle').optional().isString(), body('communicationStyle').optional().isString(), body('activeTime').optional().isString(), body('rank').optional().isString(), body('role').optional().isString()];

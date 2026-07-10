@@ -1,13 +1,52 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { chatService } from '../services/chat.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess } from '../utils/response';
+
 export class ChatController {
-  async createDirectMessage(req: AuthRequest, res: Response, next: NextFunction) { try { const { userId } = req.body; const chat = await chatService.createDirectMessage(req.user!.userId, userId); res.json({ success: true, data: chat }); } catch (error) { next(error); } }
-  async createGroupChat(req: AuthRequest, res: Response, next: NextFunction) { try { const { name, userIds } = req.body; const chat = await chatService.createGroupChat(name, [req.user!.userId, ...userIds]); res.status(201).json({ success: true, data: chat }); } catch (error) { next(error); } }
-  async getUserChats(req: AuthRequest, res: Response, next: NextFunction) { try { const chats = await chatService.getUserChats(req.user!.userId); res.json({ success: true, data: chats }); } catch (error) { next(error); } }
-  async getChatMessages(req: AuthRequest, res: Response, next: NextFunction) { try { const { page, limit } = req.query; const result = await chatService.getChatMessages(req.params.id, page ? parseInt(page as string) : undefined, limit ? parseInt(limit as string) : undefined); res.json({ success: true, ...result }); } catch (error) { next(error); } }
-  async sendMessage(req: AuthRequest, res: Response, next: NextFunction) { try { const message = await chatService.sendMessage(req.params.id, req.user!.userId, req.body); res.status(201).json({ success: true, data: message }); } catch (error) { next(error); } }
-  async markAsRead(req: AuthRequest, res: Response, next: NextFunction) { try { const result = await chatService.markAsRead(req.params.id, req.user!.userId); res.json({ success: true, data: result }); } catch (error) { next(error); } }
-  async setTyping(req: AuthRequest, res: Response, next: NextFunction) { try { const { isTyping } = req.body; await chatService.setTyping(req.params.id, req.user!.userId, isTyping); res.json({ success: true }); } catch (error) { next(error); } }
+  createDirectMessage = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { userId } = req.body;
+    const chat = await chatService.createDirectMessage(req.user!.userId, userId);
+    sendSuccess(res, chat);
+  });
+
+  createGroupChat = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { name, userIds } = req.body;
+    const chat = await chatService.createGroupChat(name, [req.user!.userId, ...userIds]);
+    sendSuccess(res, chat, undefined, 201);
+  });
+
+  getUserChats = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const chats = await chatService.getUserChats(req.user!.userId);
+    sendSuccess(res, chats);
+  });
+
+  getChatMessages = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { page, limit } = req.query;
+    const result = await chatService.getChatMessages(
+      req.params.id,
+      page ? parseInt(page as string) : undefined,
+      limit ? parseInt(limit as string) : undefined,
+    );
+    sendSuccess(res, result.data, undefined, 200, result.meta);
+  });
+
+  sendMessage = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const message = await chatService.sendMessage(req.params.id, req.user!.userId, req.body);
+    sendSuccess(res, message, undefined, 201);
+  });
+
+  markAsRead = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await chatService.markAsRead(req.params.id, req.user!.userId);
+    sendSuccess(res, result);
+  });
+
+  setTyping = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { isTyping } = req.body;
+    await chatService.setTyping(req.params.id, req.user!.userId, isTyping);
+    sendSuccess(res, undefined);
+  });
 }
+
 export const chatController = new ChatController();

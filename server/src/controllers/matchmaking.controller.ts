@@ -1,7 +1,19 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { aiService } from '../services/ai.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess } from '../utils/response';
+
 export class MatchmakingController {
-  async getRecommendations(req: AuthRequest, res: Response, next: NextFunction) { try { const { game, limit } = req.query; const recommendations = await aiService.getPlayerRecommendations({ userId: req.user!.userId, game: game as string, limit: limit ? parseInt(limit as string) : undefined }); res.json({ success: true, data: recommendations }); } catch (error) { next(error); } }
+  getRecommendations = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { game, limit } = req.query;
+    const recommendations = await aiService.getPlayerRecommendations({
+      userId: req.user!.userId,
+      game: game as string,
+      limit: limit ? parseInt(limit as string) : undefined,
+    });
+    sendSuccess(res, recommendations);
+  });
 }
+
 export const matchmakingController = new MatchmakingController();

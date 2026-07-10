@@ -1,2 +1,0 @@
-import { body } from 'express-validator';
-export const createTournamentValidation = [body('title').isLength({ min: 3, max: 100 }).withMessage('Title must be 3-100 characters'), body('game').notEmpty().withMessage('Game is required'), body('type').isIn(['SINGLE_ELIMINATION', 'DOUBLE_ELIMINATION', 'ROUND_ROBIN', 'SWISS']), body('maxTeams').isInt({ min: 2, max: 256 }), body('startDate').isISO8601().withMessage('Valid start date is required'), body('prizePool').optional().isFloat({ min: 0 })];

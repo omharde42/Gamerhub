@@ -6,11 +6,11 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import { config } from './config';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { generalLimiter } from './middleware/rateLimiter';
-import { authenticate } from './middleware/auth';
-import { AuthRequest } from './types';
+import prisma from './config/database';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -33,59 +33,92 @@ import serverRoutes from './routes/server.routes';
 import friendRoutes from './routes/friend.routes';
 import presenceRoutes from './routes/presence.routes';
 import newsRoutes from './routes/news.routes';
+
 const app = express();
 const httpServer = createServer(app);
 
 // Socket.IO
 const io = new Server(httpServer, {
   cors: { origin: config.frontendUrl, credentials: true },
+  pingInterval: 25000,
+  pingTimeout: 20000,
 });
 
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) return next(new Error('Authentication required'));
   try {
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, config.jwt.secret);
+    const decoded = jwt.verify(token, config.jwt.secret) as { userId: string };
     (socket as any).userId = decoded.userId;
     next();
-  } catch { next(new Error('Invalid token')); }
+  } catch {
+    next(new Error('Invalid token'));
+  }
 });
 
 const onlineUsers = new Set<string>();
 
 io.on('connection', (socket) => {
-  const userId = (socket as any).userId;
+  const userId = (socket as any).userId as string;
   console.log(`User connected: ${userId}`);
   socket.join(`user:${userId}`);
   onlineUsers.add(userId);
   io.emit('user:online', userId);
 
-  socket.on('user:online', (uid: string) => { onlineUsers.add(uid); io.emit('user:online', uid); });
+  socket.on('user:online', (uid: string) => {
+    onlineUsers.add(uid);
+    io.emit('user:online', uid);
+  });
 
   socket.on('presence:update', (presence: string) => {
-    onlineUsers[presence === 'INVISIBLE' || presence === 'OFFLINE' ? 'delete' : 'add'](userId);
+    if (presence === 'INVISIBLE' || presence === 'OFFLINE') {
+      onlineUsers.delete(userId);
+    } else {
+      onlineUsers.add(userId);
+    }
     io.emit('user:presence', { userId, presence });
   });
 
-  socket.on('join:chat', (chatId: string) => { socket.join(`chat:${chatId}`); });
-  socket.on('leave:chat', (chatId: string) => { socket.leave(`chat:${chatId}`); });
+  socket.on('join:chat', (chatId: string) => {
+    socket.join(`chat:${chatId}`);
+  });
+  socket.on('leave:chat', (chatId: string) => {
+    socket.leave(`chat:${chatId}`);
+  });
 
-  socket.on('server:join', (serverId: string) => { socket.join(`server:${serverId}`); });
-  socket.on('server:leave', (serverId: string) => { socket.leave(`server:${serverId}`); });
-  socket.on('typing:start', (chatId: string) => { socket.to(`chat:${chatId}`).emit('typing:start', { userId, chatId }); });
-  socket.on('typing:stop', (chatId: string) => { socket.to(`chat:${chatId}`).emit('typing:stop', { userId, chatId }); });
-  socket.on('message:send', async (data) => {
+  socket.on('server:join', (serverId: string) => {
+    socket.join(`server:${serverId}`);
+  });
+  socket.on('server:leave', (serverId: string) => {
+    socket.leave(`server:${serverId}`);
+  });
+
+  socket.on('typing:start', (chatId: string) => {
+    socket.to(`chat:${chatId}`).emit('typing:start', { userId, chatId });
+  });
+  socket.on('typing:stop', (chatId: string) => {
+    socket.to(`chat:${chatId}`).emit('typing:stop', { userId, chatId });
+  });
+
+  socket.on('message:send', async (data: { chatId: string; content?: string; media?: string[]; gif?: string }) => {
     try {
-      const prisma = (await import('./config/database')).default;
       const message = await prisma.message.create({
-        data: { chatId: data.chatId, senderId: userId, content: data.content || '', media: data.media || [], gif: data.gif },
+        data: {
+          chatId: data.chatId,
+          senderId: userId,
+          content: data.content || '',
+          media: data.media || [],
+          gif: data.gif,
+        },
         include: { sender: { select: { id: true, profile: true } } },
       });
       await prisma.chat.update({ where: { id: data.chatId }, data: { updatedAt: new Date() } });
       io.to(`chat:${data.chatId}`).emit('message:new', message);
-    } catch (error) { socket.emit('error', { message: 'Failed to send message' }); }
+    } catch (error) {
+      socket.emit('error', { message: 'Failed to send message' });
+    }
   });
+
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${userId}`);
     onlineUsers.delete(userId);
@@ -95,7 +128,12 @@ io.on('connection', (socket) => {
 
 // Middleware
 app.set('trust proxy', 1);
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: config.nodeEnv === 'production' ? undefined : false,
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 app.use(cors({ origin: config.frontendUrl, credentials: true }));
 app.use(compression());
 app.use(morgan('dev'));
@@ -105,7 +143,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(generalLimiter);
 
 // Health check
-app.get('/api/health', (_req, res) => { res.json({ success: true, message: 'GamerHub API is running', timestamp: new Date().toISOString() }); });
+app.get('/api/health', (_req, res) => {
+  res.json({ success: true, message: 'GamerHub API is running', timestamp: new Date().toISOString() });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -133,7 +173,6 @@ app.use('/api/news', newsRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// Start server
 httpServer.listen(config.port, () => {
   console.log(`GamerHub API running on port ${config.port}`);
   console.log(`Environment: ${config.nodeEnv}`);

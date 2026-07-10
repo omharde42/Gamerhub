@@ -1,14 +1,113 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import prisma from '../config/database';
 import { AuthRequest } from '../types';
 import cloudinary from '../config/cloudinary';
 import { aiService } from '../services/ai.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess, sendError } from '../utils/response';
+import { NotFoundError, ValidationError } from '../utils/errors';
+
 export class ProfileController {
-  async getProfile(req: AuthRequest, res: Response, next: NextFunction) { try { const { username } = req.params; const profile = await prisma.profile.findUnique({ where: { username }, include: { achievements: true, certifications: true, tournamentHistory: true, user: { select: { id: true, createdAt: true } } } }); if (!profile) { res.status(404).json({ success: false, message: 'Profile not found' }); return; } res.json({ success: true, data: profile }); } catch (error) { next(error); } }
-  async updateProfile(req: AuthRequest, res: Response, next: NextFunction) { try { const data = req.body; const profile = await prisma.profile.update({ where: { userId: req.user!.userId }, data }); res.json({ success: true, data: profile }); } catch (error) { next(error); } }
-  async uploadAvatar(req: AuthRequest, res: Response, next: NextFunction) { try { if (!req.file) { res.status(400).json({ success: false, message: 'No file uploaded' }); return; } const b64 = Buffer.from(req.file.buffer).toString('base64'); const dataURI = `data:${req.file.mimetype};base64,${b64}`; const result = await cloudinary.uploader.upload(dataURI, { folder: 'gamerhub/avatars', width: 256, height: 256, crop: 'fill' }); await prisma.profile.update({ where: { userId: req.user!.userId }, data: { avatar: result.secure_url } }); res.json({ success: true, data: { avatar: result.secure_url } }); } catch (error) { next(error); } }
-  async uploadBanner(req: AuthRequest, res: Response, next: NextFunction) { try { if (!req.file) { res.status(400).json({ success: false, message: 'No file uploaded' }); return; } const b64 = Buffer.from(req.file.buffer).toString('base64'); const dataURI = `data:${req.file.mimetype};base64,${b64}`; const result = await cloudinary.uploader.upload(dataURI, { folder: 'gamerhub/banners', width: 1200, height: 400, crop: 'fill' }); await prisma.profile.update({ where: { userId: req.user!.userId }, data: { banner: result.secure_url } }); res.json({ success: true, data: { banner: result.secure_url } }); } catch (error) { next(error); } }
-  async getProfileAnalytics(req: AuthRequest, res: Response, next: NextFunction) { try { const profile = await prisma.profile.findUnique({ where: { userId: req.user!.userId } }); if (!profile) { res.status(404).json({ success: false, message: 'Profile not found' }); return; } const analysis = await aiService.analyzeProfileForOptimization(profile); res.json({ success: true, data: { profile, analysis } }); } catch (error) { next(error); } }
-  async searchProfiles(req: AuthRequest, res: Response, next: NextFunction) { try { const { q, page = '1', limit = '20' } = req.query; const skip = (parseInt(page as string) - 1) * parseInt(limit as string); const profiles = await prisma.profile.findMany({ where: { OR: [{ username: { contains: q as string, mode: 'insensitive' } }, { displayName: { contains: q as string, mode: 'insensitive' } }, { bio: { contains: q as string, mode: 'insensitive' } }] }, skip, take: parseInt(limit as string), orderBy: { winRate: 'desc' } }); const total = await prisma.profile.count({ where: { OR: [{ username: { contains: q as string, mode: 'insensitive' } }, { displayName: { contains: q as string, mode: 'insensitive' } }, { bio: { contains: q as string, mode: 'insensitive' } }] } }); res.json({ success: true, data: profiles, meta: { page: parseInt(page as string), limit: parseInt(limit as string), total, totalPages: Math.ceil(total / parseInt(limit as string)) } }); } catch (error) { next(error); } }
+  getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { username } = req.params;
+    const profile = await prisma.profile.findUnique({
+      where: { username },
+      include: {
+        achievements: true,
+        certifications: true,
+        tournamentHistory: true,
+        user: { select: { id: true, createdAt: true } },
+      },
+    });
+    if (!profile) throw new NotFoundError('Profile');
+    sendSuccess(res, profile);
+  });
+
+  updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const data = req.body;
+    const profile = await prisma.profile.update({
+      where: { userId: req.user!.userId },
+      data,
+    });
+    sendSuccess(res, profile);
+  });
+
+  uploadAvatar = asyncHandler(async (req: AuthRequest, res: Response) => {
+    if (!req.file) {
+      return sendError(res, 400, 'No file uploaded');
+    }
+    const b64 = Buffer.from(req.file.buffer).toString('base64');
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: 'gamerhub/avatars',
+      width: 256,
+      height: 256,
+      crop: 'fill',
+    });
+    await prisma.profile.update({
+      where: { userId: req.user!.userId },
+      data: { avatar: result.secure_url },
+    });
+    sendSuccess(res, { avatar: result.secure_url });
+  });
+
+  uploadBanner = asyncHandler(async (req: AuthRequest, res: Response) => {
+    if (!req.file) {
+      return sendError(res, 400, 'No file uploaded');
+    }
+    const b64 = Buffer.from(req.file.buffer).toString('base64');
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: 'gamerhub/banners',
+      width: 1200,
+      height: 400,
+      crop: 'fill',
+    });
+    await prisma.profile.update({
+      where: { userId: req.user!.userId },
+      data: { banner: result.secure_url },
+    });
+    sendSuccess(res, { banner: result.secure_url });
+  });
+
+  getProfileAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const profile = await prisma.profile.findUnique({
+      where: { userId: req.user!.userId },
+    });
+    if (!profile) throw new NotFoundError('Profile');
+    const analysis = await aiService.analyzeProfileForOptimization(profile);
+    sendSuccess(res, { profile, analysis });
+  });
+
+  searchProfiles = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { q, page = '1', limit = '20' } = req.query;
+    if (!q || (q as string).trim().length === 0) {
+      return sendSuccess(res, [], undefined, 200, { page: 1, limit: 0, total: 0, totalPages: 0 });
+    }
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const where = {
+      OR: [
+        { username: { contains: q as string, mode: 'insensitive' as const } },
+        { displayName: { contains: q as string, mode: 'insensitive' as const } },
+        { bio: { contains: q as string, mode: 'insensitive' as const } },
+      ],
+    };
+    const [profiles, total] = await Promise.all([
+      prisma.profile.findMany({
+        where,
+        skip,
+        take: parseInt(limit as string),
+        orderBy: { winRate: 'desc' },
+      }),
+      prisma.profile.count({ where }),
+    ]);
+    sendSuccess(res, profiles, undefined, 200, {
+      page: parseInt(page as string),
+      limit: parseInt(limit as string),
+      total,
+      totalPages: Math.ceil(total / parseInt(limit as string)),
+    });
+  });
 }
+
 export const profileController = new ProfileController();

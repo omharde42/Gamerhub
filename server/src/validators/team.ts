@@ -1,2 +1,0 @@
-import { body } from 'express-validator';
-export const createTeamValidation = [body('name').isLength({ min: 2, max: 50 }).withMessage('Team name must be 2-50 characters').matches(/^[a-zA-Z0-9\s_-]+$/).withMessage('Team name can only contain letters, numbers, spaces, underscores, and hyphens'), body('tag').optional().isLength({ max: 5 }), body('description').optional().isLength({ max: 1000 }), body('region').optional().isString()];

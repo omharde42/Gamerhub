@@ -1,21 +1,92 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { authService } from '../services/auth.service';
 import { AuthRequest } from '../types';
-import { NotFoundError } from '../utils/errors';
 import prisma from '../config/database';
+import { NotFoundError } from '../utils/errors';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess, sendError } from '../utils/response';
+
 export class AuthController {
-  async register(req: Request, res: Response, next: NextFunction) { try { const { email, password, username } = req.body; const result = await authService.register(email, password, username); res.status(201).json({ success: true, message: 'Account created successfully!', data: result }); } catch (error) { next(error); } }
-  async login(req: Request, res: Response, next: NextFunction) { try { const { email, password } = req.body; const result = await authService.login(email, password); res.json({ success: true, data: result }); } catch (error) { next(error); } }
-  async refreshToken(req: Request, res: Response, next: NextFunction) { try { const { refreshToken } = req.body; const result = await authService.refreshToken(refreshToken); res.json({ success: true, data: result }); } catch (error) { next(error); } }
-  async logout(req: AuthRequest, res: Response, next: NextFunction) { try { const { refreshToken } = req.body; if (refreshToken) await authService.logout(refreshToken); res.json({ success: true, message: 'Logged out successfully' }); } catch (error) { next(error); } }
-  async forgotPassword(req: Request, res: Response, next: NextFunction) { try { const { email } = req.body; await authService.forgotPassword(email); res.json({ success: true, message: 'If the email exists, a reset link has been sent.' }); } catch (error) { next(error); } }
-  async resetPassword(req: Request, res: Response, next: NextFunction) { try { const { token, password } = req.body; await authService.resetPassword(token, password); res.json({ success: true, message: 'Password reset successfully' }); } catch (error) { next(error); } }
-  async verifyEmail(req: Request, res: Response, next: NextFunction) { try { const { token } = req.query; await authService.verifyEmail(token as string); res.json({ success: true, message: 'Email verified successfully' }); } catch (error) { next(error); } }
-  async setupTwoFactor(req: AuthRequest, res: Response, next: NextFunction) { try { const result = await authService.setupTwoFactor(req.user!.userId); res.json({ success: true, data: result }); } catch (error) { next(error); } }
-  async verifyTwoFactor(req: AuthRequest, res: Response, next: NextFunction) { try { const { token } = req.body; const result = await authService.verifyTwoFactor(req.user!.userId, token); res.json({ success: true, data: result }); } catch (error) { next(error); } }
-  async disableTwoFactor(req: AuthRequest, res: Response, next: NextFunction) { try { const { token } = req.body; await authService.disableTwoFactor(req.user!.userId, token); res.json({ success: true, message: '2FA disabled' }); } catch (error) { next(error); } }
-  async getMe(req: AuthRequest, res: Response, next: NextFunction) { try { const user = await prisma.user.findUnique({ where: { id: req.user!.userId }, include: { profile: true, subscription: true } }); if (!user) return next(new NotFoundError('User')); const { password, twoFactorSecret, ...safeUser } = user; res.json({ success: true, data: { ...safeUser, hasPassword: !!user.password } }); } catch (error) { next(error); } }
-  async setPassword(req: AuthRequest, res: Response, next: NextFunction) { try { const { password } = req.body; await authService.setPassword(req.user!.userId, password); res.json({ success: true, message: 'Password set successfully' }); } catch (error) { next(error); } }
-  async changePassword(req: AuthRequest, res: Response, next: NextFunction) { try { const { currentPassword, newPassword } = req.body; await authService.changePassword(req.user!.userId, currentPassword, newPassword); res.json({ success: true, message: 'Password changed. Please log in again.' }); } catch (error) { next(error); } }
+  register = asyncHandler(async (req: Request, res: Response) => {
+    const { email, password, username } = req.body;
+    const result = await authService.register(email, password, username);
+    sendSuccess(res, result, 'Account created successfully!', 201);
+  });
+
+  login = asyncHandler(async (req: Request, res: Response) => {
+    const { email, password } = req.body;
+    const result = await authService.login(email, password);
+    sendSuccess(res, result);
+  });
+
+  refreshToken = asyncHandler(async (req: Request, res: Response) => {
+    const { refreshToken } = req.body;
+    const result = await authService.refreshToken(refreshToken);
+    sendSuccess(res, result);
+  });
+
+  logout = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { refreshToken } = req.body;
+    if (refreshToken) await authService.logout(refreshToken);
+    sendSuccess(res, null, 'Logged out successfully');
+  });
+
+  forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+    await authService.forgotPassword(email);
+    sendSuccess(res, null, 'If the email exists, a reset link has been sent.');
+  });
+
+  resetPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { token, password } = req.body;
+    await authService.resetPassword(token, password);
+    sendSuccess(res, null, 'Password reset successfully');
+  });
+
+  verifyEmail = asyncHandler(async (req: Request, res: Response) => {
+    const { token } = req.query;
+    await authService.verifyEmail(token as string);
+    sendSuccess(res, null, 'Email verified successfully');
+  });
+
+  setupTwoFactor = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await authService.setupTwoFactor(req.user!.userId);
+    sendSuccess(res, result);
+  });
+
+  verifyTwoFactor = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { token } = req.body;
+    const result = await authService.verifyTwoFactor(req.user!.userId, token);
+    sendSuccess(res, result);
+  });
+
+  disableTwoFactor = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { token } = req.body;
+    await authService.disableTwoFactor(req.user!.userId, token);
+    sendSuccess(res, null, '2FA disabled');
+  });
+
+  getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      include: { profile: true, subscription: true },
+    });
+    if (!user) throw new NotFoundError('User');
+    const { password, twoFactorSecret, ...safeUser } = user;
+    sendSuccess(res, { ...safeUser, hasPassword: !!user.password });
+  });
+
+  setPassword = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { password } = req.body;
+    await authService.setPassword(req.user!.userId, password);
+    sendSuccess(res, null, 'Password set successfully');
+  });
+
+  changePassword = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { currentPassword, newPassword } = req.body;
+    await authService.changePassword(req.user!.userId, currentPassword, newPassword);
+    sendSuccess(res, null, 'Password changed. Please log in again.');
+  });
 }
+
 export const authController = new AuthController();

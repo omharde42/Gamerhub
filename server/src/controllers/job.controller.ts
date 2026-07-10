@@ -1,11 +1,42 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { jobService } from '../services/job.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess } from '../utils/response';
+
 export class JobController {
-  async create(req: AuthRequest, res: Response, next: NextFunction) { try { const job = await jobService.create(req.body, req.user!.userId); res.status(201).json({ success: true, data: job }); } catch (error) { next(error); } }
-  async list(req: AuthRequest, res: Response, next: NextFunction) { try { const { page, limit, type, game, status } = req.query; const result = await jobService.list({ page: page ? parseInt(page as string) : undefined, limit: limit ? parseInt(limit as string) : undefined, type: type as string, game: game as string, status: status as string }); res.json({ success: true, ...result }); } catch (error) { next(error); } }
-  async apply(req: AuthRequest, res: Response, next: NextFunction) { try { const { message } = req.body; const application = await jobService.apply(req.params.id, req.user!.userId, message); res.json({ success: true, data: application }); } catch (error) { next(error); } }
-  async save(req: AuthRequest, res: Response, next: NextFunction) { try { await jobService.save(req.user!.userId, req.params.id); res.json({ success: true, message: 'Job saved' }); } catch (error) { next(error); } }
-  async unsave(req: AuthRequest, res: Response, next: NextFunction) { try { await jobService.unsave(req.user!.userId, req.params.id); res.json({ success: true, message: 'Job unsaved' }); } catch (error) { next(error); } }
+  create = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const job = await jobService.create(req.body, req.user!.userId);
+    sendSuccess(res, job, undefined, 201);
+  });
+
+  list = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { page, limit, type, game, status } = req.query;
+    const result = await jobService.list({
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      type: type as string,
+      game: game as string,
+      status: status as string,
+    });
+    sendSuccess(res, result.data, undefined, 200, result.meta);
+  });
+
+  apply = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { message } = req.body;
+    const application = await jobService.apply(req.params.id, req.user!.userId, message);
+    sendSuccess(res, application);
+  });
+
+  save = asyncHandler(async (req: AuthRequest, res: Response) => {
+    await jobService.save(req.user!.userId, req.params.id);
+    sendSuccess(res, null, 'Job saved');
+  });
+
+  unsave = asyncHandler(async (req: AuthRequest, res: Response) => {
+    await jobService.unsave(req.user!.userId, req.params.id);
+    sendSuccess(res, null, 'Job unsaved');
+  });
 }
+
 export const jobController = new JobController();

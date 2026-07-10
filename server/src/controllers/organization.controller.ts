@@ -1,9 +1,29 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { organizationService } from '../services/organization.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess } from '../utils/response';
+
 export class OrganizationController {
-  async create(req: AuthRequest, res: Response, next: NextFunction) { try { const org = await organizationService.create(req.body, req.user!.userId); res.status(201).json({ success: true, data: org }); } catch (error) { next(error); } }
-  async getBySlug(req: AuthRequest, res: Response, next: NextFunction) { try { const org = await organizationService.getBySlug(req.params.slug); res.json({ success: true, data: org }); } catch (error) { next(error); } }
-  async list(req: AuthRequest, res: Response, next: NextFunction) { try { const { page, limit, verified } = req.query; const result = await organizationService.list({ page: page ? parseInt(page as string) : undefined, limit: limit ? parseInt(limit as string) : undefined, verified: verified === 'true' }); res.json({ success: true, ...result }); } catch (error) { next(error); } }
+  create = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const org = await organizationService.create(req.body, req.user!.userId);
+    sendSuccess(res, org, undefined, 201);
+  });
+
+  getBySlug = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const org = await organizationService.getBySlug(req.params.slug);
+    sendSuccess(res, org);
+  });
+
+  list = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { page, limit, verified } = req.query;
+    const result = await organizationService.list({
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      verified: verified === 'true',
+    });
+    sendSuccess(res, result.data, undefined, 200, result.meta);
+  });
 }
+
 export const organizationController = new OrganizationController();
