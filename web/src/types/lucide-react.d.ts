@@ -151,13 +151,8 @@ declare module 'lucide-react' {
   export const Twitch: Icon;
   export const Youtube: Icon;
   export const Newspaper: Icon;
-  export const CheckCircle: Icon;
   export const Reply: Icon;
   export const Pin: Icon;
-  export const Hash: Icon;
-  export const Headphones: Icon;
-  export const Link: Icon;
-  export const ExternalLink: Icon;
   export const Monitor: Icon;
   export const Film: Icon;
   export const Scissors: Icon;
@@ -167,7 +162,6 @@ declare module 'lucide-react' {
   export const Undo2: Icon;
   export const FileVideo: Icon;
   export const Speaker: Icon;
-  export const SpeakerOff: Icon;
   export const Crop: Icon;
   export const MicOff: Icon;
   export const VideoOff: Icon;
@@ -188,9 +182,6 @@ declare module 'lucide-react' {
   export const Ghost: Icon;
   export const Skull: Icon;
   export const Flame: Icon;
-  export const Swords: Icon;
   export const Frown: Icon;
   export const Meh: Icon;
-  export const ThumbsUp: Icon;
-  export const ThumbsDown: Icon;
 }
