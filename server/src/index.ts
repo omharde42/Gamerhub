@@ -6,8 +6,16 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import jwt from 'jsonwebtoken';
 import { config } from './config';
+
+type JwtModule = typeof import('jsonwebtoken');
+let jwtModule: JwtModule | null = null;
+const getJwtModule = (): JwtModule => {
+  if (!jwtModule) {
+    jwtModule = require('jsonwebtoken') as JwtModule;
+  }
+  return jwtModule;
+};
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { generalLimiter } from './middleware/rateLimiter';
 import prisma from './config/database';
@@ -48,7 +56,7 @@ io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) return next(new Error('Authentication required'));
   try {
-    const decoded = jwt.verify(token, config.jwt.secret) as { userId: string };
+    const decoded = getJwtModule().verify(token, config.jwt.secret) as { userId: string };
     (socket as any).userId = decoded.userId;
     next();
   } catch {

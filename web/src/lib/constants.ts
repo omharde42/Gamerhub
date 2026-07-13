@@ -1,5 +1,8 @@
-export const API_URL = 'https://gamerhub-api.onrender.com/api';
-export const SOCKET_URL = 'https://gamerhub-api.onrender.com';
+const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+const envSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
+
+export const API_URL = envApiUrl || 'http://localhost:4000/api';
+export const SOCKET_URL = envSocketUrl || 'http://localhost:4000';
 export const APP_NAME = 'GamerHub';
 export const COPYRIGHT = `© ${new Date().getFullYear()} GamerHub. All rights reserved.`;
 

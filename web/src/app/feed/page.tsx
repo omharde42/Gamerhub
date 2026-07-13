@@ -9,6 +9,7 @@ import { TrendingUp, Users, Gamepad2, RefreshCw, Newspaper, ExternalLink, Loader
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { SOCKET_URL } from '@/lib/constants';
 import { getInitials } from '@/lib/utils';
 import { PostCard } from '@/components/post/post-card';
 import { CreatePost } from '@/components/post/create-post';
@@ -47,7 +48,7 @@ export default function FeedPage() {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
     const { io } = require('socket.io-client');
-    const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000', { auth: { token } });
+    const socket = io(SOCKET_URL, { auth: { token } });
     socketRef.current = socket;
     socket.on('post:new', (post: any) => {
       queryClient.invalidateQueries({ queryKey: ['feed'] });

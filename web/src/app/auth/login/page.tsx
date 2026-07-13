@@ -9,6 +9,7 @@ import { Loader2, LogIn, Eye, EyeOff } from 'lucide-react';
 import { AuthFormWrapper } from '@/components/auth/auth-form-wrapper';
 import { SocialLogin } from '@/components/auth/social-login';
 import api from '@/lib/api';
+import { API_URL } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -41,8 +42,7 @@ export default function LoginPage() {
 
   const handleSocialLogin = (provider: string) => {
     setSocialLoading(true);
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://gamerhub-api.onrender.com/api';
-    window.location.href = `${baseUrl}/auth/${provider}`;
+    window.location.href = `${API_URL}/auth/${provider}`;
   };
 
   return (

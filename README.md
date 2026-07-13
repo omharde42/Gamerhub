@@ -78,6 +78,12 @@ To become the world's #1 professional networking platform for gamers, esports pl
 - TypeScript
 - Tailwind CSS
 
+## Environment Setup
+- Copy [.env.example](.env.example) to .env and fill in the real values for your local backend environment.
+- Copy [web/.env.example](web/.env.example) to web/.env.local and set the frontend API and socket URLs.
+- Keep all secrets in those environment files and never commit them to Git.
+- For Supabase auth/database, set the SUPABASE_* values plus the database URL in the server env file.
+
 ## Backend
 - Node.js
 - Express.js
