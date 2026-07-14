@@ -9,6 +9,7 @@ import { Loader2, UserPlus, Eye, EyeOff, Check, X } from 'lucide-react';
 import { AuthFormWrapper } from '@/components/auth/auth-form-wrapper';
 import { SocialLogin } from '@/components/auth/social-login';
 import api from '@/lib/api';
+import { API_URL } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -57,8 +58,7 @@ export default function RegisterPage() {
 
   const handleSocialLogin = (provider: string) => {
     setSocialLoading(true);
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://gamerhub-api.onrender.com/api';
-    window.location.href = `${baseUrl}/auth/${provider}/register`;
+    window.location.href = `${API_URL}/auth/${provider}/register`;
   };
 
   const CheckIcon = ({ ok }: { ok: boolean }) => ok

@@ -3,6 +3,11 @@ import prisma from '../config/database';
 import { AIRecommendation } from '../types';
 import OpenAI from 'openai';
 
+function logAIError(context: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[AIService] ${context} failed:`, message);
+}
+
 function generateLocalProfileAnalysis(profile: any): string {
   const games = profile.mainGames?.length || 0;
   const hasRank = !!profile.rank;
@@ -129,7 +134,7 @@ export class AIService {
     try {
       const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a professional esports profile optimizer. Analyze the profile and suggest improvements.' }, { role: 'user', content: `Analyze this gaming profile and suggest improvements:\nUsername: ${profile.username}\nBio: ${profile.bio || 'N/A'}\nMain Games: ${profile.mainGames?.join(', ') || 'N/A'}\nRank: ${profile.rank || 'N/A'}\nRole: ${profile.role || 'N/A'}\nWin Rate: ${profile.winRate}%\nK/D: ${profile.kd}\nPlay Style: ${profile.playStyle || 'N/A'}\nLanguages: ${profile.languages?.join(', ') || 'N/A'}\nProvide: 1. Profile strength score (0-100) 2. Top 3 improvements 3. Suggested bio rewrite` }], max_tokens: 500 });
       return completion.choices[0]?.message?.content || generateLocalProfileAnalysis(profile);
-    } catch (error) { console.error('AI analysis error:', error); return generateLocalProfileAnalysis(profile); }
+    } catch (error) { logAIError('profile analysis', error); return generateLocalProfileAnalysis(profile); }
   }
 
   async analyzeMatchPerformance(matchData: any) {
@@ -137,7 +142,7 @@ export class AIService {
     try {
       const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are an expert esports coach. Analyze match performance and provide actionable feedback.' }, { role: 'user', content: `Analyze this match performance:\nGame: ${matchData.game}\nResult: ${matchData.result}\nKills: ${matchData.kills}\nDeaths: ${matchData.deaths}\nAssists: ${matchData.assists}\nDamage: ${matchData.damage}\nAccuracy: ${matchData.accuracy}%\nProvide: 1. Performance rating (0-100) 2. Main strengths 3. Areas for improvement 4. Specific tips` }], max_tokens: 500 });
       return completion.choices[0]?.message?.content || generateLocalMatchAnalysis(matchData);
-    } catch (error) { console.error('AI match analysis error:', error); return generateLocalMatchAnalysis(matchData); }
+    } catch (error) { logAIError('match analysis', error); return generateLocalMatchAnalysis(matchData); }
   }
 
   async detectToxicity(content: string): Promise<{ toxic: boolean; score: number; reason: string }> {
@@ -149,7 +154,7 @@ export class AIService {
     try {
       const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a content moderator. Analyze the text for toxicity, harassment, or inappropriate content. Respond with JSON: {"toxic": boolean, "score": 0-1, "reason": "string"}' }, { role: 'user', content }], response_format: { type: 'json_object' }, max_tokens: 200 });
       const result = JSON.parse(completion.choices[0]?.message?.content || '{"toxic": false, "score": 0, "reason": "No content"}'); return result;
-    } catch { return { toxic: false, score: 0, reason: 'Analysis unavailable' }; }
+    } catch (error) { logAIError('toxicity detection', error); return { toxic: false, score: 0, reason: 'Analysis unavailable' }; }
   }
 
   async generateTrainingPlan(profile: any) {
@@ -157,7 +162,7 @@ export class AIService {
     try {
       const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a professional esports coach. Create a personalized training plan.' }, { role: 'user', content: `Create a 7-day training plan for:\nGames: ${profile.mainGames?.join(', ') || 'Various'}\nCurrent Rank: ${profile.rank || 'Unranked'}\nWin Rate: ${profile.winRate}%\nK/D: ${profile.kd}\nRole: ${profile.role || 'Flex'}\nInclude daily drills, practice routines, and improvement goals.` }], max_tokens: 1000 });
       return completion.choices[0]?.message?.content || generateLocalTrainingPlan(profile);
-    } catch { return generateLocalTrainingPlan(profile); }
+    } catch (error) { logAIError('training plan generation', error); return generateLocalTrainingPlan(profile); }
   }
 
   async chat(message: string, history: { role: string; content: string }[], profile: any): Promise<string> {
@@ -183,7 +188,7 @@ Keep responses concise, actionable, and encouraging. Focus on gaming improvement
       const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages, max_tokens: 500, temperature: 0.7 });
       return completion.choices[0]?.message?.content || fallbackResponses.default;
     } catch (error) {
-      console.error('AI chat error:', error);
+      logAIError('chat response generation', error);
       return "I'm having trouble processing that right now. Let me try a simpler response: focus on fundamentals like crosshair placement, movement mechanics, map knowledge, and communication. Consistency in practice matters more than hours played. What specific game or role do you want help with?";
     }
   }
@@ -201,7 +206,8 @@ Keep responses concise, actionable, and encouraging. Focus on gaming improvement
         max_tokens: 300,
       });
       return completion.choices[0]?.message?.content || '';
-    } catch {
+    } catch (error) {
+      logAIError('news summary generation', error);
       return '';
     }
   }

@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config';
 import { JWTPayload } from '../types';
@@ -11,6 +12,11 @@ export const hashPassword = async (password: string): Promise<string> => bcrypt.
 export const comparePassword = async (password: string, hash: string): Promise<boolean> => bcrypt.compare(password, hash);
 export const generateUUID = (): string => uuidv4();
 export const sanitizeUser = (user: any) => { const { password, twoFactorSecret, ...sanitized } = user; return sanitized; };
-export const generateVerificationCode = (length: number = 6): string => Math.random().toString(36).substring(2, 2 + length).toUpperCase();
+export const generateVerificationCode = (length: number = 6): string => {
+  const safeLength = Math.max(4, Math.min(length || 6, 12));
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.randomBytes(safeLength);
+  return Array.from(bytes, (byte) => chars[byte % chars.length]).join('');
+};
 export const calculatePagination = (page: number = 1, limit: number = 20) => ({ skip: (page - 1) * limit, take: limit });
 export const generateSlug = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
