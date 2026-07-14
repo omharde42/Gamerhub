@@ -15,7 +15,6 @@ export default function AdminPage() {
   const { data: reports } = useQuery({ queryKey: ['admin-reports'], queryFn: () => api.get('/admin/reports').then(r => r.data) });
   const { data: users } = useQuery({ queryKey: ['admin-users'], queryFn: () => api.get('/admin/users').then(r => r.data) });
   const banUser = useMutation({ mutationFn: (userId: string) => api.post(`/admin/users/${userId}/ban`, { reason: 'Violation of terms' }), onSuccess: () => toast.success('User banned') });
-
   const statCards = [{ label: 'Users', value: stats?.users || 0, icon: Users, color: 'text-blue-500' }, { label: 'Tournaments', value: stats?.tournaments || 0, icon: Trophy, color: 'text-yellow-500' }, { label: 'Jobs', value: stats?.jobs || 0, icon: Briefcase, color: 'text-green-500' }, { label: 'Organizations', value: stats?.orgs || 0, icon: Building2, color: 'text-gaming-purple' }, { label: 'Pending Reports', value: stats?.pendingReports || 0, icon: AlertTriangle, color: 'text-red-500' }, { label: 'Posts', value: stats?.posts || 0, icon: FileText, color: 'text-cyan-500' }];
 
   return (<div className="space-y-6"><div className="flex items-center justify-between"><h1 className="text-2xl font-bold"><Shield className="h-6 w-6 inline mr-2 text-gaming-purple" />Admin Panel</h1><Badge variant="default">Admin</Badge></div>

@@ -45,9 +45,18 @@ import newsRoutes from './routes/news.routes';
 const app = express();
 const httpServer = createServer(app);
 
+// Allowed Frontend URLs
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://web-drab-nu-21.vercel.app",
+];
+
 // Socket.IO
 const io = new Server(httpServer, {
-  cors: { origin: config.frontendUrl, credentials: true },
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+  },
   pingInterval: 25000,
   pingTimeout: 20000,
 });
@@ -135,14 +144,28 @@ io.on('connection', (socket) => {
 });
 
 // Middleware
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 app.use(
   helmet({
-    contentSecurityPolicy: config.nodeEnv === 'production' ? undefined : false,
+    contentSecurityPolicy: config.nodeEnv === "production" ? undefined : false,
     crossOriginEmbedderPolicy: false,
-  }),
+  })
 );
-app.use(cors({ origin: config.frontendUrl, credentials: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (Postman, mobile apps, etc.)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(compression());
 app.use(morgan('dev'));
 app.use(cookieParser());
