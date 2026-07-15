@@ -77,7 +77,7 @@ export class FriendController {
         },
       }),
     ]);
-    const friends = [...sent.map(r => r.receiver), ...received.map(r => r.sender)];
+    const friends = [...sent.map((r: any) => r.receiver), ...received.map((r: any) => r.sender)];
     sendSuccess(res, friends);
   });
 

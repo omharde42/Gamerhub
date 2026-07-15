@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { authService } from '../services/auth.service';
 import { AuthRequest } from '../types';
 import prisma from '../config/database';
-import { NotFoundError } from '../utils/errors';
+import { NotFoundError, ValidationError } from '../utils/errors';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 
@@ -21,6 +21,9 @@ export class AuthController {
 
   refreshToken = asyncHandler(async (req: Request, res: Response) => {
     const { refreshToken } = req.body;
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      throw new ValidationError({ refreshToken: ['Refresh token is required'] });
+    }
     const result = await authService.refreshToken(refreshToken);
     sendSuccess(res, result);
   });
