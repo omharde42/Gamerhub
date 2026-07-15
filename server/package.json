@@ -11,7 +11,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "5.22.0",
+    "@prisma/client": "^7.8.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.5.1",
     "compression": "^1.7.4",
@@ -31,10 +31,9 @@
     "socket.io": "^4.8.1",
     "speakeasy": "^2.0.0",
     "stripe": "^17.5.0",
-    "uuid": "^11.0.3",
-    "prisma": "5.22.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+    "uuid": "^11.0.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -52,7 +51,15 @@
     "@types/speakeasy": "^2.0.10",
     "@types/uuid": "^10.0.0",
     "jest": "^29.7.0",
+    "prisma": "^6.19.3",
     "ts-jest": "^29.2.5"
   },
-  "prisma": { "seed": "tsx prisma/seed.ts" }
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "allowScripts": {
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.1": true,
+    "prisma@6.19.3": true
+  }
 }
