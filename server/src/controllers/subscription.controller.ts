@@ -4,6 +4,8 @@ import { subscriptionService } from '../services/subscription.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import Stripe from 'stripe';
+import { config } from '../config';
+import { AppError } from '../utils/errors';
 
 export class SubscriptionController {
   createCheckoutSession = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -14,10 +16,17 @@ export class SubscriptionController {
 
   handleWebhook = asyncHandler(async (req: AuthRequest, res: Response) => {
     const sig = req.headers['stripe-signature'] as string;
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2025-02-24.acacia' as any });
-    const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET || '');
-    await subscriptionService.handleWebhook(event);
-    res.json({ received: true });
+    if (!config.stripe.secretKey || !config.stripe.webhookSecret) {
+      throw new AppError('Stripe is not configured', 503);
+    }
+    try {
+      const stripe = new Stripe(config.stripe.secretKey, { apiVersion: '2025-02-24.acacia' as any });
+      const event = stripe.webhooks.constructEvent(req.body, sig, config.stripe.webhookSecret);
+      await subscriptionService.handleWebhook(event);
+      res.json({ received: true });
+    } catch (error: any) {
+      throw new AppError(error?.message || 'Invalid webhook payload', 400);
+    }
   });
 
   getSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {

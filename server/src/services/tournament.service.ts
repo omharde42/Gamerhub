@@ -1,5 +1,5 @@
 import prisma from '../config/database';
-import { NotFoundError, ForbiddenError } from '../utils/errors';
+import { NotFoundError, ForbiddenError, ConflictError, ValidationError } from '../utils/errors';
 export class TournamentService {
   async create(data: any, organizerId: string) { return prisma.tournament.create({ data: { ...data, organizerId } }); }
   async getById(id: string) {
@@ -13,9 +13,14 @@ export class TournamentService {
     return { data: tournaments, meta: { page, limit, total, totalPages: Math.ceil(total / limit), hasNext: page * limit < total, hasPrev: page > 1 } };
   }
   async registerTeam(tournamentId: string, teamId: string) {
+    if (!teamId) throw new ValidationError({ teamId: ['Team ID is required'] });
     const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
     if (!tournament) throw new NotFoundError('Tournament');
     if (tournament.status !== 'REGISTRATION_OPEN') throw new ForbiddenError('Registration is not open');
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) throw new NotFoundError('Team');
+    const existing = await prisma.tournamentTeam.findUnique({ where: { tournamentId_teamId: { tournamentId, teamId } } });
+    if (existing) throw new ConflictError('Team is already registered for this tournament');
     const teamCount = await prisma.tournamentTeam.count({ where: { tournamentId } });
     if (teamCount >= tournament.maxTeams) throw new ForbiddenError('Tournament is full');
     return prisma.tournamentTeam.create({ data: { tournamentId, teamId } });

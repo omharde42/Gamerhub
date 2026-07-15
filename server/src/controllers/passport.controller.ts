@@ -219,9 +219,9 @@ export class PassportController {
     const parts: string[] = [`${profile.displayName || profile.username} is a ${profile.role || 'versatile'} player${topGame ? ` specializing in ${topGame.gameName}` : ''}.`];
     if (topSkill) parts.push(`Their strongest skill is ${topSkill.name} (${topSkill.score}%).`);
     if (topGame && topGame.kdRatio) parts.push(`In ${topGame.gameName}, they maintain a ${topGame.kdRatio} K/D ratio${topGame.winRate ? ` with a ${topGame.winRate}% win rate` : ''}.`);
-    if (profile.achievements?.length) parts.push(`Notable achievements include ${profile.achievements.map(a => a.title).join(', ')}.`);
+    if (profile.achievements?.length) parts.push(`Notable achievements include ${profile.achievements.map((a: any) => a.title).join(', ')}.`);
     if (recentTourney) parts.push(`Recently placed ${recentTourney.placement || 'participated'} in ${recentTourney.tournamentName}.`);
-    const totalHours = profile.connectedGames.reduce((s, g) => s + (g.hoursPlayed || 0), 0);
+    const totalHours = profile.connectedGames.reduce((s: any, g: any) => s + (g.hoursPlayed || 0), 0);
     if (totalHours > 100) parts.push(`With over ${Math.round(totalHours)} total hours logged, ${profile.displayName || profile.username} demonstrates serious dedication to gaming.`);
     parts.push(`Based on gameplay statistics and AI analysis, GamerHub recommends ${profile.displayName || profile.username} for competitive and semi-professional opportunities.`);
     const summary = parts.join(' ');
@@ -303,7 +303,7 @@ export class PassportController {
       }),
       prisma.profile.count({ where: { gamerScore: { gt: 0 } } }),
     ]);
-    sendSuccess(res, profiles.map((p, i) => ({ ...p, rankPosition: skip + i + 1 })), undefined, 200, { page, limit, total, totalPages: Math.ceil(total / limit) });
+    sendSuccess(res, profiles.map((p: any, i: any) => ({ ...p, rankPosition: skip + i + 1 })), undefined, 200, { page, limit, total, totalPages: Math.ceil(total / limit) });
   });
 }
 
