@@ -10,11 +10,11 @@ import { Separator } from '@/components/ui/separator';
 import {
   Search, Send, Paperclip, Image as ImageIcon, MoreVertical, Plus, Loader2,
   MessageSquare, UserPlus, Phone, Mic, Headphones, Settings,
-  Hash, Users, ChevronDown, ChevronRight, Heart, Smile, Reply,
+  Hash, Users, ChevronDown, ChevronRight, ChevronLeft, Heart, Smile, Reply,
   Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
   Sparkles, Volume2
 } from 'lucide-react';
-import { getInitials, formatRelativeTime } from '@/lib/utils';
+import { getInitials, formatRelativeTime, cn } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -159,16 +159,19 @@ function DiscordMessagesPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex border border-border/50 rounded-xl overflow-hidden bg-card shadow-lg">
-      {/* Server sidebar */}
-      <div className="w-16 bg-muted/30 border-r border-border/50 hidden md:flex flex-col items-center py-3 gap-2">
+    <div className="h-[calc(100vh-9.5rem)] md:h-[calc(100vh-7rem)] flex border border-border/40 rounded-none md:rounded-2xl overflow-hidden bg-card/45 backdrop-blur-md shadow-2xl w-full max-w-full md:max-w-7xl mx-auto relative group/container">
+      {/* Server sidebar (Desktop only) */}
+      <div className="w-16 bg-muted/40 border-r border-border/40 hidden md:flex flex-col items-center py-4 gap-3 shrink-0">
         <Link href="/dashboard">
-          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}
-            className="w-10 h-10 rounded-2xl bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center cursor-pointer hover:rounded-xl transition-all duration-200 shadow-lg shadow-gaming-purple/20">
+          <motion.div 
+            whileHover={{ scale: 1.1, borderRadius: "12px" }} 
+            whileTap={{ scale: 0.95 }}
+            className="w-10 h-10 rounded-2xl bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center cursor-pointer transition-all duration-300 shadow-md shadow-gaming-purple/20"
+          >
             <MessageSquare className="h-5 w-5 text-white" />
           </motion.div>
         </Link>
-        <Separator className="w-8 bg-border/50" />
+        <Separator className="w-8 bg-border/40" />
         {chats?.slice(0, 6).map((chat: any) => {
           const other = getOtherParticipant(chat);
           const short = other?.profile?.username?.charAt(0).toUpperCase() || 'G';
@@ -177,72 +180,96 @@ function DiscordMessagesPage() {
           return (
             <div key={chat.id} className="relative">
               <motion.button
-                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.08, borderRadius: "12px" }} 
+                whileTap={{ scale: 0.95 }}
                 onClick={() => handleSelectChat(chat.id)}
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold transition-all duration-200 hover:rounded-xl
-                  ${isSel ? 'bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20' : 'bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary'}`}
+                className={cn(
+                  "w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold transition-all duration-300",
+                  isSel 
+                    ? "bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20" 
+                    : "bg-muted/60 text-muted-foreground hover:bg-primary/20 hover:text-primary"
+                )}
                 title={other?.profile?.username}
               >
                 {short}
               </motion.button>
-              {online && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />}
+              {online && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-card animate-pulse" />}
             </div>
           );
         })}
         <Dialog open={newChatOpen} onOpenChange={setNewChatOpen}>
           <DialogTrigger asChild>
-            <motion.button whileHover={{ scale: 1.05, rotate: 90 }} className="w-10 h-10 rounded-2xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-all duration-200 hover:rounded-xl">
+            <motion.button 
+              whileHover={{ scale: 1.08, rotate: 90, borderRadius: "12px" }} 
+              className="w-10 h-10 rounded-2xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-all duration-300"
+            >
               <Plus className="h-5 w-5" />
             </motion.button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>New Message</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <Input placeholder="Search players..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoFocus variant="neon" />
-              <ScrollArea className="max-h-72">
-                {searchResults?.filter((p: any) => p.userId !== user?.id).map((profile: any) => (
-                  <motion.div key={profile.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 cursor-pointer"
-                    onClick={() => createDirectChat.mutate(profile.userId)}
-                    whileHover={{ x: 4 }}>
-                    <Avatar className="h-9 w-9"><AvatarImage src={profile.avatar || ''} /><AvatarFallback className="text-xs">{getInitials(profile.username)}</AvatarFallback></Avatar>
-                    <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{profile.displayName || profile.username}</p><p className="text-xs text-muted-foreground">@{profile.username}</p></div>
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  </motion.div>
-                ))}
-                {userSearch && searchResults?.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No players found</p>}
+          <DialogContent className="glass-strong border-primary/30">
+            <DialogHeader><DialogTitle className="text-lg font-bold bg-gradient-to-r from-gaming-purple to-gaming-cyan bg-clip-text text-transparent">New Message</DialogTitle></DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search players..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoFocus className="pl-9" variant="neon" />
+              </div>
+              <ScrollArea className="max-h-72 pr-2">
+                <div className="space-y-1">
+                  {searchResults?.filter((p: any) => p.userId !== user?.id).map((profile: any) => (
+                    <motion.div 
+                      key={profile.id} 
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary/10 hover:border-primary/10 border border-transparent cursor-pointer transition-colors"
+                      onClick={() => createDirectChat.mutate(profile.userId)}
+                      whileHover={{ x: 4 }}
+                    >
+                      <Avatar className="h-9 w-9"><AvatarImage src={profile.avatar || ''} /><AvatarFallback className="text-xs">{getInitials(profile.username)}</AvatarFallback></Avatar>
+                      <div className="flex-1 min-w-0"><p className="text-sm font-semibold truncate text-foreground">{profile.displayName || profile.username}</p><p className="text-xs text-muted-foreground">@{profile.username}</p></div>
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                    </motion.div>
+                  ))}
+                </div>
+                {userSearch && searchResults?.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No players found</p>}
               </ScrollArea>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Channel list */}
-      <div className="w-60 border-r border-border/50 bg-muted/10 hidden md:flex flex-col">
-        <div className="p-3 border-b border-border/50">
+      {/* Channel list (DM list) */}
+      <div className={cn(
+        "w-full md:w-60 border-r border-border/40 bg-card/30 flex flex-col shrink-0 transition-all duration-300",
+        selectedChat ? "hidden md:flex" : "flex"
+      )}>
+        <div className="p-4 border-b border-border/40 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-sm flex items-center gap-1.5 text-foreground">
-              <Hash className="h-4 w-4 text-muted-foreground" />
+            <h2 className="font-bold text-sm flex items-center gap-1.5 text-foreground uppercase tracking-wider">
+              <Hash className="h-4 w-4 text-primary animate-pulse" />
               Direct Messages
             </h2>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => setNewChatOpen(true)}>
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
-          <div className="relative mt-2">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Find chat..." className="pl-8 h-8 text-xs bg-muted/30 border-0" variant="ghost" />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input placeholder="Find player..." className="pl-9 h-9 text-xs bg-muted/40 border-0 rounded-xl" variant="ghost" />
           </div>
         </div>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 px-2 py-2">
           {chatsLoading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
           ) : chats?.length === 0 ? (
-            <div className="flex flex-col items-center py-8 px-3 text-center space-y-2">
-              <MessageSquare className="h-8 w-8 text-muted-foreground/40" />
-              <p className="text-xs text-muted-foreground">No conversations</p>
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setNewChatOpen(true)}>
-                <Plus className="h-3 w-3 mr-1" /> New
+            <div className="flex flex-col items-center py-12 px-4 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center opacity-60">
+                <MessageSquare className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground">No conversations yet</p>
+              <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => setNewChatOpen(true)}>
+                <Plus className="h-3 w-3 mr-1" /> New Message
               </Button>
             </div>
           ) : (
-            <div className="p-1.5 space-y-0.5">
+            <div className="space-y-1">
               {chats?.map((chat: any) => {
                 const other = getOtherParticipant(chat);
                 const isSelected = selectedChat === chat.id;
@@ -251,18 +278,27 @@ function DiscordMessagesPage() {
                   <motion.div
                     key={chat.id}
                     onClick={() => handleSelectChat(chat.id)}
-                    className={`flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer text-sm transition-all duration-200 animate-card-enter
-                      ${isSelected ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'}`}
-                    whileHover={{ x: 2 }}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm transition-all duration-200 border",
+                      isSelected 
+                        ? "bg-primary/10 text-primary border-primary/20 shadow-sm" 
+                        : "text-muted-foreground hover:bg-accent/40 hover:text-foreground border-transparent"
+                    )}
+                    whileHover={{ x: 3 }}
                     layout
                   >
                     <div className="relative shrink-0">
-                      <Avatar className="h-8 w-8"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[10px]">{getInitials(other?.profile?.username || 'G')}</AvatarFallback></Avatar>
-                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-card animate-ping-slow" />}
+                      <Avatar className="h-9 w-9"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(other?.profile?.username || 'G')}</AvatarFallback></Avatar>
+                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{other?.profile?.username || 'Unknown'}</p>
-                      {chat.messages?.[0] && <p className="text-[11px] text-muted-foreground truncate">{chat.messages[0].content}</p>}
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold truncate text-foreground">{other?.profile?.username || 'Unknown'}</p>
+                        {chat.messages?.[0] && (
+                          <span className="text-[9px] text-muted-foreground shrink-0">{formatRelativeTime(chat.messages[0].createdAt)}</span>
+                        )}
+                      </div>
+                      {chat.messages?.[0] && <p className="text-xs text-muted-foreground truncate mt-0.5">{chat.messages[0].content}</p>}
                     </div>
                   </motion.div>
                 );
@@ -270,59 +306,72 @@ function DiscordMessagesPage() {
             </div>
           )}
         </ScrollArea>
-        <div className="p-2 border-t border-border/50 bg-muted/20">
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors">
-            <Avatar className="h-7 w-7" status="online">
+        <div className="p-3 border-t border-border/40 bg-muted/20">
+          <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-card/40 border border-border/30 shadow-sm transition-colors">
+            <Avatar className="h-8 w-8" status="online">
               <AvatarImage src={user?.profile?.avatar || ''} />
-              <AvatarFallback className="text-[9px]">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">{user?.profile?.username}</p>
-              <p className="text-[10px] text-success">Online</p>
+              <p className="text-xs font-bold truncate text-foreground">{user?.profile?.username}</p>
+              <p className="text-[9px] text-success font-medium">Online</p>
             </div>
             <div className="flex gap-0.5">
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary"><Mic className="h-3 w-3" /></Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary"><Headphones className="h-3 w-3" /></Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary"><Settings className="h-3 w-3" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-accent rounded-lg"><Mic className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-accent rounded-lg"><Headphones className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-accent rounded-lg"><Settings className="h-3.5 w-3.5" /></Button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col bg-background">
+      <div className={cn(
+        "flex-1 flex flex-col bg-background/20 backdrop-blur-sm transition-all duration-300",
+        selectedChat ? "flex" : "hidden md:flex"
+      )}>
         {selectedChat ? (
           <>
             {/* Channel header */}
-            <div className="h-12 border-b border-border/50 flex items-center px-4 shrink-0 bg-muted/10">
+            <div className="h-14 border-b border-border/40 flex items-center px-4 shrink-0 bg-muted/10">
               {(() => {
                 const chat = chats?.find((c: any) => c.id === selectedChat);
                 const other = chat ? getOtherParticipant(chat) : null;
                 const online = other ? isOnline(other.id) : false;
                 return (
                   <div className="flex items-center gap-2.5 w-full">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="md:hidden h-8 w-8 text-muted-foreground hover:text-foreground mr-1 rounded-xl" 
+                      onClick={() => setSelectedChat(null)}
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
                     <div className="relative">
-                      <Avatar className="h-7 w-7"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[9px]">{getInitials(other?.profile?.username || 'U')}</AvatarFallback></Avatar>
-                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card" />}
+                      <Avatar className="h-8 w-8"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(other?.profile?.username || 'U')}</AvatarFallback></Avatar>
+                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card animate-pulse" />}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">{other?.profile?.username || 'User'}</p>
-                      <p className="text-[10px]" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>{online ? 'Online' : 'Offline'}</p>
+                      <p className="text-sm font-bold text-foreground">{other?.profile?.username || 'User'}</p>
+                      <p className="text-[10px] font-medium" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
+                        {online ? 'Online' : 'Offline'}
+                      </p>
                     </div>
                     <div className="flex-1" />
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary"><Phone className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => copyLink(selectedChat)} title="Copy chat link"><LinkIcon className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl"><Phone className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => copyLink(selectedChat)} title="Copy chat link"><LinkIcon className="h-4 w-4" /></Button>
                     </div>
                   </div>
                 );
               })()}
             </div>
 
-            {/* Messages */}
+            {/* Messages list */}
             <ScrollArea className="flex-1 px-4 bg-grid bg-[length:40px_40px]">
-              <div className="py-4 space-y-0.5 max-w-4xl mx-auto">
-                <AnimatePresence>
+              <div className="py-6 space-y-3 max-w-4xl mx-auto">
+                <AnimatePresence initial={false}>
                   {messages?.map((msg: any, idx: number) => {
                     const isOwn = msg.sender?.id === user?.id;
                     const prev = messages[idx - 1];
@@ -332,62 +381,69 @@ function DiscordMessagesPage() {
                     return (
                       <motion.div
                         key={msg.id}
-                        className={`group flex gap-3 ${showHeader ? 'mt-4' : 'mt-0.5'} ${isOwn ? 'flex-row-reverse' : ''}`}
+                        className={cn(
+                          "group flex gap-3 transition-all duration-200", 
+                          showHeader ? 'mt-4' : 'mt-1', 
+                          isOwn ? 'flex-row-reverse' : ''
+                        )}
                         onHoverStart={() => setHoveredMsgId(msg.id)}
                         onHoverEnd={() => setHoveredMsgId(null)}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2 }}
+                        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2, type: "spring", stiffness: 200, damping: 20 }}
                         layout
                       >
                         {showHeader && (
-                          <div className={`shrink-0 ${isOwn ? 'order-2' : ''}`}>
-                            <Avatar className="h-9 w-9 mt-0.5" status={online ? 'online' : undefined}>
+                          <div className={cn("shrink-0", isOwn ? 'order-2' : '')}>
+                            <Avatar className="h-8 w-8 mt-0.5" status={online ? 'online' : undefined}>
                               <AvatarImage src={msg.sender?.profile?.avatar || ''} />
-                              <AvatarFallback className="text-[10px]">{getInitials(msg.sender?.profile?.username || 'U')}</AvatarFallback>
+                              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(msg.sender?.profile?.username || 'U')}</AvatarFallback>
                             </Avatar>
                           </div>
                         )}
-                        {!showHeader && <div className="w-9 shrink-0" />}
-                        <div className={`flex flex-col min-w-0 max-w-[75%] ${isOwn ? 'items-end' : ''}`}>
+                        {!showHeader && <div className="w-8 shrink-0" />}
+                        <div className={cn("flex flex-col min-w-0 max-w-[70%]", isOwn ? 'items-end' : '')}>
                           {showHeader && (
-                            <div className={`flex items-center gap-2 mb-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
-                              <span className="text-sm font-semibold hover:text-primary cursor-pointer transition-colors">{msg.sender?.profile?.username}</span>
-                              <span className="text-[10px] text-muted-foreground">{formatRelativeTime(msg.createdAt)}</span>
+                            <div className={cn("flex items-center gap-2 mb-1", isOwn ? 'flex-row-reverse' : '')}>
+                              <span className="text-xs font-bold hover:text-primary cursor-pointer transition-colors text-foreground">{msg.sender?.profile?.username}</span>
+                              <span className="text-[9px] text-muted-foreground">{formatRelativeTime(msg.createdAt)}</span>
                             </div>
                           )}
                           {msg.media?.length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-1">
                               {msg.media.map((url: string, i: number) => (
                                 url.match(/\.(mp4|webm|ogg)$/i)
-                                  ? <video key={i} src={url} controls className="max-w-60 max-h-40 rounded-xl border border-border/30" />
-                                  : <img key={i} src={url} alt="" className="max-w-60 max-h-40 rounded-xl object-cover border border-border/30" />
+                                  ? <video key={i} src={url} controls className="max-w-60 max-h-40 rounded-xl border border-border/30 shadow-md animate-scale-in" />
+                                  : <img key={i} src={url} alt="" className="max-w-60 max-h-40 rounded-xl object-cover border border-border/30 shadow-md hover:scale-[1.02] transition-transform duration-300 cursor-zoom-in animate-scale-in" />
                               ))}
                             </div>
                           )}
                           {msg.content && (
-                            <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                            <div className={cn(
+                              "px-4 py-2.5 rounded-2xl text-sm leading-relaxed relative border transition-all duration-300",
                               isOwn
-                                ? 'bg-primary text-primary-foreground rounded-tr-sm shadow-sm'
-                                : 'bg-muted/70 border border-border/30 rounded-tl-sm'
-                            }`}>
+                                ? 'bg-gradient-to-br from-gaming-purple to-gaming-pink text-white rounded-tr-sm shadow-md shadow-gaming-purple/20 border-gaming-purple/20'
+                                : 'bg-card/75 border-border/40 text-foreground rounded-tl-sm shadow-sm backdrop-blur-sm'
+                            )}>
                               {msg.content}
                             </div>
                           )}
-                          {/* Hover actions */}
+                          
+                          {/* Floating micro-actions menu */}
                           <AnimatePresence>
                             {isHovered && (
                               <motion.div
-                                className={`flex items-center gap-0.5 mt-1 ${isOwn ? 'flex-row-reverse' : ''}`}
-                                initial={{ opacity: 0, y: -5 }}
+                                className={cn("flex items-center gap-0.5 mt-1 px-1.5 py-0.5 rounded-lg bg-card/90 border border-border/40 shadow-md backdrop-blur-md", isOwn ? 'flex-row-reverse' : '')}
+                                initial={{ opacity: 0, y: -4 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -5 }}
-                                transition={{ duration: 0.15 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                transition={{ duration: 0.1 }}
                               >
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all" onClick={() => toast.success('Reacted!')}><Heart className="h-3.5 w-3.5" /></button>
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><Reply className="h-3.5 w-3.5" /></button>
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><Smile className="h-3.5 w-3.5" /></button>
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><MoreVertical className="h-3.5 w-3.5" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" onClick={() => toast.success('Reacted!')}><Heart className="h-3 w-3 text-red-500 fill-red-500/20" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><Reply className="h-3 w-3" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><Smile className="h-3 w-3" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><MoreVertical className="h-3 w-3" /></button>
                               </motion.div>
                             )}
                           </AnimatePresence>
@@ -400,7 +456,7 @@ function DiscordMessagesPage() {
                 {/* Typing indicator */}
                 {selectedChat && typingUsers[selectedChat]?.length > 0 && (
                   <motion.div
-                    className="flex items-center gap-2 text-xs text-muted-foreground py-1 ml-12"
+                    className="flex items-center gap-2 text-xs text-muted-foreground py-1 ml-11"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                   >
@@ -408,12 +464,12 @@ function DiscordMessagesPage() {
                       {[0, 150, 300].map((delay, i) => (
                         <span
                           key={i}
-                          className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full"
+                          className="w-1.5 h-1.5 bg-primary/60 rounded-full"
                           style={{ animation: 'typing-dot 1.4s ease-in-out infinite', animationDelay: `${delay}ms` }}
                         />
                       ))}
                     </div>
-                    <span>{typingUsers[selectedChat].length} player{typingUsers[selectedChat].length > 1 ? 's' : ''} typing...</span>
+                    <span className="text-[10px] font-medium text-muted-foreground/80">{typingUsers[selectedChat].length} gamer{typingUsers[selectedChat].length > 1 ? 's' : ''} typing...</span>
                   </motion.div>
                 )}
                 <div ref={messagesEndRef} />
@@ -421,32 +477,32 @@ function DiscordMessagesPage() {
             </ScrollArea>
 
             {/* Message input */}
-            <div className="p-3 border-t border-border/50 bg-muted/10">
+            <div className="p-4 border-t border-border/40 bg-muted/10">
               {filePreview && (
                 <motion.div
-                  className="flex items-center gap-2 mb-2 p-2 bg-muted/50 rounded-xl border border-border/30"
-                  initial={{ opacity: 0, y: 10 }}
+                  className="flex items-center gap-2 mb-3 p-2 bg-muted/50 rounded-xl border border-border/30"
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <img src={filePreview} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                  <img src={filePreview} alt="" className="h-10 w-10 rounded-lg object-cover shadow-sm" />
                   <span className="text-xs text-muted-foreground flex-1">Image ready to send</span>
-                  <button onClick={() => setFilePreview(null)} className="hover:text-destructive transition-colors"><X className="h-4 w-4" /></button>
+                  <button onClick={() => setFilePreview(null)} className="hover:text-destructive p-1 rounded-lg hover:bg-destructive/10 transition-colors"><X className="h-4 w-4" /></button>
                 </motion.div>
               )}
-              <div className="flex items-center gap-2 bg-muted/30 rounded-xl px-3 py-1.5 border border-border/30 transition-all duration-200 focus-within:border-primary/30 focus-within:shadow-sm">
+              <div className="flex items-center gap-2 bg-card/65 rounded-2xl px-3 py-1.5 border border-border/40 transition-all duration-300 focus-within:border-primary/40 focus-within:shadow-md focus-within:shadow-primary/5 focus-within:ring-1 focus-within:ring-primary/10">
                 <input type="file" accept="image/*,video/*" hidden ref={fileInputRef} onChange={handleFileSelect} />
-                <button className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-accent/50 transition-all" onClick={() => fileInputRef.current?.click()}><Plus className="h-5 w-5" /></button>
+                <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all" onClick={() => fileInputRef.current?.click()}><Plus className="h-5 w-5 text-primary" /></button>
                 <Input
                   placeholder={`Message ${(() => { const c = chats?.find((c: any) => c.id === selectedChat); const o = c ? getOtherParticipant(c) : null; return o?.profile?.username || 'User'; })()}`}
                   value={message}
                   onChange={(e) => { setMessage(e.target.value); handleTyping(); }}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
-                  className="flex-1 h-9 border-0 bg-transparent text-sm focus-visible:ring-0 px-0"
+                  className="flex-1 h-9 border-0 bg-transparent text-sm focus-visible:ring-0 px-0 placeholder:text-muted-foreground/60"
                   variant="ghost"
                 />
-                <button className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-accent/50 transition-all"><Smile className="h-5 w-5" /></button>
-                <button className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-accent/50 transition-all" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5" /></button>
-                <Button variant="gradient" size="icon" className="h-8 w-8 rounded-xl" disabled={!message.trim() && !filePreview} onClick={sendMessage} animate>
+                <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all"><Smile className="h-5 w-5" /></button>
+                <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5" /></button>
+                <Button variant="gradient" size="icon" className="h-8 w-8 rounded-xl shadow-md shadow-primary/20" disabled={!message.trim() && !filePreview} onClick={sendMessage} animate>
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
@@ -454,73 +510,75 @@ function DiscordMessagesPage() {
           </>
         ) : (
           /* Empty state */
-          <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-muted/5 to-muted/20">
-            <motion.div className="text-center space-y-4 max-w-sm" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-gaming-purple/20 to-gaming-cyan/20 flex items-center justify-center mx-auto border border-border/30">
-                <MessageSquare className="h-10 w-10 text-primary" />
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-muted/5 to-muted/20 p-6">
+            <motion.div className="text-center space-y-4 max-w-sm" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-gaming-purple/20 to-gaming-cyan/20 flex items-center justify-center mx-auto border border-primary/20 shadow-inner relative group-hover/container:animate-pulse">
+                <MessageSquare className="h-10 w-10 text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.4)]" />
               </div>
-              <h2 className="text-xl font-bold">Welcome to Messages</h2>
-              <p className="text-sm text-muted-foreground">Select a conversation from the left or start a new one</p>
-              <div className="flex justify-center gap-2">
-                <Button variant="gradient" size="sm" className="gap-1.5" onClick={() => setNewChatOpen(true)} animate>
+              <h2 className="text-xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-primary bg-clip-text">Welcome to Messages</h2>
+              <p className="text-sm text-muted-foreground">Select an existing conversation from the list or send a message to start a new chat with fellow gamers.</p>
+              <div className="flex justify-center gap-3 pt-2">
+                <Button variant="gradient" size="sm" className="gap-1.5 rounded-xl shadow-md shadow-primary/10" onClick={() => setNewChatOpen(true)} animate>
                   <UserPlus className="h-4 w-4" /> New Message
                 </Button>
-                <Link href="/friends"><Button variant="outline" size="sm" className="gap-1.5"><Search className="h-4 w-4" /> Find Players</Button></Link>
+                <Link href="/friends"><Button variant="outline" size="sm" className="gap-1.5 rounded-xl"><Search className="h-4 w-4" /> Find Players</Button></Link>
               </div>
             </motion.div>
           </div>
         )}
       </div>
 
-      {/* Right panel: member list / voice */}
+      {/* Right panel: member list / voice (Desktop only) */}
       {selectedChat && (
-        <div className="w-56 border-l border-border/50 bg-muted/10 hidden xl:flex flex-col">
-          <div className="p-3 border-b border-border/50">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Volume2 className="h-3 w-3" /> Voice
+        <div className="w-56 border-l border-border/40 bg-card/20 hidden xl:flex flex-col">
+          <div className="p-4 border-b border-border/40">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+              <Volume2 className="h-3.5 w-3.5 text-success" /> Voice Setup
             </h3>
           </div>
-          <div className="p-3 space-y-2">
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-success/10 text-success text-xs border border-success/20">
-              <Phone className="h-3 w-3" />
-              <span>Voice Connected</span>
+          <div className="p-4 space-y-2">
+            <div className="flex items-center gap-2 p-2 rounded-xl bg-success/10 text-success text-xs border border-success/20 shadow-sm animate-pulse-glow">
+              <Phone className="h-3.5 w-3.5" />
+              <span className="font-semibold">Voice Connected</span>
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-              <div className="flex gap-0.5">
+            <div className="flex items-center gap-2.5 text-[10px] text-muted-foreground px-1 py-1">
+              <div className="flex gap-0.5 items-end h-3 w-4 shrink-0">
                 {[1, 2, 3, 4].map((i) => (
-                  <span key={i} className="w-0.5 h-3 bg-muted-foreground/30 rounded-full animate-pulse" style={{ height: `${4 + Math.random() * 12}px`, animationDelay: `${i * 200}ms` }} />
+                  <span key={i} className="w-0.5 bg-success rounded-full" style={{ height: `${4 + Math.random() * 8}px`, animation: 'typing-dot 1.2s infinite ease-in-out', animationDelay: `${i * 150}ms` }} />
                 ))}
               </div>
               <span>No one is speaking</span>
             </div>
           </div>
-          <Separator className="bg-border/50" />
-          <div className="p-3 border-b border-border/50">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="h-3 w-3" /> Members
+          <Separator className="bg-border/40" />
+          <div className="p-4 border-b border-border/40">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-primary" /> Chat Members
             </h3>
           </div>
           <ScrollArea className="flex-1 p-2">
-            {(() => {
-              const chat = chats?.find((c: any) => c.id === selectedChat);
-              return chat?.participants?.map((p: any) => {
-                const prof = p.user?.profile;
-                const online = isOnline(p.user?.id);
-                return prof ? (
-                  <motion.div
-                    key={p.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/50 cursor-pointer text-sm transition-all"
-                    whileHover={{ x: 2 }}
-                  >
-                    <div className="relative">
-                      <Avatar className="h-6 w-6"><AvatarImage src={prof.avatar || ''} /><AvatarFallback className="text-[8px]">{getInitials(prof.username)}</AvatarFallback></Avatar>
-                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card" />}
-                    </div>
-                    <span className="text-xs truncate">{prof.username}</span>
-                  </motion.div>
-                ) : null;
-              });
-            })()}
+            <div className="space-y-0.5">
+              {(() => {
+                const chat = chats?.find((c: any) => c.id === selectedChat);
+                return chat?.participants?.map((p: any) => {
+                  const prof = p.user?.profile;
+                  const online = isOnline(p.user?.id);
+                  return prof ? (
+                    <motion.div
+                      key={p.id}
+                      className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-accent/40 cursor-pointer text-sm transition-colors border border-transparent hover:border-border/30"
+                      whileHover={{ x: 2 }}
+                    >
+                      <div className="relative shrink-0">
+                        <Avatar className="h-7 w-7"><AvatarImage src={prof.avatar || ''} /><AvatarFallback className="text-[9px] bg-primary/10 text-primary">{getInitials(prof.username)}</AvatarFallback></Avatar>
+                        {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card" />}
+                      </div>
+                      <span className="text-xs font-semibold truncate text-foreground">{prof.username}</span>
+                    </motion.div>
+                  ) : null;
+                });
+              })()}
+            </div>
           </ScrollArea>
         </div>
       )}

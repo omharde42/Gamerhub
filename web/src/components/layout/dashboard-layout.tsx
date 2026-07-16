@@ -2,6 +2,7 @@
 import { ReactNode } from 'react';
 import { Navbar } from './navbar';
 import { Sidebar } from './sidebar';
+import { MobileNav } from './mobile-nav';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -13,7 +14,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className={`w-full ${!isLanding ? 'pt-16' : ''}`}>
+      <div className={`w-full ${!isLanding ? 'pt-16 pb-16 md:pb-0' : ''}`}>
         <div className="w-full mx-auto flex gap-4 px-6 py-4">
           {!hideSidebar && <Sidebar />}
           <main className="flex-1 min-w-0 max-w-full">
@@ -31,6 +32,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </main>
         </div>
       </div>
+      <MobileNav />
     </div>
   );
 }
