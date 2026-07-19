@@ -1,5 +1,6 @@
 FROM node:20-alpine
 WORKDIR /app
+RUN apk add --no-cache openssl libssl1.1
 COPY server/package.json .
 RUN npm install && npm i -g tsx
 COPY server .
