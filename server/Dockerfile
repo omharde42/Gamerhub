@@ -1,5 +1,5 @@
 FROM node:20-alpine
-RUN apk add --no-cache openssl libssl1.1
+RUN apk add --no-cache openssl
 RUN npm i -g tsx
 WORKDIR /app
 COPY package.json .
