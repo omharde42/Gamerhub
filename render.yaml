@@ -6,7 +6,7 @@ services:
     plan: free
     region: singapore # You can change this to your nearest region
     rootDir: server
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -35,7 +35,7 @@ services:
     plan: free
     region: singapore
     rootDir: web
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
