@@ -19,11 +19,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     if (isAuthenticated && user) {
       const isProfileIncomplete = 
         !user.profile ||
-        !user.profile.displayName?.trim() ||
-        !user.profile.bio?.trim() ||
-        !user.profile.country?.trim() ||
-        !user.profile.mainGames ||
-        user.profile.mainGames.length === 0;
+        !user.profile.displayName?.trim();
 
       const onSettingsPage = pathname === '/profile/settings';
       const onAuthOrLanding = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');

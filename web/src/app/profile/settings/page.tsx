@@ -90,25 +90,20 @@ export default function SettingsPage() {
 
   const updateProfile = useMutation({
     mutationFn: () => api.put('/profiles', profile),
-    onSuccess: async () => {
-      try {
-        const res = await api.get(`/profiles/${user?.profile?.username}`);
-        const updated = res.data.data;
-        setUser({ ...user, profile: updated });
-        
-        const nextCoreSetupCompleted = 
-          !!updated.displayName?.trim() && 
-          !!updated.bio?.trim() && 
-          !!updated.country?.trim() && 
-          updated.mainGames?.length > 0;
+    onSuccess: (res: any) => {
+      const updated = res.data.data;
+      setUser({ ...user, profile: updated });
+      
+      const nextCoreSetupCompleted = 
+        !!updated.displayName?.trim() && 
+        !!updated.bio?.trim() && 
+        !!updated.country?.trim() && 
+        updated.mainGames?.length > 0;
 
-        if (nextCoreSetupCompleted) {
-          toast.success('Gamer Passport Completed! Access granted.');
-          router.push('/feed');
-        } else {
-          toast.success('Changes saved successfully!');
-        }
-      } catch {
+      if (nextCoreSetupCompleted) {
+        toast.success('Gamer Passport Completed! Access granted.');
+        router.push('/feed');
+      } else {
         toast.success('Changes saved successfully!');
       }
     },
