@@ -10,12 +10,13 @@ import { getInitials, formatRelativeTime } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { useTheme } from 'next-themes';
 import {
   Gamepad2, Search, Bell, MessageSquare, Users,
   LogOut, User, Settings, Crown, Home, Briefcase, ChevronDown,
   Heart, Trophy, Loader2, LayoutDashboard, Compass,
   Bookmark, Bot, Shield, BarChart3, Gamepad2 as GamepadIcon, Building2, MoreHorizontal,
-  Globe, UserCheck, Zap, Sparkles, Newspaper, Film
+  Globe, UserCheck, Zap, Sparkles, Newspaper, Film, Sun, Moon, Palette
 } from 'lucide-react';
 
 const navIcons = [
@@ -47,7 +48,11 @@ export function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
+  const { theme: activeTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true);
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
@@ -161,6 +166,32 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-1">
+          {/* Theme Switcher Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground">
+                {mounted && activeTheme === 'light' ? (
+                  <Sun className="h-4.5 w-4.5" />
+                ) : mounted && activeTheme === 'gray' ? (
+                  <Palette className="h-4.5 w-4.5" />
+                ) : (
+                  <Moon className="h-4.5 w-4.5" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36 glass-strong">
+              <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2 cursor-pointer text-xs font-semibold">
+                <Sun className="h-4 w-4 text-orange-500" /> Light Mode
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2 cursor-pointer text-xs font-semibold">
+                <Moon className="h-4 w-4 text-primary" /> Dark Mode
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('gray')} className="gap-2 cursor-pointer text-xs font-semibold">
+                <Palette className="h-4 w-4 text-muted-foreground" /> Gray Mode
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

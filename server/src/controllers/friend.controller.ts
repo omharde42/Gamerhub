@@ -63,17 +63,18 @@ export class FriendController {
   });
 
   listFriends = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const targetUserId = (req.query.userId as string) || req.user!.userId;
     const [sent, received] = await Promise.all([
       prisma.friendRequest.findMany({
-        where: { senderId: req.user!.userId, status: 'ACCEPTED' },
+        where: { senderId: targetUserId, status: 'ACCEPTED' },
         include: {
-          receiver: { select: { id: true, presence: true, profile: { select: { username: true, avatar: true } } } },
+          receiver: { select: { id: true, presence: true, profile: true } },
         },
       }),
       prisma.friendRequest.findMany({
-        where: { receiverId: req.user!.userId, status: 'ACCEPTED' },
+        where: { receiverId: targetUserId, status: 'ACCEPTED' },
         include: {
-          sender: { select: { id: true, presence: true, profile: { select: { username: true, avatar: true } } } },
+          sender: { select: { id: true, presence: true, profile: true } },
         },
       }),
     ]);

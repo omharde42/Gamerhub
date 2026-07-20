@@ -51,15 +51,26 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="hidden lg:block w-64 shrink-0">
+    <aside className="hidden md:block md:w-16 lg:w-64 shrink-0 transition-all duration-300">
       <div className="sticky top-20 space-y-2">
         <div className="glass rounded-xl overflow-hidden border-primary/20">
           {user ? (
             <>
-              <div className="h-14 bg-gradient-to-r from-gaming-purple/30 via-gaming-pink/20 to-gaming-blue/30 relative overflow-hidden animate-shimmer" style={{ backgroundSize: '200% 100%' }}>
+              {/* Desktop banner */}
+              <div className="h-14 bg-gradient-to-r from-gaming-purple/30 via-gaming-pink/20 to-gaming-blue/30 relative overflow-hidden animate-shimmer hidden lg:block" style={{ backgroundSize: '200% 100%' }}>
                 <div className="absolute inset-0 bg-grid opacity-20" />
               </div>
-              <div className="px-3 pb-3 -mt-8 text-center">
+              
+              {/* Tablet Avatar only */}
+              <div className="block lg:hidden py-3 text-center">
+                <Avatar className="h-10 w-10 mx-auto border border-primary/30 shadow-md" ring>
+                  <AvatarImage src={user?.profile?.avatar || ''} />
+                  <AvatarFallback className="bg-gradient-to-br from-gaming-purple to-gaming-pink text-white text-xs">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                </Avatar>
+              </div>
+
+              {/* Desktop Profile Card info */}
+              <div className="px-3 pb-3 -mt-8 text-center hidden lg:block animate-fade-in">
                 <Avatar className="h-16 w-16 mx-auto border-2 border-background shadow-lg" ring>
                   <AvatarImage src={user?.profile?.avatar || ''} />
                   <AvatarFallback className="bg-gradient-to-br from-gaming-purple to-gaming-pink text-white text-lg">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
@@ -74,7 +85,9 @@ export function Sidebar() {
                   </div>
                 )}
               </div>
-              <div className="border-t border-border/50 px-3 py-2 space-y-1">
+              
+              {/* Desktop Connections stats */}
+              <div className="border-t border-border/50 px-3 py-2 space-y-1 hidden lg:block">
                 <Link href="/connections" className="flex items-center justify-between text-xs hover:bg-accent/50 rounded-lg px-2 py-1.5 -mx-1 transition-colors">
                   <span className="text-muted-foreground">Connections</span>
                   <span className="text-primary font-semibold">{user?.profile?._count?.following || 0}</span>
@@ -85,20 +98,16 @@ export function Sidebar() {
               </div>
             </>
           ) : (
-            <div className="p-6 text-center space-y-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center mx-auto shadow-lg shadow-gaming-purple/20">
-                <Gamepad2 className="h-6 w-6 text-white" />
+            <div className="p-3 lg:p-6 text-center space-y-3 flex flex-col items-center">
+              <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center shadow-lg shadow-gaming-purple/20">
+                <Gamepad2 className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
               </div>
-              <p className="text-sm font-semibold">Welcome!</p>
-              <p className="text-xs text-muted-foreground">Sign in to access all features</p>
-              <Link href="/auth/login">
-                <Button variant="gradient" size="sm" className="w-full h-9 text-xs">
-                  Sign In
-                </Button>
-              </Link>
-              <Link href="/auth/register">
-                <Button variant="outline" size="sm" className="w-full h-9 text-xs">
-                  Create Account
+              <p className="text-xs font-semibold hidden lg:block">Welcome!</p>
+              <p className="text-[10px] text-muted-foreground hidden lg:block">Sign in to access all features</p>
+              <Link href="/auth/login" className="w-full">
+                <Button variant="gradient" size="sm" className="w-full h-8 lg:h-9 text-[10px] lg:text-xs">
+                  <span className="hidden lg:inline">Sign In</span>
+                  <span className="lg:hidden">In</span>
                 </Button>
               </Link>
             </div>
@@ -112,23 +121,23 @@ export function Sidebar() {
             return (
               <Link key={item.href} href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative',
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative justify-center lg:justify-start',
                   isActive
                     ? 'text-primary bg-primary/10 shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                 )}>
                 {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-full glow-sm animate-scale-in" />}
                 <Icon className={cn('h-5 w-5 shrink-0 transition-all duration-200', isActive && 'drop-shadow-[0_0_6px_hsl(var(--primary)/0.5)]')} />
-                {item.label}
+                <span className="hidden lg:block">{item.label}</span>
               </Link>
             );
           })}
 
           <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger asChild>
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-200">
-                <MoreVertical className="h-5 w-5" />
-                More
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-200 justify-center lg:justify-start">
+                <MoreVertical className="h-5 w-5 shrink-0" />
+                <span className="hidden lg:block">More</span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="start" className="w-56 glass-strong">

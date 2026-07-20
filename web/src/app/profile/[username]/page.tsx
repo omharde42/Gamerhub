@@ -77,6 +77,72 @@ export default function ProfilePage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed'),
   });
 
+  // Modal State for Followers, Following, Connections
+  const [listModalOpen, setListModalOpen] = useState(false);
+  const [listType, setListType] = useState<'connections' | 'followers' | 'following' | null>(null);
+  const [listSearch, setListSearch] = useState('');
+
+  const { data: rawListData, isLoading: listLoading } = useQuery({
+    queryKey: ['profile-social-list', listType, profile?.user?.id],
+    queryFn: async () => {
+      if (!listType || !profile?.user?.id) return [];
+      if (listType === 'connections') {
+        return api.get(`/friends?userId=${profile.user.id}`).then(r => r.data.data);
+      }
+      if (listType === 'followers') {
+        const res = await api.get(`/feed/followers?userId=${profile.user.id}`);
+        return res.data.data.map((item: any) => item.follower);
+      }
+      if (listType === 'following') {
+        const res = await api.get(`/feed/following?userId=${profile.user.id}`);
+        return res.data.data.map((item: any) => item.following);
+      }
+      return [];
+    },
+    enabled: !!listType && !!profile?.user?.id && listModalOpen,
+  });
+
+  const listData = rawListData || [];
+
+  const filteredList = listData.filter((item: any) => {
+    if (!item) return false;
+    const username = item.profile?.username?.toLowerCase() || '';
+    const displayName = item.profile?.displayName?.toLowerCase() || '';
+    const search = listSearch.toLowerCase();
+    return username.includes(search) || displayName.includes(search);
+  });
+
+  const listToggleFollow = useMutation({
+    mutationFn: (targetId: string) => {
+      const isCurrentlyFollowing = followingList?.includes(targetId);
+      return isCurrentlyFollowing 
+        ? api.post(`/feed/unfollow/${targetId}`) 
+        : api.post(`/feed/follow/${targetId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['following-me'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-social-list'] });
+      toast.success('Updated follow status');
+    },
+  });
+
+  const listConnect = useMutation({
+    mutationFn: (targetId: string) => api.post('/friends/request', { userId: targetId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['friend-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-social-list'] });
+      toast.success('Connection request sent!');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to connect'),
+  });
+
+  const openSocialList = (type: 'connections' | 'followers' | 'following') => {
+    setListType(type);
+    setListSearch('');
+    setListModalOpen(true);
+  };
+
   // Full-screen chat
   const [chatOpen, setChatOpen] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -291,6 +357,23 @@ export default function ProfilePage() {
                 <Badge variant="rank" className={getRankColor(profile.rank)}><Trophy className="h-3 w-3 mr-1" />{profile.rank || 'Unranked'}</Badge>
                 <Badge variant="outline">{profile.role || 'Flex'}</Badge>
                 {profile.country && <Badge variant="outline"><MapPin className="h-3 w-3 mr-1" />{profile.country}</Badge>}
+                
+                {/* Dynamically derived gaming style/status badges */}
+                {profile.winRate >= 60 && (
+                  <Badge variant="neon" className="bg-success/5 border-success/30 text-success gap-1 text-[10px] py-0.5 px-2">
+                    <Sparkles className="h-2.5 w-2.5 animate-pulse" /> Dominator
+                  </Badge>
+                )}
+                {profile.kd >= 2.0 && (
+                  <Badge variant="neon" className="bg-primary/5 border-primary/30 text-primary gap-1 text-[10px] py-0.5 px-2">
+                    <Target className="h-2.5 w-2.5" /> Sharp Shooter
+                  </Badge>
+                )}
+                {profile.achievements?.length >= 5 && (
+                  <Badge variant="neon" className="bg-yellow-500/5 border-yellow-500/30 text-yellow-500 gap-1 text-[10px] py-0.5 px-2">
+                    <Award className="h-2.5 w-2.5 text-yellow-500" /> Completionist
+                  </Badge>
+                )}
               </motion.div>
             </div>
             {!isOwn && (
@@ -324,6 +407,50 @@ export default function ProfilePage() {
             )}
           </div>
           {profile.bio && <motion.p className="text-sm text-muted-foreground mb-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>{profile.bio}</motion.p>}
+
+          {/* Social Counts Row */}
+          <motion.div 
+            className="flex flex-wrap items-center gap-5 py-3 my-4 border-t border-b border-border/30 text-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.45 }}
+          >
+            <button 
+              onClick={() => openSocialList('connections')}
+              className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer group"
+            >
+              <Users className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+              <span className="font-bold">{profile.connectionsCount || 0}</span>
+              <span className="text-muted-foreground text-xs">Connections</span>
+            </button>
+            <button 
+              onClick={() => openSocialList('followers')}
+              className="flex items-center gap-1.5 hover:text-gaming-pink transition-colors cursor-pointer group"
+            >
+              <Heart className="h-4 w-4 text-gaming-pink group-hover:scale-110 transition-transform" />
+              <span className="font-bold">{profile.user?._count?.followers || 0}</span>
+              <span className="text-muted-foreground text-xs">Followers</span>
+            </button>
+            <button 
+              onClick={() => openSocialList('following')}
+              className="flex items-center gap-1.5 hover:text-gaming-cyan transition-colors cursor-pointer group"
+            >
+              <UserCheck className="h-4 w-4 text-gaming-cyan group-hover:scale-110 transition-transform" />
+              <span className="font-bold">{profile.user?._count?.following || 0}</span>
+              <span className="text-muted-foreground text-xs">Following</span>
+            </button>
+            <div className="flex items-center gap-1.5 cursor-default group">
+              <Sparkles className="h-4 w-4 text-yellow-500 group-hover:rotate-12 transition-transform" />
+              <span className="font-bold">{profile.profileViews || 0}</span>
+              <span className="text-muted-foreground text-xs">Views</span>
+            </div>
+            <div className="flex items-center gap-1.5 cursor-default group">
+              <Star className="h-4 w-4 text-gaming-purple group-hover:scale-110 transition-transform" />
+              <span className="font-bold">{profile.user?._count?.posts || 0}</span>
+              <span className="text-muted-foreground text-xs">Posts</span>
+            </div>
+          </motion.div>
+
           <motion.div className="flex flex-wrap gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
             {profile.mainGames?.map((game: string, i: number) => (<Badge key={i} variant="secondary" className="gap-1"><Gamepad2 className="h-3 w-3" />{game}</Badge>))}
             {profile.languages?.map((lang: string, i: number) => (<Badge key={i} variant="outline">{lang}</Badge>))}
@@ -351,9 +478,9 @@ export default function ProfilePage() {
       {/* Content tabs */}
       <Tabs defaultValue="achievements" className="w-full">
         <TabsList className="w-full justify-start bg-muted/30 p-1 rounded-xl">
-          <TabsTrigger value="achievements" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Award className="h-4 w-4 mr-1" />Achievements</TabsTrigger>
-          <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Swords className="h-4 w-4 mr-1" />History</TabsTrigger>
-          <TabsTrigger value="posts" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Star className="h-4 w-4 mr-1" />Posts</TabsTrigger>
+          <TabsTrigger value="achievements" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Award className="h-4 w-4 mr-1" />Achievements ({profile.achievements?.length || 0})</TabsTrigger>
+          <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Swords className="h-4 w-4 mr-1" />History ({profile.tournamentHistory?.length || 0})</TabsTrigger>
+          <TabsTrigger value="posts" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Star className="h-4 w-4 mr-1" />Posts ({profile.user?._count?.posts || 0})</TabsTrigger>
           <TabsTrigger value="about" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Shield className="h-4 w-4 mr-1" />About</TabsTrigger>
         </TabsList>
 
@@ -463,6 +590,124 @@ export default function ProfilePage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Social List Modal (Connections, Followers, Following) */}
+      <AnimatePresence>
+        {listModalOpen && listType && (
+          <motion.div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-background border border-border/50 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl relative overflow-hidden"
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: 'spring', duration: 0.3 }}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50 bg-muted/10 shrink-0">
+                <div>
+                  <h3 className="font-bold text-base capitalize">{listType}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {filteredList.length} {filteredList.length === 1 ? 'user' : 'users'} found
+                  </p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setListModalOpen(false)}>
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {/* Local Search input */}
+              <div className="p-3 border-b border-border/30 bg-muted/5 shrink-0 flex items-center gap-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search user..."
+                  value={listSearch}
+                  onChange={(e) => setListSearch(e.target.value)}
+                  className="h-8 border-0 bg-transparent text-xs focus-visible:ring-0 px-0"
+                  variant="ghost"
+                />
+              </div>
+
+              {/* List Content */}
+              <ScrollArea className="flex-1 p-4">
+                {listLoading ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="text-xs text-muted-foreground">Loading list...</span>
+                  </div>
+                ) : filteredList.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-muted-foreground">No users found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredList.map((item: any) => {
+                      if (!item) return null;
+                      const isMe = item.id === user?.id;
+                      const isFriend = friendList?.includes(item.id);
+                      const isFollowingItem = followingList?.includes(item.id);
+
+                      return (
+                        <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/15 border border-transparent hover:border-border/30 transition-all duration-200">
+                          {/* User Info */}
+                          <Link 
+                            href={`/profile/${item.profile?.username}`}
+                            onClick={() => setListModalOpen(false)}
+                            className="flex items-center gap-3 min-w-0"
+                          >
+                            <Avatar className="h-9 w-9 border border-border/30">
+                              <AvatarImage src={item.profile?.avatar || ''} />
+                              <AvatarFallback className="text-xs">{getInitials(item.profile?.username || '')}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold truncate hover:text-primary transition-colors">
+                                {item.profile?.displayName || item.profile?.username}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                @{item.profile?.username}
+                              </p>
+                            </div>
+                          </Link>
+
+                          {/* Action buttons */}
+                          {!isMe && (
+                            <div className="flex items-center gap-2 shrink-0">
+                              {/* Follow / Unfollow */}
+                              <Button
+                                variant={isFollowingItem ? 'outline' : 'secondary'}
+                                onClick={() => listToggleFollow.mutate(item.id)}
+                                disabled={listToggleFollow.isPending}
+                                className="h-7 text-[10px] px-2 rounded-lg font-bold"
+                              >
+                                {isFollowingItem ? 'Unfollow' : 'Follow'}
+                              </Button>
+
+                              {/* Connect / Connected */}
+                              <Button
+                                variant={isFriend ? 'default' : 'outline'}
+                                onClick={() => !isFriend && listConnect.mutate(item.id)}
+                                disabled={isFriend || listConnect.isPending}
+                                className={`h-7 text-[10px] px-2 rounded-lg font-bold ${isFriend ? 'bg-success/10 text-success hover:bg-success/15 border-success/30' : ''}`}
+                              >
+                                {isFriend ? 'Connected' : 'Connect'}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </ScrollArea>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
