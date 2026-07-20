@@ -45,11 +45,13 @@ import newsRoutes from './routes/news.routes';
 const app = express();
 const httpServer = createServer(app);
 
-// Allowed Frontend URLs
+// Dynamic Allowed Frontend URLs
 const allowedOrigins = [
   "http://localhost:3000",
   "https://web-drab-nu-21.vercel.app",
-];
+  "https://gamerhub-web.onrender.com",
+  process.env.FRONTEND_URL
+].filter((origin): origin is string => Boolean(origin));
 
 // Socket.IO
 const io = new Server(httpServer, {
@@ -151,21 +153,15 @@ app.use(
     crossOriginEmbedderPolicy: false,
   })
 );
+
+// Express automatically manages array origins & handles Preflight properly
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (Postman, mobile apps, etc.)
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error("Not allowed by CORS"));
-    },
+    origin: allowedOrigins,
     credentials: true,
   })
 );
+
 app.use(compression());
 app.use(morgan('dev'));
 app.use(cookieParser());
