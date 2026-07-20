@@ -24,7 +24,10 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { profile: true, subscription: true },
+    });
     if (!user) throw new UnauthorizedError('Invalid credentials');
     if (!user.password) throw new UnauthorizedError('Account uses OAuth. Please sign in with Google, Discord, or Steam.');
     const isValid = await comparePassword(password, user.password);
