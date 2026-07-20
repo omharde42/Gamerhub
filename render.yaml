@@ -13,10 +13,12 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: NODE_VERSION
+        value: 20
       - key: DATABASE_URL
-        sync: false # You will paste your Supabase URL here in Render
+        sync: false
       - key: DIRECT_URL
-        sync: false # You will paste your Supabase URL here in Render
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
@@ -24,7 +26,7 @@ services:
       - key: ENCRYPTION_KEY
         sync: false
       - key: FRONTEND_URL
-        sync: false # You will paste the frontend's live URL here in Render
+        sync: false
 
   # Frontend Web Service
   - type: web
@@ -40,5 +42,7 @@ services:
         value: production
       - key: PORT
         value: 3000
+      - key: NODE_VERSION
+        value: 20
       - key: NEXT_PUBLIC_API_URL
-        sync: false # You will paste the backend's live URL here in Render
+        sync: false
