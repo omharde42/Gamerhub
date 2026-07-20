@@ -83,23 +83,23 @@ export default function ProfilePage() {
   const [listSearch, setListSearch] = useState('');
 
   const { data: rawListData, isLoading: listLoading } = useQuery({
-    queryKey: ['profile-social-list', listType, profile?.user?.id],
+    queryKey: ['profile-social-list', listType, profile?.userId],
     queryFn: async () => {
-      if (!listType || !profile?.user?.id) return [];
+      if (!listType || !profile?.userId) return [];
       if (listType === 'connections') {
-        return api.get(`/friends?userId=${profile.user.id}`).then(r => r.data.data);
+        return api.get(`/friends?userId=${profile.userId}`).then(r => r.data.data);
       }
       if (listType === 'followers') {
-        const res = await api.get(`/feed/followers?userId=${profile.user.id}`);
-        return res.data.data.map((item: any) => item.follower);
+        const res = await api.get(`/feed/followers?userId=${profile.userId}`);
+        return res.data.data.map((item: any) => item.follower).filter(Boolean);
       }
       if (listType === 'following') {
-        const res = await api.get(`/feed/following?userId=${profile.user.id}`);
-        return res.data.data.map((item: any) => item.following);
+        const res = await api.get(`/feed/following?userId=${profile.userId}`);
+        return res.data.data.map((item: any) => item.following).filter(Boolean);
       }
       return [];
     },
-    enabled: !!listType && !!profile?.user?.id && listModalOpen,
+    enabled: !!listType && !!profile?.userId && listModalOpen,
   });
 
   const listData = rawListData || [];

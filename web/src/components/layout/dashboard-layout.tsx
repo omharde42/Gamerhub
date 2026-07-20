@@ -38,17 +38,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="w-full mx-auto flex gap-3 lg:gap-4 px-3 md:px-6 py-3 md:py-4">
           {!hideSidebar && <Sidebar />}
           <main className="flex-1 min-w-0 max-w-full">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={pathname}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.1, ease: 'easeOut' }}
-              >
-                {children}
-              </motion.div>
-            </AnimatePresence>
+            {children}
           </main>
         </div>
       </div>
