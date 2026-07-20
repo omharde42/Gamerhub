@@ -1,0 +1,44 @@
+services:
+  # Backend API Service
+  - type: web
+    name: gamerhub-api
+    env: node
+    plan: free
+    region: singapore # You can change this to your nearest region
+    rootDir: server
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # You will paste your Supabase URL here in Render
+      - key: DIRECT_URL
+        sync: false # You will paste your Supabase URL here in Render
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false # You will paste the frontend's live URL here in Render
+
+  # Frontend Web Service
+  - type: web
+    name: gamerhub-web
+    env: node
+    plan: free
+    region: singapore
+    rootDir: web
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # You will paste the backend's live URL here in Render
