@@ -51,6 +51,7 @@ export function Navbar() {
 
   const { theme: activeTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -83,8 +84,6 @@ export function Navbar() {
     logout();
     router.push('/');
   };
-
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <header className={`fixed top-0 z-40 w-full transition-all duration-300 ${scrolled ? 'glass-strong border-border/60' : 'bg-background/80 backdrop-blur-md border-b border-border/60'}`}>
