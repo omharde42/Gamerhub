@@ -12,7 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MapPin, Globe, Trophy, Target, TrendingUp, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Calendar, Award, Swords, X, Send, Plus, Hash, Search, Loader2, Heart, Reply, MoreVertical, Smile, Paperclip, Image as ImageIcon, UserCheck, UserPlus, Phone, Link as LinkIcon, Sparkles } from 'lucide-react';
+import { MapPin, Globe, Trophy, Target, TrendingUp, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Calendar, Award, Swords, X, Send, Plus, Hash, Search, Loader2, Heart, Reply, MoreVertical, Smile, Paperclip, Image as ImageIcon, UserCheck, UserPlus, Phone, Link as LinkIcon, Sparkles, Settings } from 'lucide-react';
 import { formatDate, formatNumber, getInitials, getRankColor, formatRelativeTime } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useSocket } from '@/hooks/useSocket';
@@ -376,7 +376,7 @@ export default function ProfilePage() {
                 )}
               </motion.div>
             </div>
-            {!isOwn && (
+            {!isOwn ? (
               <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
                 <Button
                   variant={friendStatus === 'friends' ? 'secondary' : friendStatus === 'pending' ? 'outline' : 'gradient'}
@@ -403,6 +403,14 @@ export default function ProfilePage() {
                 <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto h-11" onClick={() => setChatOpen(true)}>
                   <MessageCircle className="h-4 w-4" /> Message
                 </Button>
+              </motion.div>
+            ) : (
+              <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+                <Link href="/profile/settings" className="w-full sm:w-auto">
+                  <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto h-11">
+                    <Settings className="h-4 w-4" /> Edit Profile
+                  </Button>
+                </Link>
               </motion.div>
             )}
           </div>

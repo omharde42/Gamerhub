@@ -119,7 +119,7 @@ io.on('connection', (socket) => {
     socket.to(`chat:${chatId}`).emit('typing:stop', { userId, chatId });
   });
 
-  socket.on('message:send', async (data: { chatId: string; content?: string; media?: string[]; gif?: string }) => {
+  socket.on('message:send', async (data: { chatId: string; content?: string; media?: string[]; gif?: string; voiceNote?: string }) => {
     try {
       const message = await prisma.message.create({
         data: {
@@ -128,6 +128,7 @@ io.on('connection', (socket) => {
           content: data.content || '',
           media: data.media || [],
           gif: data.gif,
+          voiceNote: data.voiceNote,
         },
         include: { sender: { select: { id: true, profile: true } } },
       });

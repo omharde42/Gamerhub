@@ -11,12 +11,13 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useTheme } from 'next-themes';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Gamepad2, Search, Bell, MessageSquare, Users,
   LogOut, User, Settings, Crown, Home, Briefcase, ChevronDown,
   Heart, Trophy, Loader2, LayoutDashboard, Compass,
   Bookmark, Bot, Shield, BarChart3, Gamepad2 as GamepadIcon, Building2, MoreHorizontal,
-  Globe, UserCheck, Zap, Sparkles, Newspaper, Film, Sun, Moon, Palette
+  Globe, UserCheck, Zap, Sparkles, Newspaper, Film, Sun, Moon, Palette, X
 } from 'lucide-react';
 
 const navIcons = [
@@ -83,22 +84,49 @@ export function Navbar() {
     router.push('/');
   };
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   return (
-    <header className={`fixed top-0 z-40 w-full transition-all duration-300 ${scrolled ? 'glass-strong border-primary/20' : 'bg-background/80 backdrop-blur-md border-b border-primary/20'}`}>
-      <div className="w-full mx-auto flex h-16 items-center px-6 gap-3">
-        <Link href="/dashboard" className="flex items-center gap-1.5 shrink-0 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center shadow-lg shadow-gaming-purple/20 group-hover:shadow-gaming-purple/40 transition-all duration-300">
-            <Gamepad2 className="h-4 w-4 text-white" />
+    <header className={`fixed top-0 z-40 w-full transition-all duration-300 ${scrolled ? 'glass-strong border-border/60' : 'bg-background/80 backdrop-blur-md border-b border-border/60'}`}>
+      <div className="w-full mx-auto flex h-16 items-center px-4 md:px-6 gap-2 md:gap-3">
+        {/* Mobile Left Corner: Profile Avatar Drawer Trigger */}
+        {user ? (
+          <button onClick={() => setDrawerOpen(true)} className="flex md:hidden shrink-0 focus:outline-none">
+            <Avatar className="h-8 w-8 border border-border/60">
+              <AvatarImage src={user?.profile?.avatar || ''} />
+              <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-bold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+            </Avatar>
+          </button>
+        ) : (
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm md:hidden">
+            <GamepadIcon className="h-4 w-4 text-white" />
           </div>
-          <span className="text-lg font-bold hidden sm:block bg-gradient-to-r from-gaming-purple to-gaming-cyan bg-clip-text text-transparent animate-glow-rainbow">GamerHub</span>
+        )}
+
+        {/* Desktop Brand Logo */}
+        <Link href="/dashboard" className="hidden md:flex items-center gap-2 shrink-0 group">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm transition-all duration-300">
+            <GamepadIcon className="h-4 w-4 text-white" />
+          </div>
+          <span className="text-base font-bold hidden sm:block text-foreground group-hover:text-primary transition-colors tracking-tight">GamerHub</span>
         </Link>
 
-        <div className="hidden md:flex relative flex-1 max-w-sm">
+        {/* Center: Search Bar (displayed on both mobile & desktop) */}
+        <div className="flex relative flex-1 max-w-[240px] xs:max-w-sm mx-1 md:mx-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30" placeholder="Search players, teams..." variant="ghost" />
+          <Input className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full" placeholder="Search players, teams..." variant="ghost" />
         </div>
 
-        <div className="flex-1" />
+        {/* Mobile Right Corner: Message icon shortcut */}
+        <div className="flex md:hidden items-center ml-auto">
+          {user && (
+            <Link href="/messages" className="p-2 hover:bg-muted/80 rounded-xl transition-all relative">
+              <MessageSquare className="h-5 w-5 text-foreground" />
+            </Link>
+          )}
+        </div>
+
+        <div className="hidden md:block flex-1" />
 
         <nav className="hidden md:flex items-center gap-0.5">
           {navIcons.map((item) => {
@@ -107,10 +135,10 @@ export function Navbar() {
             return (
               <Link key={item.href} href={item.href}
                 className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
-                  ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
-                <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)] animate-bounce-in' : ''}`} />
+                  ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}>
+                <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary animate-bounce-in' : ''}`} />
                 <span>{item.label}</span>
-                {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full glow-sm" />}
+                {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />}
               </Link>
             );
           })}
@@ -249,6 +277,67 @@ export function Navbar() {
           )}
         </div>
       </div>
+
+      {/* Mobile Left Side Drawer */}
+      <AnimatePresence>
+        {drawerOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDrawerOpen(false)}
+              className="fixed inset-0 z-50 bg-black md:hidden"
+            />
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="fixed inset-y-0 left-0 z-50 w-72 bg-background border-r border-border/60 flex flex-col md:hidden overflow-hidden shadow-2xl"
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-border/50 flex items-center justify-between bg-muted/10">
+                <div className="flex items-center gap-2.5">
+                  <Avatar className="h-9 w-9 border border-border/60">
+                    <AvatarImage src={user?.profile?.avatar || ''} />
+                    <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                  </Avatar>
+                  <div className="text-left">
+                    <p className="font-semibold text-xs truncate max-w-[150px]">{user?.profile?.displayName || user?.profile?.username}</p>
+                    <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">@{user?.profile?.username}</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setDrawerOpen(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Body Links */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                <Link href={`/profile/${user?.profile?.username}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/85 text-sm text-foreground transition-all">
+                  <User className="h-4 w-4 text-primary" /> User Profile
+                </Link>
+                <Link href="/profile/settings" onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/85 text-sm text-foreground transition-all">
+                  <Settings className="h-4 w-4 text-primary" /> Edit Profile
+                </Link>
+                <Link href="/saved" onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/85 text-sm text-foreground transition-all">
+                  <Bookmark className="h-4 w-4 text-primary" /> Saved Posts
+                </Link>
+                <Link href={`/passport/${user?.profile?.username}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/85 text-sm text-foreground transition-all">
+                  <Shield className="h-4 w-4 text-primary" /> AI Resume & Passport
+                </Link>
+                <div className="border-t border-border/45 my-3" />
+                <Button variant="ghost" onClick={() => { setDrawerOpen(false); handleLogout(); }} className="w-full flex items-center justify-start gap-3 p-3 h-11 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <LogOut className="h-4 w-4" /> Sign Out
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

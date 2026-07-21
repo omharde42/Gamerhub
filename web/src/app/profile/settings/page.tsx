@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/authStore';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { GAMES, ROLES, PLAY_STYLES, COMMUNICATION_STYLES, REGIONS, LANGUAGES } from '@/lib/constants';
@@ -20,10 +20,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { Shield, Bell, User, Gamepad2, X, Loader2, CheckCircle2, Circle, Sparkles, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
-
+ 
 export default function SettingsPage() {
   const router = useRouter();
   const { user, setUser } = useAuthStore();
+  const queryClient = useQueryClient();
 
   const [profile, setProfile] = useState({
     displayName: user?.profile?.displayName || '',
@@ -89,26 +90,43 @@ export default function SettingsPage() {
     profile.mainGames.length > 0;
 
   const updateProfile = useMutation({
+    // Wait, the API endpoint is PUT /profiles
     mutationFn: () => api.put('/profiles', profile),
     onSuccess: (res: any) => {
       const updated = res.data.data;
       setUser({ ...user, profile: updated });
       
-      const nextCoreSetupCompleted = 
-        !!updated.displayName?.trim() && 
-        !!updated.bio?.trim() && 
-        !!updated.country?.trim() && 
-        updated.mainGames?.length > 0;
-
-      if (nextCoreSetupCompleted) {
-        toast.success('Gamer Passport Completed! Access granted.');
-        router.push('/feed');
-      } else {
-        toast.success('Changes saved successfully!');
-      }
+      const username = updated.username || user?.profile?.username || user?.username;
+      
+      // Invalidate the cache for profile query so it reloads in real time without refreshing
+      queryClient.invalidateQueries({ queryKey: ['profile', username] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      
+      toast.success('Profile updated successfully!', { id: 'profile-save-success', duration: 3000 });
+      router.push(`/profile/${username}`);
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to update profile')
   });
+
+  const handleSave = () => {
+    if (!profile.displayName.trim()) {
+      toast.error('Gaming Display Name is required');
+      return;
+    }
+    if (!profile.country.trim()) {
+      toast.error('Country is required');
+      return;
+    }
+    if (!profile.bio.trim()) {
+      toast.error('Bio Summary is required');
+      return;
+    }
+    if (profile.mainGames.length === 0) {
+      toast.error('At least one connected game is required');
+      return;
+    }
+    updateProfile.mutate();
+  };
 
   const uploadAvatar = useMutation({
     mutationFn: (file: File) => {
@@ -263,7 +281,7 @@ export default function SettingsPage() {
 
               <Button 
                 variant="gradient" 
-                onClick={() => updateProfile.mutate()} 
+                onClick={handleSave} 
                 disabled={updateProfile.isPending}
                 className="h-11 px-6 rounded-xl gap-2 font-bold shadow-md shadow-primary/10"
                 animate
@@ -391,7 +409,7 @@ export default function SettingsPage() {
 
               <Button 
                 variant="gradient" 
-                onClick={() => updateProfile.mutate()} 
+                onClick={handleSave} 
                 disabled={updateProfile.isPending}
                 className="h-11 px-6 rounded-xl gap-2 font-bold shadow-md shadow-primary/10"
                 animate
@@ -454,7 +472,7 @@ export default function SettingsPage() {
 
               <Button 
                 variant="gradient" 
-                onClick={() => updateProfile.mutate()} 
+                onClick={handleSave} 
                 disabled={updateProfile.isPending}
                 className="h-11 px-6 rounded-xl gap-2 font-bold shadow-md shadow-primary/10"
                 animate

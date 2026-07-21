@@ -94,7 +94,7 @@ export default function FeedPage() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 hidden lg:block">
           <Card variant="glass" className="border-border/60">
             <CardHeader className="pb-2">
               <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Zap className="h-4 w-4 text-indigo-500" /> Trending Topics</h3>

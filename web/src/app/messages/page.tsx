@@ -12,7 +12,7 @@ import {
   MessageSquare, UserPlus, Phone, Mic, Headphones, Settings,
   Hash, Users, ChevronDown, ChevronRight, ChevronLeft, Heart, Smile, Reply,
   Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
-  Sparkles, Volume2
+  Sparkles, Volume2, Pause, Play, Square
 } from 'lucide-react';
 import { getInitials, formatRelativeTime, cn } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -39,6 +39,120 @@ function DiscordMessagesPage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [shareOpen, setShareOpen] = useState<string | null>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
+
+  // Voice recording state variables
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [voicePaused, setVoicePaused] = useState(false);
+  const [voiceDuration, setVoiceDuration] = useState(0);
+  const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
+  const [voicePreviewUrl, setVoicePreviewUrl] = useState<string | null>(null);
+
+  // Voice recording reference values
+  const voiceRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const voiceTimerRef = useRef<any>(null);
+
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      voiceStreamRef.current = stream;
+      voiceChunksRef.current = [];
+      
+      const recorder = new MediaRecorder(stream);
+      voiceRecorderRef.current = recorder;
+      
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) voiceChunksRef.current.push(e.data);
+      };
+      
+      recorder.onstop = () => {
+        const blob = new Blob(voiceChunksRef.current, { type: 'audio/webm' });
+        setVoiceBlob(blob);
+        const url = URL.createObjectURL(blob);
+        setVoicePreviewUrl(url);
+        setIsRecordingVoice(false);
+        
+        // Release tracks
+        stream.getTracks().forEach(t => t.stop());
+        voiceStreamRef.current = null;
+      };
+      
+      recorder.start(100);
+      setIsRecordingVoice(true);
+      setVoicePaused(false);
+      setVoiceDuration(0);
+      
+      voiceTimerRef.current = setInterval(() => {
+        setVoiceDuration(d => d + 1);
+      }, 1000);
+      
+      toast.success('Voice recording started');
+    } catch (err) {
+      toast.error('Microphone access denied or not available');
+    }
+  };
+
+  const pauseVoiceRecording = () => {
+    if (voiceRecorderRef.current && voiceRecorderRef.current.state === 'recording') {
+      voiceRecorderRef.current.pause();
+      clearInterval(voiceTimerRef.current);
+      setVoicePaused(true);
+    }
+  };
+
+  const resumeVoiceRecording = () => {
+    if (voiceRecorderRef.current && voiceRecorderRef.current.state === 'paused') {
+      voiceRecorderRef.current.resume();
+      voiceTimerRef.current = setInterval(() => {
+        setVoiceDuration(d => d + 1);
+      }, 1000);
+      setVoicePaused(false);
+    }
+  };
+
+  const cancelVoiceRecording = () => {
+    clearInterval(voiceTimerRef.current);
+    if (voiceRecorderRef.current && voiceRecorderRef.current.state !== 'inactive') {
+      voiceRecorderRef.current.stop();
+    }
+    voiceStreamRef.current?.getTracks().forEach(t => t.stop());
+    voiceStreamRef.current = null;
+    voiceRecorderRef.current = null;
+    setVoiceBlob(null);
+    if (voicePreviewUrl) {
+      URL.revokeObjectURL(voicePreviewUrl);
+    }
+    setVoicePreviewUrl(null);
+    setIsRecordingVoice(false);
+    setVoicePaused(false);
+    setVoiceDuration(0);
+  };
+
+  const sendVoiceRecording = () => {
+    if (!voiceBlob || !selectedChat) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64Data = e.target?.result as string;
+      if (socket) {
+        socket.emit('message:send', {
+          chatId: selectedChat,
+          content: '',
+          voiceNote: base64Data,
+        });
+      } else {
+        sendViaApi.mutate({
+          chatId: selectedChat,
+          content: '',
+          voiceNote: base64Data,
+        });
+      }
+      cancelVoiceRecording();
+      queryClient.invalidateQueries({ queryKey: ['messages', selectedChat] });
+      toast.success('Voice message sent');
+    };
+    reader.readAsDataURL(voiceBlob);
+  };
 
   const { data: chats, isLoading: chatsLoading } = useQuery({
     queryKey: ['chats'],
@@ -71,8 +185,8 @@ function DiscordMessagesPage() {
   });
 
   const sendViaApi = useMutation({
-    mutationFn: (data: { chatId: string; content: string; media?: string[] }) =>
-      api.post(`/chat/${data.chatId}/messages`, { content: data.content, media: data.media }),
+    mutationFn: (data: { chatId: string; content: string; media?: string[]; voiceNote?: string }) =>
+      api.post(`/chat/${data.chatId}/messages`, { content: data.content, media: data.media, voiceNote: data.voiceNote }),
     onSuccess: () => { refetchMessages(); queryClient.invalidateQueries({ queryKey: ['chats'] }); setFilePreview(null); },
     onError: () => toast.error('Failed to send message'),
   });
@@ -419,6 +533,11 @@ function DiscordMessagesPage() {
                               ))}
                             </div>
                           )}
+                          {msg.voiceNote && (
+                            <div className="mb-1.5 animate-scale-in max-w-full overflow-x-auto">
+                              <audio src={msg.voiceNote} controls className="max-w-[240px] xs:max-w-[260px] h-9 rounded-xl border border-border/30 bg-card" />
+                            </div>
+                          )}
                           {msg.content && (
                             <div className={cn(
                               "px-4 py-2.5 rounded-2xl text-sm leading-relaxed relative border transition-all duration-300",
@@ -489,22 +608,95 @@ function DiscordMessagesPage() {
                   <button onClick={() => setFilePreview(null)} className="hover:text-destructive p-1 rounded-lg hover:bg-destructive/10 transition-colors"><X className="h-4 w-4" /></button>
                 </motion.div>
               )}
-              <div className="flex items-center gap-2 bg-card/65 rounded-2xl px-3 py-1.5 border border-border/40 transition-all duration-300 focus-within:border-primary/40 focus-within:shadow-md focus-within:shadow-primary/5 focus-within:ring-1 focus-within:ring-primary/10">
-                <input type="file" accept="image/*,video/*" hidden ref={fileInputRef} onChange={handleFileSelect} />
-                <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all" onClick={() => fileInputRef.current?.click()}><Plus className="h-5 w-5 text-primary" /></button>
-                <Input
-                  placeholder={`Message ${(() => { const c = chats?.find((c: any) => c.id === selectedChat); const o = c ? getOtherParticipant(c) : null; return o?.profile?.username || 'User'; })()}`}
-                  value={message}
-                  onChange={(e) => { setMessage(e.target.value); handleTyping(); }}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
-                  className="flex-1 h-9 border-0 bg-transparent text-sm focus-visible:ring-0 px-0 placeholder:text-muted-foreground/60"
-                  variant="ghost"
-                />
-                <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all"><Smile className="h-5 w-5" /></button>
-                <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5" /></button>
-                <Button variant="gradient" size="icon" className="h-8 w-8 rounded-xl shadow-md shadow-primary/20" disabled={!message.trim() && !filePreview} onClick={sendMessage} animate>
-                  <Send className="h-4 w-4" />
-                </Button>
+              <div className="flex items-center gap-2 bg-card/65 rounded-2xl px-3 py-1.5 border border-border/40 transition-all duration-300 focus-within:border-primary/40 focus-within:shadow-md focus-within:shadow-primary/5 focus-within:ring-1 focus-within:ring-primary/10 min-h-[46px]">
+                {isRecordingVoice ? (
+                  // Recording Panel Overlay
+                  <div className="flex items-center w-full justify-between animate-fade-in">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2.5 h-2.5 bg-destructive rounded-full animate-pulse shrink-0" />
+                      <span className="text-[11px] font-mono text-muted-foreground tracking-wider shrink-0">
+                        {Math.floor(voiceDuration / 60).toString().padStart(2, '0')}:
+                        {(voiceDuration % 60).toString().padStart(2, '0')}
+                      </span>
+                      {/* Animated Bouncing Voice Waves */}
+                      <div className="flex items-center gap-0.5 px-3 h-5 overflow-hidden min-w-[60px] xs:min-w-[100px] shrink-0">
+                        {[1, 2, 3, 4, 3, 2, 3, 4, 5, 4, 3, 2, 3, 4].map((h, i) => (
+                          <motion.div
+                            key={i}
+                            className="w-[2px] bg-primary rounded-full shrink-0"
+                            animate={{ height: voicePaused ? 3 : [3, h * 3, 3] }}
+                            transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.04 }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={voicePaused ? resumeVoiceRecording : pauseVoiceRecording}
+                        className="p-1.5 hover:bg-muted/80 rounded-xl text-muted-foreground hover:text-primary transition-all"
+                        title={voicePaused ? "Resume recording" : "Pause recording"}
+                      >
+                        {voicePaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                      </button>
+                      <button
+                        onClick={() => voiceRecorderRef.current?.stop()}
+                        className="p-1.5 hover:bg-muted/80 rounded-xl text-muted-foreground hover:text-primary transition-all"
+                        title="Finish recording"
+                      >
+                        <Square className="h-4 w-4 text-primary fill-primary/10" />
+                      </button>
+                      <button
+                        onClick={cancelVoiceRecording}
+                        className="p-1.5 hover:bg-destructive/10 rounded-xl text-muted-foreground hover:text-destructive transition-all"
+                        title="Cancel recording"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : voicePreviewUrl ? (
+                  // Preview Player Overlay
+                  <div className="flex items-center w-full justify-between gap-3 animate-fade-in">
+                    <audio src={voicePreviewUrl} controls className="flex-1 h-9 rounded-xl border border-border/30 bg-muted/40" />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={cancelVoiceRecording}
+                        className="p-2 hover:bg-destructive/10 rounded-xl text-muted-foreground hover:text-destructive transition-all"
+                        title="Delete voice message"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <Button
+                        variant="gradient"
+                        size="icon"
+                        className="h-8 w-8 rounded-xl shadow-md shadow-primary/20 shrink-0"
+                        onClick={sendVoiceRecording}
+                        animate
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  // Standard Chat Input Bar
+                  <>
+                    <input type="file" accept="image/*,video/*" hidden ref={fileInputRef} onChange={handleFileSelect} />
+                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => fileInputRef.current?.click()}><Plus className="h-5 w-5 text-primary" /></button>
+                    <Input
+                      placeholder={`Message ${(() => { const c = chats?.find((c: any) => c.id === selectedChat); const o = c ? getOtherParticipant(c) : null; return o?.profile?.username || 'User'; })()}`}
+                      value={message}
+                      onChange={(e) => { setMessage(e.target.value); handleTyping(); }}
+                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
+                      className="flex-1 h-9 border-0 bg-transparent text-sm focus-visible:ring-0 px-0 placeholder:text-muted-foreground/60 min-w-0"
+                      variant="ghost"
+                    />
+                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={startVoiceRecording} title="Record voice message"><Mic className="h-5 w-5" /></button>
+                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5" /></button>
+                    <Button variant="gradient" size="icon" className="h-8 w-8 rounded-xl shadow-md shadow-primary/20 shrink-0" disabled={!message.trim() && !filePreview} onClick={sendMessage} animate>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </>

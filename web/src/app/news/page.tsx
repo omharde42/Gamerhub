@@ -89,21 +89,21 @@ export default function NewsPage() {
   return (
     <div className="w-full space-y-6">
       <motion.div className="flex items-center justify-between flex-wrap gap-4" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gaming-cyan to-gaming-blue flex items-center justify-center shadow-lg shadow-gaming-cyan/20 glow-sm">
-            <Newspaper className="h-7 w-7 text-white" />
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm">
+            <Newspaper className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Gaming News</h1>
-            <p className="text-sm text-muted-foreground">Latest esports and gaming headlines, powered by AI</p>
+            <h1 className="text-xl font-bold tracking-tight">Gaming News</h1>
+            <p className="text-xs text-muted-foreground">Latest esports and gaming headlines, summarized with AI</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="neon" className="gap-1.5 px-3 py-1.5">
-            <Zap className="h-3.5 w-3.5" />
+          <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 bg-muted text-muted-foreground border-border/50">
+            <Zap className="h-3.5 w-3.5 text-primary" />
             {news?.length || 0} Stories
           </Badge>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => refetch()}>
+          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => refetch()}>
             <RefreshCw className="h-3.5 w-3.5 group-hover:animate-spin" /> Refresh
           </Button>
         </div>
@@ -111,14 +111,14 @@ export default function NewsPage() {
 
       {aiSummary?.summary && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="border-neon-cyan/30 bg-gradient-to-br from-neon-cyan/5 to-transparent">
+          <Card className="border-border/60 bg-muted/15 shadow-sm rounded-xl">
             <CardContent className="p-5">
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="h-5 w-5 text-neon-cyan animate-twinkle" />
-                <h3 className="font-semibold text-sm text-gradient-cyan">AI News Summary</h3>
+                <Sparkles className="h-4 w-4 text-primary animate-twinkle" />
+                <h3 className="font-semibold text-sm text-foreground">AI News Summary</h3>
                 {summaryLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
               </div>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{aiSummary.summary}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{aiSummary.summary}</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -130,14 +130,14 @@ export default function NewsPage() {
           placeholder="Search news..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-10 pl-9 bg-muted/30 border-primary/20"
+          className="h-10 pl-9 bg-muted/10 border-border/80 focus-visible:ring-primary/30"
         />
       </div>
 
       {isLoading ? (
         <div className="grid md:grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="border-border/60">
               <CardContent className="p-5 space-y-3">
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-3 w-1/4" />
@@ -149,30 +149,30 @@ export default function NewsPage() {
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
           {filteredNews.map((item: any, i: number) => (
-              <motion.div
+            <motion.div
               key={i}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
+              transition={{ delay: i * 0.02 }}
             >
-              <a href={item.url} target="_blank" rel="noopener noreferrer" className="block group">
-                <Card variant="glass" className="h-full border-primary/20 hover:border-primary/40 transition-all duration-300 animate-card-enter">
+              <a href={item.url} target="_blank" rel="noopener noreferrer" className="block group h-full">
+                <Card variant="glass" className="h-full border-border/60 hover:border-border/80 shadow-sm transition-all duration-200">
                   <CardContent className="p-5">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gaming-cyan/20 to-gaming-blue/20 flex items-center justify-center shrink-0 border border-neon-cyan/20 group-hover:animate-wiggle">
-                        <Globe className="h-5 w-5 text-neon-cyan" />
+                    <div className="flex items-start gap-3 h-full">
+                      <div className="w-10 h-10 rounded-xl bg-muted/60 flex items-center justify-center shrink-0 border border-border/40 group-hover:bg-primary/5 group-hover:border-primary/20 transition-all">
+                        <Globe className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm leading-snug line-clamp-2 mb-1.5 group-hover:text-primary transition-colors">
                           {item.title}
                         </h3>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="font-medium text-primary/80">{item.source}</span>
+                          <span className="font-medium text-foreground/80">{item.source}</span>
                           <span>·</span>
-                          <span className="flex items-center gap-1"><ExternalLink className="h-3 w-3" /> Read more</span>
+                          <span className="flex items-center gap-1"><ExternalLink className="h-3 w-3" /> Read story</span>
                         </div>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-1" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0 mt-1 group-hover:translate-x-0.5 transition-transform" />
                     </div>
                   </CardContent>
                 </Card>
