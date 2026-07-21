@@ -377,11 +377,11 @@ export default function ProfilePage() {
               </motion.div>
             </div>
             {!isOwn && (
-              <motion.div className="flex gap-2 flex-wrap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+              <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
                 <Button
                   variant={friendStatus === 'friends' ? 'secondary' : friendStatus === 'pending' ? 'outline' : 'gradient'}
                   size="sm"
-                  className="gap-1.5"
+                  className="gap-1.5 w-full sm:w-auto h-11"
                   onClick={() => sendFriendReq.mutate()}
                   disabled={sendFriendReq.isPending || !!friendStatus}
                   animate
@@ -392,7 +392,7 @@ export default function ProfilePage() {
                 <Button
                   variant={following ? 'secondary' : 'gradient'}
                   size="sm"
-                  className="gap-1.5 min-w-[100px]"
+                  className="gap-1.5 min-w-[100px] w-full sm:w-auto h-11"
                   onClick={() => toggleFollow.mutate()}
                   disabled={toggleFollow.isPending}
                   animate
@@ -400,7 +400,7 @@ export default function ProfilePage() {
                   {following ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                   {following ? 'Following' : 'Follow'}
                 </Button>
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setChatOpen(true)}>
+                <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto h-11" onClick={() => setChatOpen(true)}>
                   <MessageCircle className="h-4 w-4" /> Message
                 </Button>
               </motion.div>

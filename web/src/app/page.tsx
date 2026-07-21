@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -190,18 +190,18 @@ export default function EnterPage() {
               transition={{ delay: 0.6 }}
               className="space-y-4"
             >
-              <div className="flex items-center gap-3 justify-center">
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link href="/auth/register">
-                    <Button variant="gradient" size="xl" className="h-14 px-10 text-lg rounded-2xl gap-2" animate>
+              <div className="flex flex-col sm:flex-row items-center gap-3 justify-center w-full max-w-[280px] sm:max-w-none mx-auto">
+                <motion.div className="w-full sm:w-auto" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Link href="/auth/register" className="w-full">
+                    <Button variant="gradient" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-10 text-base sm:text-lg rounded-2xl gap-2" animate>
                       <UserPlus className="h-5 w-5" />
                       Create Account
                     </Button>
                   </Link>
                 </motion.div>
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link href="/auth/login">
-                    <Button variant="outline" size="xl" className="h-14 px-8 text-lg rounded-2xl gap-2">
+                <motion.div className="w-full sm:w-auto" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Link href="/auth/login" className="w-full">
+                    <Button variant="outline" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-8 text-base sm:text-lg rounded-2xl gap-2">
                       <LogIn className="h-5 w-5" />
                       Sign In
                     </Button>
