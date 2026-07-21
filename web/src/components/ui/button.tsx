@@ -9,14 +9,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:opacity-90 hover:shadow-lg hover:shadow-primary/20',
-        destructive: 'bg-destructive text-destructive-foreground hover:opacity-90 hover:shadow-lg hover:shadow-destructive/20',
-        outline: 'border border-border bg-background hover:bg-accent hover:text-accent-foreground hover:border-primary/30',
-        secondary: 'bg-secondary text-secondary-foreground hover:opacity-80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
-        neon: 'bg-transparent border border-neon-cyan text-neon-cyan hover:bg-neon-cyan/10 hover:shadow-lg hover:shadow-neon-cyan/20 glow-sm',
-        gradient: 'bg-gradient-to-r from-gaming-purple to-gaming-pink text-white hover:opacity-90 hover:shadow-lg hover:shadow-gaming-purple/20',
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98] shadow-sm',
+        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 active:scale-[0.98] shadow-sm',
+        outline: 'border border-border bg-background hover:bg-muted hover:text-foreground hover:border-border/80 focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.98] shadow-sm',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98] shadow-sm',
+        ghost: 'hover:bg-muted hover:text-foreground focus-visible:bg-muted/80 active:scale-[0.98]',
+        link: 'text-primary underline-offset-4 hover:underline active:opacity-80',
+        neon: 'border border-cyan-500/20 bg-cyan-500/5 text-cyan-400 hover:bg-cyan-500/10 active:bg-cyan-500/15 focus-visible:ring-2 focus-visible:ring-cyan-500 shadow-sm',
+        gradient: 'bg-gradient-to-br from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 active:from-indigo-700 active:to-violet-700 focus-visible:ring-2 focus-visible:ring-indigo-500 shadow-sm transition-all duration-200',
       },
       size: {
         default: 'h-10 px-4 py-2',

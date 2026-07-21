@@ -10,12 +10,11 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(({ className, variant = 'default', hover = true, glow = false, ...props }, ref) => {
   const classes = cn(
-    'rounded-xl border bg-card text-card-foreground shadow-sm transition-all duration-150',
-    hover && 'hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30',
-    glow && 'glow-sm',
-    variant === 'glass' && 'glass-card',
-    variant === 'game' && 'border-gradient bg-card/90',
-    variant === 'premium' && 'border-gradient bg-card/90 glow-md animate-rainbow-border',
+    'rounded-xl border border-border/60 bg-card text-card-foreground shadow-sm transition-all duration-150',
+    hover && 'hover:-translate-y-0.5 hover:shadow-md hover:border-border/80',
+    variant === 'glass' && 'bg-card/95 backdrop-blur-md border border-border/80 shadow-sm',
+    variant === 'game' && 'bg-card border border-border shadow-sm',
+    variant === 'premium' && 'bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20 shadow-md',
     className
   );
   return hover ? (

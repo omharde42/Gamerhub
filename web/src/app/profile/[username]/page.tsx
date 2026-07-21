@@ -330,27 +330,27 @@ export default function ProfilePage() {
       </AnimatePresence>
 
       {/* Profile header */}
-      <Card variant="glass" className="overflow-hidden" hover={false}>
+      <Card variant="glass" className="overflow-hidden border-border/60" hover={false}>
         <motion.div
-          className="h-48 md:h-64 bg-gradient-to-r from-gaming-purple via-gaming-pink to-gaming-cyan relative overflow-hidden"
+          className="h-48 md:h-64 bg-gradient-to-br from-indigo-950 via-slate-950 to-violet-950 relative overflow-hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
           {profile.banner && <img src={profile.banner} alt="" className="w-full h-full object-cover" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
-          <div className="absolute inset-0 bg-grid opacity-10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-grid opacity-5" />
         </motion.div>
         <CardContent className="relative px-6 pb-6">
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-16 md:-mt-20 mb-4">
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}>
-              <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-background ring-2 ring-gaming-purple shadow-xl" hover>
+              <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-background ring-2 ring-indigo-500 shadow-md" hover>
                 <AvatarImage src={profile.avatar || ''} />
-                <AvatarFallback className="text-4xl bg-gradient-to-br from-gaming-purple to-gaming-pink text-white">{getInitials(profile.username)}</AvatarFallback>
+                <AvatarFallback className="text-4xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white">{getInitials(profile.username)}</AvatarFallback>
               </Avatar>
             </motion.div>
             <div className="flex-1 pt-14 md:pt-0">
               <motion.div className="flex flex-col md:flex-row md:items-center gap-2" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-                <h1 className="text-2xl md:text-3xl font-bold">{profile.displayName || profile.username}</h1>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{profile.displayName || profile.username}</h1>
                 <span className="text-muted-foreground">@{profile.username}</span>
               </motion.div>
               <motion.div className="flex flex-wrap items-center gap-2 mt-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>

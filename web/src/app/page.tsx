@@ -101,41 +101,10 @@ const stats = [
 export default function EnterPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-      {/* Animated background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-gaming-purple/5 via-transparent to-gaming-blue/5" />
+      {/* Sleek, professional grid background with subtle dark gradients */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-60" />
       <div className="absolute inset-0 bg-grid opacity-[0.03]" />
-      <div className="absolute inset-0 bg-dots opacity-[0.03]" />
-      <div className="absolute inset-0 bg-gradient-animate" />
-
-      {/* Particles */}
-      <div className="absolute inset-0 pointer-events-none">
-        {Array.from({ length: PARTICLE_COUNT }).map((_, i) => (
-          <Particle key={i} index={i} />
-        ))}
-      </div>
-
-      {/* Floating game icons */}
-      <motion.div
-        className="absolute top-20 left-[15%] text-gaming-purple/10 pointer-events-none animate-breathe"
-        animate={{ y: [0, -15, 0], rotate: [0, 5, -5, 0] }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <Gamepad2 className="h-24 w-24" />
-      </motion.div>
-      <motion.div
-        className="absolute bottom-32 right-[12%] text-gaming-cyan/10 pointer-events-none animate-breathe"
-        animate={{ y: [0, -20, 0], rotate: [0, -10, 10, 0] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-      >
-        <Zap className="h-20 w-20" />
-      </motion.div>
-      <motion.div
-        className="absolute top-1/3 right-[20%] text-gaming-pink/10 pointer-events-none animate-breathe"
-        animate={{ y: [0, -12, 0], rotate: [0, 15, -15, 0] }}
-        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-      >
-        <Star className="h-16 w-16" />
-      </motion.div>
+      <div className="absolute inset-0 bg-dots opacity-[0.02]" />
 
       {/* Main content */}
       <div className="flex-1 flex items-center justify-center p-4 relative z-10">
@@ -143,39 +112,33 @@ export default function EnterPage() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="w-full max-w-md"
+          className="w-full max-w-md animate-card-enter"
         >
           <div className="text-center space-y-8">
-            {/* Logo */}
+            {/* Brand Logo */}
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
             >
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-gaming-purple via-gaming-pink to-gaming-cyan flex items-center justify-center mx-auto shadow-2xl shadow-gaming-purple/30 relative">
-                <Gamepad2 className="h-10 w-10 text-white" />
-                <motion.div
-                  className="absolute inset-0 rounded-2xl bg-gradient-to-br from-gaming-purple via-gaming-pink to-gaming-cyan"
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  style={{ filter: 'blur(12px)', zIndex: -1 }}
-                />
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto shadow-md relative">
+                <Gamepad2 className="h-8 w-8 text-white" />
               </div>
             </motion.div>
 
             <div className="space-y-3">
               <motion.h1
-                className="text-4xl md:text-5xl font-bold"
+                className="text-4xl md:text-5xl font-bold tracking-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <span className="bg-gradient-to-r from-gaming-purple via-gaming-cyan to-gaming-pink bg-clip-text text-transparent animate-glow-rainbow">
+                <span className="bg-gradient-to-r from-indigo-400 via-primary to-violet-500 bg-clip-text text-transparent">
                   Welcome to GamerHub
                 </span>
               </motion.h1>
               <motion.p
-                className="text-lg text-muted-foreground h-8"
+                className="text-base text-muted-foreground h-8"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}

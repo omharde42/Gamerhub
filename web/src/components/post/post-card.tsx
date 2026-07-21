@@ -38,16 +38,16 @@ function LikeButton({ post }: { post: any }) {
 
   return (
     <button
-      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:bg-red-500/10 group ${
-        post.isLiked ? 'text-red-500' : 'text-muted-foreground'
+      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:bg-red-500/5 group ${
+        post.isLiked ? 'text-red-500' : 'text-muted-foreground hover:text-foreground'
       }`}
       onClick={handleClick}
     >
       <motion.div
-        animate={animated ? { scale: [1, 1.4, 1], rotate: [0, -10, 10, 0] } : {}}
-        transition={{ duration: 0.4 }}
+        animate={animated ? { scale: [1, 1.3, 1], rotate: [0, -5, 5, 0] } : {}}
+        transition={{ duration: 0.3 }}
       >
-        <Heart className={`h-4 w-4 transition-all duration-200 ${post.isLiked ? 'fill-red-500 drop-shadow-[0_0_6px_rgba(239,68,68,0.5)]' : ''} group-hover:scale-110`} />
+        <Heart className={`h-4 w-4 transition-all duration-150 ${post.isLiked ? 'fill-red-500 stroke-red-500' : ''} group-hover:scale-105`} />
       </motion.div>
       <span>{formatNumber(post._count?.likes || 0)}</span>
     </button>
@@ -129,13 +129,13 @@ export function PostCard({ post, onDelete }: PostCardProps) {
   });
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} layout>
-      <Card variant="glass" className="group">
+    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} layout>
+      <Card variant="glass" className="group border-border/60 hover:border-border/80 shadow-sm transition-all duration-200">
         <CardContent className="p-4 space-y-4">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <Link href={`/profile/${post.user?.profile?.username}`}>
-                <Avatar className="h-10 w-10 ring-2 ring-border transition-all duration-200 group-hover:ring-primary/30">
+                <Avatar className="h-10 w-10 border border-border/60 transition-all duration-200 group-hover:border-primary/40">
                   <AvatarImage src={post.user?.profile?.avatar || ''} />
                   <AvatarFallback className="bg-primary/10 text-primary text-sm">
                     {getInitials(post.user?.profile?.username || 'U')}
