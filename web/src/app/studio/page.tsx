@@ -12,7 +12,7 @@ import {
   Monitor, Camera, Mic, MicOff, Video, VideoOff, Download, Scissors,
   Type, Play, Square, Clock, Film, Layers, Trash2, Save,
   Maximize2, Minimize2, Plus, GripVertical, Settings, Undo2,
-  FileVideo, Image, Speaker, SpeakerOff, Crop, Sparkles, Pen,
+  FileVideo, Image, Speaker, VolumeX, Crop, Sparkles, Pen,
   MousePointer2, Highlighter, ArrowUp, Split, FastForward,
   RefreshCw, Circle, Pointer, Laugh
 } from 'lucide-react';
@@ -959,7 +959,7 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
             <div className="w-44 space-y-1">
               <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Volume</label>
               <div className="flex items-center gap-2">
-                <SpeakerOff className="h-3 w-3 text-muted-foreground" />
+                <VolumeX className="h-3 w-3 text-muted-foreground" />
                 <Slider value={[volume]} onValueChange={([v]) => setVolume(v)} min={0} max={1} step={0.1} className="flex-1" />
                 <Speaker className="h-3 w-3 text-muted-foreground" />
               </div>
