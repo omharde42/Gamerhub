@@ -174,7 +174,7 @@ export default function EnterPage() {
             </motion.div>
 
             <motion.div
-              className="flex items-center justify-center gap-6 pt-4"
+              className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1 }}

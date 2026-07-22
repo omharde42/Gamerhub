@@ -8,10 +8,11 @@ import { useAuthStore } from '@/store/authStore';
 import { Input } from '@/components/ui/input';
 import { getInitials, formatRelativeTime } from '@/lib/utils';
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import {
   Gamepad2, Search, Bell, MessageSquare, Users,
   LogOut, User, Settings, Crown, Home, Briefcase, ChevronDown,
@@ -52,6 +53,40 @@ export function Navbar() {
   const { theme: activeTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const delay = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const { data } = await api.get(`/profiles/search?q=${encodeURIComponent(searchQuery)}&limit=5`);
+        setSearchResults(data.data || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(delay);
+  }, [searchQuery]);
+
+  const sendConnectRequest = useMutation({
+    mutationFn: (userId: string) => api.post('/friends/request', { userId }),
+    onSuccess: () => {
+      toast.success('Connect request sent!');
+      queryClient.invalidateQueries({ queryKey: ['suggested-people'] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to connect');
+    }
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -113,7 +148,64 @@ export function Navbar() {
         {/* Center: Search Bar (displayed on both mobile & desktop) */}
         <div className="flex relative flex-1 max-w-[240px] xs:max-w-sm mx-1 md:mx-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full" placeholder="Search players, teams..." variant="ghost" />
+          <Input 
+            className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full" 
+            placeholder="Search players..." 
+            variant="ghost" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Escape' && setSearchQuery('')}
+          />
+          
+          <AnimatePresence>
+            {searchQuery.trim().length >= 2 && (
+              <motion.div 
+                className="absolute top-full left-0 right-0 mt-1.5 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-xl z-50 p-2 max-h-72 overflow-y-auto"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+              >
+                {searchLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>
+                ) : searchResults.length === 0 ? (
+                  <div className="py-4 text-center text-xs text-muted-foreground">No users found</div>
+                ) : (
+                  <div className="space-y-1">
+                    {searchResults.map((p: any) => (
+                      <div key={p.id} className="flex items-center justify-between p-1.5 hover:bg-accent/40 rounded-lg transition-colors gap-2">
+                        <div 
+                          className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
+                          onClick={() => {
+                            router.push(`/profile/${p.username}`);
+                            setSearchQuery('');
+                          }}
+                        >
+                          <Avatar className="h-7 w-7 shrink-0 border border-border/60">
+                            <AvatarImage src={p.avatar || ''} />
+                            <AvatarFallback className="text-[9px]">{getInitials(p.username)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-foreground truncate">{p.displayName || p.username}</p>
+                            <p className="text-[9px] text-muted-foreground truncate">@{p.username}</p>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="gradient" 
+                          size="sm" 
+                          className="h-6 px-2 text-[9px] rounded-lg shrink-0"
+                          onClick={() => sendConnectRequest.mutate(p.userId)}
+                          disabled={sendConnectRequest.isPending}
+                          animate
+                        >
+                          Connect
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Mobile Right Corner: Message icon shortcut */}

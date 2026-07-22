@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Users, Gamepad2, RefreshCw, Newspaper, ExternalLink, Loader2, Zap, Sparkles } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { SOCKET_URL } from '@/lib/constants';
@@ -27,11 +27,27 @@ export default function FeedPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>('all');
   const socketRef = useRef<any>(null);
+  const observerRef = useRef<HTMLDivElement>(null);
 
-  const { data: feedData, isLoading, refetch } = useQuery({
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    refetch,
+  } = useInfiniteQuery({
     queryKey: ['feed', filter],
-    queryFn: () => api.get(`/feed${filter !== 'all' ? `?hashtag=${filter}` : ''}`).then(r => r.data),
+    queryFn: ({ pageParam = 1 }) =>
+      api.get(`/feed?page=${pageParam}&limit=10${filter !== 'all' ? `&hashtag=${filter}` : ''}`).then(r => r.data),
+    getNextPageParam: (lastPage) => {
+      const meta = lastPage?.meta;
+      return meta?.hasNext ? meta.page + 1 : undefined;
+    },
+    initialPageParam: 1,
   });
+
+  const posts = data?.pages.flatMap((page: any) => page.data || []) || [];
 
   const { data: trending } = useQuery({
     queryKey: ['trending'],
@@ -55,6 +71,22 @@ export default function FeedPage() {
     });
     return () => { socket.disconnect(); };
   }, [queryClient]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    const target = observerRef.current;
+    if (target) observer.observe(target);
+    return () => {
+      if (target) observer.unobserve(target);
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div className="space-y-4">
@@ -83,14 +115,30 @@ export default function FeedPage() {
               ))}
             </div>
           ) : (
-            feedData?.data?.map((post: any, i: number) => (
-              <motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <PostCard post={post} onDelete={(id) => refetch()} />
-              </motion.div>
-            ))
+            <>
+              {posts.map((post: any, i: number) => (
+                <motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+                  <PostCard post={post} onDelete={(id) => refetch()} />
+                </motion.div>
+              ))}
+              
+              <div ref={observerRef} className="py-6 flex justify-center">
+                {isFetchingNextPage && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+              </div>
+            </>
           )}
-          {feedData?.data?.length === 0 && (
-            <Card variant="glass"><CardContent className="p-8 text-center"><Newspaper className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" /><p className="text-muted-foreground">No posts yet. Be the first to share something!</p></CardContent></Card>
+          {posts.length === 0 && !isLoading && (
+            <Card variant="glass">
+              <CardContent className="p-10 text-center flex flex-col items-center justify-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                  <Newspaper className="h-8 w-8 text-primary animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-bold text-sm text-foreground">No posts yet</h3>
+                  <p className="text-xs text-muted-foreground max-w-xs">Be the first to share your gameplay, clips, or thoughts with the community!</p>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 

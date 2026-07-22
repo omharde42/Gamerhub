@@ -214,11 +214,11 @@ export default function SettingsPage() {
       </motion.div>
 
       <Tabs defaultValue="profile" className="space-y-4">
-        <TabsList className="w-full justify-start border-b border-border/50 rounded-none bg-transparent h-12 p-0 gap-6">
-          <TabsTrigger value="profile" className="data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><User className="h-4 w-4" />Profile</TabsTrigger>
-          <TabsTrigger value="gaming" className="data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Gamepad2 className="h-4 w-4" />Gaming</TabsTrigger>
-          <TabsTrigger value="social" className="data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Shield className="h-4 w-4" />Social</TabsTrigger>
-          <TabsTrigger value="notifications" className="data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Bell className="h-4 w-4" />Notifications</TabsTrigger>
+        <TabsList className="w-full border-b border-border/50 rounded-none bg-transparent h-12 p-0 gap-6 flex md:inline-flex overflow-x-auto whitespace-nowrap scrollbar-none justify-start">
+          <TabsTrigger value="profile" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><User className="h-4 w-4" />Profile</TabsTrigger>
+          <TabsTrigger value="gaming" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Gamepad2 className="h-4 w-4" />Gaming</TabsTrigger>
+          <TabsTrigger value="social" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Shield className="h-4 w-4" />Social</TabsTrigger>
+          <TabsTrigger value="notifications" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Bell className="h-4 w-4" />Notifications</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">

@@ -485,11 +485,11 @@ export default function ProfilePage() {
 
       {/* Content tabs */}
       <Tabs defaultValue="achievements" className="w-full">
-        <TabsList className="w-full justify-start bg-muted/30 p-1 rounded-xl">
-          <TabsTrigger value="achievements" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Award className="h-4 w-4 mr-1" />Achievements ({profile.achievements?.length || 0})</TabsTrigger>
-          <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Swords className="h-4 w-4 mr-1" />History ({profile.tournamentHistory?.length || 0})</TabsTrigger>
-          <TabsTrigger value="posts" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Star className="h-4 w-4 mr-1" />Posts ({profile.user?._count?.posts || 0})</TabsTrigger>
-          <TabsTrigger value="about" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Shield className="h-4 w-4 mr-1" />About</TabsTrigger>
+        <TabsList className="w-full bg-muted/30 p-1 rounded-xl flex md:inline-flex overflow-x-auto whitespace-nowrap scrollbar-none justify-start">
+          <TabsTrigger value="achievements" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Award className="h-4 w-4 mr-1" />Achievements ({profile.achievements?.length || 0})</TabsTrigger>
+          <TabsTrigger value="history" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Swords className="h-4 w-4 mr-1" />History ({profile.tournamentHistory?.length || 0})</TabsTrigger>
+          <TabsTrigger value="posts" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Star className="h-4 w-4 mr-1" />Posts ({profile.user?._count?.posts || 0})</TabsTrigger>
+          <TabsTrigger value="about" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Shield className="h-4 w-4 mr-1" />About</TabsTrigger>
         </TabsList>
 
         <TabsContent value="achievements">

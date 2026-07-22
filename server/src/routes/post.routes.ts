@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { postController } from '../controllers/post.controller';
 import { authenticate } from '../middleware/auth';
+import { uploadMedia } from '../middleware/upload';
 const router = Router();
 router.get('/trending', authenticate, postController.getTrending);
 router.get('/', authenticate, postController.list);
 router.get('/:id', authenticate, postController.getById);
 router.post('/', authenticate, postController.create);
+router.post('/upload', authenticate, uploadMedia, postController.uploadMedia);
 router.delete('/:id', authenticate, postController.delete);
 router.post('/:id/like', authenticate, postController.like);
 router.get('/:id/comments', authenticate, postController.getComments);

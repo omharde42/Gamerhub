@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,6 +25,8 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function DiscordMessagesPage() {
+  const searchParams = useSearchParams();
+  const userIdParam = searchParams ? searchParams.get('userId') : null;
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const { user } = useAuthStore();
@@ -183,6 +186,12 @@ function DiscordMessagesPage() {
     },
     onError: () => toast.error('Failed to create chat'),
   });
+
+  useEffect(() => {
+    if (userIdParam) {
+      createDirectChat.mutate(userIdParam);
+    }
+  }, [userIdParam]);
 
   const sendViaApi = useMutation({
     mutationFn: (data: { chatId: string; content: string; media?: string[]; voiceNote?: string }) =>
@@ -778,4 +787,12 @@ function DiscordMessagesPage() {
   );
 }
 
-export default DiscordMessagesPage;
+function MessagesPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <DiscordMessagesPage />
+    </Suspense>
+  );
+}
+
+export default MessagesPageWrapper;

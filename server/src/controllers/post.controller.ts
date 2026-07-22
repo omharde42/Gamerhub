@@ -5,8 +5,29 @@ import { io } from '../index';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 import { NotFoundError } from '../utils/errors';
+import cloudinary from '../config/cloudinary';
 
 export class PostController {
+  uploadMedia = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      return sendError(res, 400, 'No files uploaded');
+    }
+
+    const uploadPromises = files.map(async (file) => {
+      const b64 = Buffer.from(file.buffer).toString('base64');
+      const dataURI = `data:${file.mimetype};base64,${b64}`;
+      const result = await cloudinary.uploader.upload(dataURI, {
+        folder: 'gamerhub/posts',
+        resource_type: 'auto',
+      });
+      return result.secure_url;
+    });
+
+    const urls = await Promise.all(uploadPromises);
+    sendSuccess(res, { urls });
+  });
+
   create = asyncHandler(async (req: AuthRequest, res: Response) => {
     const post = await postService.create(req.body, req.user!.userId);
     io.emit('post:new', post);

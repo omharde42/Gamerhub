@@ -1,0 +1,9 @@
+{
+  "appId": "com.gamerhub.app",
+  "appName": "GamerHub",
+  "webDir": "web/out",
+  "server": {
+    "url": "https://gamerhub-web.onrender.com",
+    "cleartext": true
+  }
+}

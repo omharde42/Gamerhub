@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { ImagePreview } from '@/components/ui/image-preview';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -105,6 +106,8 @@ function PollDisplay({ poll }: { poll: any }) {
 export function PostCard({ post, onDelete }: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const { isSaved, toggle: toggleSave } = useSavedPosts();
@@ -153,7 +156,12 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">{formatRelativeTime(post.createdAt)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatRelativeTime(post.createdAt)}
+                  {post.updatedAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 1000 && (
+                    <span className="text-[10px] text-muted-foreground/60 ml-1.5 italic">(Edited)</span>
+                  )}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
@@ -170,7 +178,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
 
-          {post.type === 'CLIP' && post.media?.[0] && (
+          {post.media && post.media.length > 0 && (
             <motion.div
               className="rounded-xl overflow-hidden bg-muted border border-border/50"
               initial={{ opacity: 0, scale: 0.98 }}
@@ -180,10 +188,30 @@ export function PostCard({ post, onDelete }: PostCardProps) {
               {post.media[0].match(/\.(mp4|webm|ogg)$/i) ? (
                 <video src={post.media[0]} controls className="w-full max-h-96 object-contain" />
               ) : (
-                <img src={post.media[0]} alt="Post media" className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.02] transition-transform duration-300" />
+                <div className={`grid gap-1 ${post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {post.media.map((imgUrl: string, imgIdx: number) => (
+                    <img 
+                      key={imgIdx}
+                      src={imgUrl} 
+                      alt="Post media" 
+                      className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.01] transition-transform duration-300" 
+                      onClick={() => {
+                        setSelectedImageIndex(imgIdx);
+                        setPreviewOpen(true);
+                      }}
+                    />
+                  ))}
+                </div>
               )}
             </motion.div>
           )}
+
+          <ImagePreview 
+            images={post.media || []} 
+            initialIndex={selectedImageIndex} 
+            isOpen={previewOpen} 
+            onClose={() => setPreviewOpen(false)} 
+          />
 
           {post.tags?.length > 0 && (
             <div className="flex gap-2 flex-wrap">

@@ -105,17 +105,23 @@ export class ProfileController {
 
   searchProfiles = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { q, page = '1', limit = '20' } = req.query;
-    if (!q || (q as string).trim().length === 0) {
-      return sendSuccess(res, [], undefined, 200, { page: 1, limit: 0, total: 0, totalPages: 0 });
-    }
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
-    const where = {
-      OR: [
+    
+    const where: any = {};
+    
+    if (q && (q as string).trim().length > 0) {
+      where.OR = [
         { username: { contains: q as string, mode: 'insensitive' as const } },
         { displayName: { contains: q as string, mode: 'insensitive' as const } },
         { bio: { contains: q as string, mode: 'insensitive' as const } },
-      ],
-    };
+      ];
+    }
+    
+    // Always exclude current user
+    if (req.user?.userId) {
+      where.userId = { not: req.user.userId };
+    }
+    
     const [profiles, total] = await Promise.all([
       prisma.profile.findMany({
         where,
@@ -125,6 +131,7 @@ export class ProfileController {
       }),
       prisma.profile.count({ where }),
     ]);
+    
     sendSuccess(res, profiles, undefined, 200, {
       page: parseInt(page as string),
       limit: parseInt(limit as string),

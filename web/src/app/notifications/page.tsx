@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -89,10 +90,14 @@ export default function NotificationsPage() {
               {isLoading ? (
                 <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : filtered?.length === 0 ? (
-                <div className="text-center py-12 space-y-2">
-                  <Bell className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <p className="text-lg font-medium">No notifications</p>
-                  <p className="text-sm text-muted-foreground">You're all caught up!</p>
+                <div className="py-8">
+                  <EmptyState 
+                    title="No notifications yet" 
+                    description="You are all caught up! When you get invites or likes, they'll appear here." 
+                    icon={Bell} 
+                    actionText="Check Activities"
+                    onAction={() => queryClient.invalidateQueries({ queryKey: ['notifications'] })}
+                  />
                 </div>
               ) : (
                 <div className="divide-y">

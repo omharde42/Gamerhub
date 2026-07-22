@@ -54,11 +54,27 @@ export function CreatePost() {
     if (mediaUrl.trim()) { setMedia([...media, mediaUrl.trim()]); setMediaUrl(''); }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setMedia([...media, url]);
+      setUploading(true);
+      const toastId = toast.loading('Uploading media to network...');
+      try {
+        const fd = new FormData();
+        fd.append('media', file);
+        const { data } = await api.post('/posts/upload', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const url = data.data.urls[0];
+        setMedia([...media, url]);
+        toast.success('Media uploaded successfully!', { id: toastId });
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Failed to upload media', { id: toastId });
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
@@ -147,7 +163,7 @@ export function CreatePost() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <input type="file" accept="image/*,video/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary" onClick={() => fileInputRef.current?.click()}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                   <ImagePlus className="h-4 w-4 mr-1" /> Media
                 </Button>
                 <div className="flex items-center gap-1">
@@ -157,10 +173,11 @@ export function CreatePost() {
                     onChange={(e) => setMediaUrl(e.target.value)}
                     className="h-8 w-24 text-xs border-0 bg-muted/30"
                     onKeyDown={(e) => e.key === 'Enter' && addMedia()}
+                    disabled={uploading}
                   />
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={addMedia}>+</Button>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={addMedia} disabled={uploading}>+</Button>
                 </div>
-                <Button variant="ghost" size="sm" className={`text-muted-foreground hover:text-primary ${showPoll ? 'text-primary' : ''}`} onClick={() => setShowPoll(!showPoll)}>
+                <Button variant="ghost" size="sm" className={`text-muted-foreground hover:text-primary ${showPoll ? 'text-primary' : ''}`} onClick={() => setShowPoll(!showPoll)} disabled={uploading}>
                   <BarChart3 className="h-4 w-4 mr-1" /> Poll
                 </Button>
                 <div className="flex items-center gap-1">
@@ -170,18 +187,19 @@ export function CreatePost() {
                     onChange={(e) => setTagInput(e.target.value)}
                     className="h-8 w-20 text-xs border-0 bg-muted/30"
                     onKeyDown={(e) => e.key === 'Enter' && addTag()}
+                    disabled={uploading}
                   />
                 </div>
               </div>
               <Button
                 variant="gradient"
                 size="sm"
-                disabled={!content.trim() || createPost.isPending}
+                disabled={!content.trim() || createPost.isPending || uploading}
                 onClick={() => createPost.mutate()}
                 className="gap-2"
                 animate
               >
-                {createPost.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {createPost.isPending || uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 Post
               </Button>
             </div>
