@@ -34,7 +34,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className={`w-full ${!isLanding ? 'pt-16 pb-16 md:pb-0' : ''}`}>
+      <div className={`w-full ${!isLanding ? 'pt-16 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0' : ''}`}>
         <div className="w-full mx-auto flex gap-3 lg:gap-4 px-3 md:px-6 py-3 md:py-4">
           {!hideSidebar && <Sidebar />}
           <main className="flex-1 min-w-0 max-w-full">

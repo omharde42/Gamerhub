@@ -160,43 +160,47 @@ export function CreatePost() {
               ))}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                 <input type="file" accept="image/*,video/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                  <ImagePlus className="h-4 w-4 mr-1" /> Media
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary h-8 px-2 text-xs shrink-0" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                  <ImagePlus className="h-3.5 w-3.5 mr-1" /> Media
                 </Button>
-                <div className="flex items-center gap-1">
+                
+                <div className="flex items-center gap-1 shrink-0">
                   <Input
                     placeholder="Media URL"
                     value={mediaUrl}
                     onChange={(e) => setMediaUrl(e.target.value)}
-                    className="h-8 w-24 text-xs border-0 bg-muted/30"
+                    className="h-8 w-20 text-[11px] border-0 bg-muted/30 px-2"
                     onKeyDown={(e) => e.key === 'Enter' && addMedia()}
                     disabled={uploading}
                   />
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={addMedia} disabled={uploading}>+</Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-6" onClick={addMedia} disabled={uploading}>+</Button>
                 </div>
-                <Button variant="ghost" size="sm" className={`text-muted-foreground hover:text-primary ${showPoll ? 'text-primary' : ''}`} onClick={() => setShowPoll(!showPoll)} disabled={uploading}>
-                  <BarChart3 className="h-4 w-4 mr-1" /> Poll
+
+                <Button variant="ghost" size="sm" className={`text-muted-foreground hover:text-primary h-8 px-2 text-xs shrink-0 ${showPoll ? 'text-primary' : ''}`} onClick={() => setShowPoll(!showPoll)} disabled={uploading}>
+                  <BarChart3 className="h-3.5 w-3.5 mr-1" /> Poll
                 </Button>
-                <div className="flex items-center gap-1">
+
+                <div className="flex items-center gap-1 shrink-0">
                   <Input
                     placeholder="#tag"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
-                    className="h-8 w-20 text-xs border-0 bg-muted/30"
+                    className="h-8 w-16 text-[11px] border-0 bg-muted/30 px-2"
                     onKeyDown={(e) => e.key === 'Enter' && addTag()}
                     disabled={uploading}
                   />
                 </div>
               </div>
+
               <Button
                 variant="gradient"
                 size="sm"
                 disabled={!content.trim() || createPost.isPending || uploading}
                 onClick={() => createPost.mutate()}
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto h-9 font-bold"
                 animate
               >
                 {createPost.isPending || uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

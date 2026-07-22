@@ -146,7 +146,7 @@ export function Navbar() {
         </Link>
 
         {/* Center: Search Bar (displayed on both mobile & desktop) */}
-        <div className="flex relative flex-1 max-w-[240px] xs:max-w-sm mx-1 md:mx-0">
+        <div className="flex relative flex-1 max-w-full md:max-w-sm mx-1 md:mx-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full" 
