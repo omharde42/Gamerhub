@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
+import { Preferences } from '@capacitor/preferences';
 
 interface AuthState {
   user: any | null;
@@ -12,6 +13,29 @@ interface AuthState {
   logout: () => void;
 }
 
+// Dual Synchronous (localStorage) + Native (Capacitor Preferences) Storage Adapter
+const dualStorageAdapter: StateStorage = {
+  getItem: (name: string): string | Promise<string | null> | null => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const localVal = localStorage.getItem(name);
+      if (localVal) return localVal;
+    }
+    return Preferences.get({ key: name }).then((res) => res.value || null);
+  },
+  setItem: (name: string, value: string): void | Promise<void> => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try { localStorage.setItem(name, value); } catch {}
+    }
+    return Preferences.set({ key: name, value });
+  },
+  removeItem: (name: string): void | Promise<void> => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try { localStorage.removeItem(name); } catch {}
+    }
+    return Preferences.remove({ key: name });
+  },
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -23,37 +47,20 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user, isAuthenticated: !!user }),
 
       setTokens: (accessToken, refreshToken) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', refreshToken);
-        }
         set({ accessToken, refreshToken });
       },
 
       login: (user, accessToken, refreshToken) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', refreshToken);
-        }
         set({ user, accessToken, refreshToken, isAuthenticated: true });
       },
 
       logout: () => {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-        }
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
       },
     }),
     {
       name: 'gamerhub-auth',
-      onRehydrateStorage: () => (state) => {
-        if (state?.accessToken && state?.refreshToken) {
-          localStorage.setItem('accessToken', state.accessToken);
-          localStorage.setItem('refreshToken', state.refreshToken);
-        }
-      },
+      storage: createJSONStorage(() => dualStorageAdapter),
     }
   )
 );

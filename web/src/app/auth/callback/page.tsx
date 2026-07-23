@@ -1,12 +1,13 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuthStore();
@@ -14,23 +15,14 @@ export default function AuthCallbackPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const accessToken = searchParams.get('accessToken');
-    const refreshToken = searchParams.get('refreshToken');
     const errorParam = searchParams.get('error');
-
     if (errorParam) {
       setStatus('error');
       setError(decodeURIComponent(errorParam));
       return;
     }
 
-    if (!accessToken || !refreshToken) {
-      setStatus('error');
-      setError('Missing authentication tokens');
-      return;
-    }
-
-    const verifyAndLogin = async () => {
+    const verifyAndLogin = async (accessToken: string, refreshToken: string) => {
       try {
         const { data } = await api.get('/auth/me', {
           headers: { Authorization: `Bearer ${accessToken}` },
@@ -44,7 +36,40 @@ export default function AuthCallbackPage() {
       }
     };
 
-    verifyAndLogin();
+    const checkSession = async () => {
+      try {
+        // Get the Supabase session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session) {
+          // Fallback to query params if Supabase session is not found
+          const queryAccess = searchParams.get('accessToken');
+          const queryRefresh = searchParams.get('refreshToken');
+          if (queryAccess && queryRefresh) {
+            await verifyAndLogin(queryAccess, queryRefresh);
+          } else {
+            setStatus('error');
+            setError(sessionError?.message || 'Missing authentication tokens');
+          }
+          return;
+        }
+
+        const provider = session.user?.app_metadata?.provider || 'google';
+        const { data } = await api.post('/auth/social-login', {
+          token: session.access_token,
+          provider
+        });
+
+        login(data.data.user, data.data.accessToken, data.data.refreshToken);
+        setStatus('success');
+        setTimeout(() => router.push('/feed'), 1500);
+      } catch (err: any) {
+        setStatus('error');
+        setError(err.response?.data?.message || err.message || 'Failed to exchange credentials');
+      }
+    };
+
+    checkSession();
   }, [searchParams, login, router]);
 
   return (
@@ -83,5 +108,17 @@ export default function AuthCallbackPage() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

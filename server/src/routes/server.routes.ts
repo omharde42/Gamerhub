@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { serverController } from '../controllers/server.controller';
 import { channelController } from '../controllers/channel.controller';
 import { serverMessageController } from '../controllers/server-message.controller';
+import { serverEventController } from '../controllers/server-event.controller';
 import { authenticate } from '../middleware/auth';
 const router = Router();
 
@@ -15,6 +16,15 @@ router.post('/join', authenticate, serverController.join.bind(serverController))
 router.post('/:id/leave', authenticate, serverController.leave.bind(serverController));
 router.post('/:id/regenerate-invite', authenticate, serverController.regenerateInvite.bind(serverController));
 
+// Member moderation
+router.put('/:serverId/members/:userId/role', authenticate, serverController.updateMemberRole.bind(serverController));
+router.delete('/:serverId/members/:userId', authenticate, serverController.kickMember.bind(serverController));
+
+// Events
+router.post('/:serverId/events', authenticate, serverEventController.create.bind(serverEventController));
+router.get('/:serverId/events', authenticate, serverEventController.list.bind(serverEventController));
+router.delete('/:serverId/events/:id', authenticate, serverEventController.delete.bind(serverEventController));
+
 router.get('/:serverId/channels', authenticate, channelController.list.bind(channelController));
 router.post('/:serverId/channels', authenticate, channelController.create.bind(channelController));
 router.put('/channels/:id', authenticate, channelController.update.bind(channelController));
@@ -27,3 +37,4 @@ router.post('/messages/:id/pin', authenticate, serverMessageController.pin.bind(
 router.post('/messages/:id/react', authenticate, serverMessageController.addReaction.bind(serverMessageController));
 
 export default router;
+

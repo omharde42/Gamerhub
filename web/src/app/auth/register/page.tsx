@@ -56,9 +56,21 @@ export default function RegisterPage() {
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
+  const handleSocialLogin = async (provider: string) => {
     setSocialLoading(true);
-    window.location.href = `${API_URL}/auth/${provider}/register`;
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider as any,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message || 'Social login failed');
+      setSocialLoading(false);
+    }
   };
 
   const CheckIcon = ({ ok }: { ok: boolean }) => ok

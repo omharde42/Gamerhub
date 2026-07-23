@@ -90,6 +90,12 @@ export class AuthController {
     await authService.changePassword(req.user!.userId, currentPassword, newPassword);
     sendSuccess(res, null, 'Password changed. Please log in again.');
   });
+
+  socialLogin = asyncHandler(async (req: Request, res: Response) => {
+    const { token, provider } = req.body;
+    const result = await authService.socialLogin(token, provider);
+    sendSuccess(res, result, 'Logged in successfully!');
+  });
 }
 
 export const authController = new AuthController();

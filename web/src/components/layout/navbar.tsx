@@ -33,6 +33,7 @@ const navIcons = [
 const moreNavItems = (username: string) => [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/explore', label: 'Explore', icon: Compass },
+  { href: '/games', label: 'Game Library', icon: GamepadIcon },
   { href: '/news', label: 'Gaming News', icon: Newspaper },
   { href: '/teams', label: 'Teams', icon: Trophy },
   { href: '/tournaments', label: 'Tournaments', icon: GamepadIcon },
@@ -132,17 +133,17 @@ export function Navbar() {
             </Avatar>
           </button>
         ) : (
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm md:hidden">
-            <GamepadIcon className="h-4 w-4 text-white" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden border border-primary/20 shadow-sm md:hidden shrink-0">
+            <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
           </div>
         )}
 
         {/* Desktop Brand Logo */}
-        <Link href="/dashboard" className="hidden md:flex items-center gap-2 shrink-0 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm transition-all duration-300">
-            <GamepadIcon className="h-4 w-4 text-white" />
+        <Link href="/dashboard" className="hidden md:flex items-center gap-2.5 shrink-0 group">
+          <div className="w-9 h-9 rounded-xl overflow-hidden border border-primary/20 shadow-sm transition-all duration-300 group-hover:scale-105 group-hover:border-primary/40 shrink-0">
+            <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
           </div>
-          <span className="text-base font-bold hidden sm:block text-foreground group-hover:text-primary transition-colors tracking-tight">GamerHub</span>
+          <span className="text-base font-extrabold hidden sm:block text-foreground group-hover:text-primary transition-colors tracking-tight">GamerZ Hub</span>
         </Link>
 
         {/* Center: Search Bar (displayed on both mobile & desktop) */}

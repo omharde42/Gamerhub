@@ -1,6 +1,6 @@
 {
   "appId": "com.gamerhub.app",
-  "appName": "GamerHub",
+  "appName": "GamerZ Hub",
   "webDir": "web/out",
   "server": {
     "url": "https://gamerhub-web.onrender.com",

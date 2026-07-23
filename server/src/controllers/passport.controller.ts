@@ -83,11 +83,12 @@ export class PassportController {
   addGame = asyncHandler(async (req: AuthRequest, res: Response) => {
     const profile = await prisma.profile.findUnique({ where: { userId: req.user!.userId } });
     if (!profile) throw new NotFoundError('Profile');
-    const { gameName, publisher, playerId, rank, hoursPlayed, winRate, kdRatio, matchesPlayed, mvpCount, preferredRole, dataSource, highestRank, currentRank, accuracy, headshotPct, server, region, level, favoriteWeapon, favoriteCharacter } = req.body;
+    const { gameName, publisher, playerId, uid, rank, hoursPlayed, winRate, kdRatio, matchesPlayed, mvpCount, preferredRole, preferredPosition, gameAchievements, dataSource, highestRank, currentRank, accuracy, headshotPct, server, region, level, favoriteWeapon, favoriteCharacter } = req.body;
     if (!gameName || typeof gameName !== 'string') throw new AppError('Game name is required', 400);
     const game = await prisma.connectedGame.create({
       data: {
-        gameName, publisher, playerId, server, region, level, rank, highestRank, currentRank, preferredRole,
+        gameName, publisher, playerId, uid, server, region, level, rank, highestRank, currentRank, preferredRole, preferredPosition,
+        gameAchievements: Array.isArray(gameAchievements) ? gameAchievements : typeof gameAchievements === 'string' ? gameAchievements.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
         hoursPlayed: hoursPlayed ? parseFloat(hoursPlayed) : 0,
         winRate: winRate ? parseFloat(winRate) : null,
         kdRatio: kdRatio ? parseFloat(kdRatio) : null,
@@ -110,9 +111,17 @@ export class PassportController {
     const existing = await prisma.connectedGame.findUnique({ where: { id }, include: { profile: true } });
     if (!existing) throw new NotFoundError('Connected game');
     if (existing.profile.userId !== req.user!.userId) throw new ForbiddenError('Not your game');
-    const allowed = ['rank', 'hoursPlayed', 'winRate', 'kdRatio', 'matchesPlayed', 'mvpCount', 'preferredRole', 'highestRank', 'currentRank', 'accuracy', 'headshotPct', 'server', 'region', 'level', 'favoriteWeapon', 'favoriteCharacter', 'playerId'];
+    const allowed = ['rank', 'hoursPlayed', 'winRate', 'kdRatio', 'matchesPlayed', 'mvpCount', 'preferredRole', 'preferredPosition', 'gameAchievements', 'highestRank', 'currentRank', 'accuracy', 'headshotPct', 'server', 'region', 'level', 'favoriteWeapon', 'favoriteCharacter', 'playerId', 'uid'];
     const data: Record<string, any> = {};
-    for (const field of allowed) { if (req.body[field] !== undefined) data[field] = req.body[field]; }
+    for (const field of allowed) {
+      if (req.body[field] !== undefined) {
+        if (field === 'gameAchievements' && typeof req.body[field] === 'string') {
+          data[field] = req.body[field].split(',').map((s: string) => s.trim()).filter(Boolean);
+        } else {
+          data[field] = req.body[field];
+        }
+      }
+    }
     const game = await prisma.connectedGame.update({ where: { id }, data });
     sendSuccess(res, game);
   });

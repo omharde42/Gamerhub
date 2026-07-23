@@ -19,6 +19,7 @@ const getJwtModule = (): JwtModule => {
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { generalLimiter } from './middleware/rateLimiter';
 import prisma from './config/database';
+import { chatService } from './services/chat.service';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -41,6 +42,7 @@ import serverRoutes from './routes/server.routes';
 import friendRoutes from './routes/friend.routes';
 import presenceRoutes from './routes/presence.routes';
 import newsRoutes from './routes/news.routes';
+import gameRequestRoutes from './routes/game-request.routes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -121,21 +123,10 @@ io.on('connection', (socket) => {
 
   socket.on('message:send', async (data: { chatId: string; content?: string; media?: string[]; gif?: string; voiceNote?: string }) => {
     try {
-      const message = await prisma.message.create({
-        data: {
-          chatId: data.chatId,
-          senderId: userId,
-          content: data.content || '',
-          media: data.media || [],
-          gif: data.gif,
-          voiceNote: data.voiceNote,
-        },
-        include: { sender: { select: { id: true, profile: true } } },
-      });
-      await prisma.chat.update({ where: { id: data.chatId }, data: { updatedAt: new Date() } });
+      const message = await chatService.sendMessage(data.chatId, userId, data);
       io.to(`chat:${data.chatId}`).emit('message:new', message);
-    } catch (error) {
-      socket.emit('error', { message: 'Failed to send message' });
+    } catch (error: any) {
+      socket.emit('error', { message: error.message || 'Failed to send message' });
     }
   });
 
@@ -196,6 +187,7 @@ app.use('/api/servers', serverRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/presence', presenceRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/game-requests', gameRequestRoutes);
 
 // Error handling
 app.use(notFoundHandler);

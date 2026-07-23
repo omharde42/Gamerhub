@@ -10,15 +10,16 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(({ className, variant = 'default', hover = true, glow = false, ...props }, ref) => {
   const classes = cn(
-    'rounded-xl border border-border/60 bg-card text-card-foreground shadow-sm transition-all duration-150',
-    hover && 'hover:-translate-y-0.5 hover:shadow-md hover:border-border/80',
-    variant === 'glass' && 'bg-card/95 backdrop-blur-md border border-border/80 shadow-sm',
-    variant === 'game' && 'bg-card border border-border shadow-sm',
-    variant === 'premium' && 'bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20 shadow-md',
+    'rounded-2xl border border-border/60 bg-card text-card-foreground shadow-sm transition-all duration-300',
+    hover && 'hover:-translate-y-1 hover:shadow-xl hover:border-border/80',
+    variant === 'glass' && 'bg-card/40 backdrop-blur-xl border border-border/40 shadow-lg shadow-black/10',
+    variant === 'game' && 'bg-card/80 backdrop-blur-md border border-indigo-500/10 shadow-md hover:border-indigo-500/30',
+    variant === 'premium' && 'bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20 shadow-lg shadow-primary/5 hover:border-primary/40',
+    glow && 'shadow-[0_0_20px_rgba(99,102,241,0.15)] border-primary/30',
     className
   );
   return hover ? (
-    <motion.div whileHover={{ y: -2 }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} ref={ref as any}>
+    <motion.div whileHover={{ y: -4 }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} ref={ref as any}>
       <div className={classes} {...props} />
     </motion.div>
   ) : (

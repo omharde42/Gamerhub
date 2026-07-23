@@ -26,7 +26,10 @@ function LikeButton({ post }: { post: any }) {
   const queryClient = useQueryClient();
   const likeMutation = useMutation({
     mutationFn: () => api.post(`/posts/${post.id}/like`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
+    },
   });
 
   const handleClick = () => {
@@ -122,13 +125,24 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
   const commentMutation = useMutation({
     mutationFn: () => api.post(`/posts/${post.id}/comment`, { content: commentText }),
-    onSuccess: () => { setCommentText(''); queryClient.invalidateQueries({ queryKey: ['feed'] }); queryClient.invalidateQueries({ queryKey: ['comments', post.id] }); toast.success('Comment added'); },
+    onSuccess: () => {
+      setCommentText('');
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['comments', post.id] });
+      toast.success('Comment added');
+    },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to comment'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/posts/${post.id}`),
-    onSuccess: () => { toast.success('Post deleted'); onDelete?.(post.id); queryClient.invalidateQueries({ queryKey: ['feed'] }); },
+    onSuccess: () => {
+      toast.success('Post deleted');
+      onDelete?.(post.id);
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
+    },
   });
 
   return (
@@ -185,8 +199,17 @@ export function PostCard({ post, onDelete }: PostCardProps) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
             >
-              {post.media[0].match(/\.(mp4|webm|ogg)$/i) ? (
-                <video src={post.media[0]} controls className="w-full max-h-96 object-contain" />
+              {post.media[0].match(/\.(mp4|webm|ogg|mov)$/i) || post.media[0].includes('/video/upload/') ? (
+                <video
+                  src={post.media[0]}
+                  controls
+                  poster={
+                    post.media[0].includes('/video/upload/')
+                      ? post.media[0].replace(/\/video\/upload\/(v\d+\/)?/, '/video/upload/c_limit,w_1200,h_675/').replace(/\.[^/.]+$/, '.jpg')
+                      : undefined
+                  }
+                  className="w-full max-h-96 object-contain bg-black"
+                />
               ) : (
                 <div className={`grid gap-1 ${post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   {post.media.map((imgUrl: string, imgIdx: number) => (

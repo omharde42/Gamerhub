@@ -19,6 +19,7 @@ enum AccountProvider {
   GOOGLE
   DISCORD
   STEAM
+  APPLE
   CREDENTIALS
 }
 enum PostType {
@@ -182,6 +183,8 @@ model User {
   friendRequestsReceived FriendRequest[] @relation("FriendRequestsReceived")
   serverMessages      ServerMessage[]
   messageReactions    MessageReaction[]
+  createdEvents       ServerEvent[]
+  gameRequests        GameRequest[]
   @@index([email])
   @@index([role])
 }
@@ -313,6 +316,7 @@ model ConnectedGame {
   gameName          String
   publisher         String?
   playerId          String?
+  uid               String?
   server            String?
   region            String?
   level             String?
@@ -330,6 +334,8 @@ model ConnectedGame {
   favoriteWeapon    String?
   favoriteCharacter String?
   preferredRole     String?
+  preferredPosition String?
+  gameAchievements  String[] @default([])
   hoursPlayed       Float    @default(0)
   lastActive        DateTime?
   leaderboardPos    Int?
@@ -937,6 +943,7 @@ model Server {
   owner        User     @relation("ServerOwner", fields: [ownerId], references: [id])
   members      ServerMember[]
   channels     Channel[]
+  events       ServerEvent[]
   @@index([slug])
   @@index([inviteCode])
 }
@@ -1010,4 +1017,40 @@ model FriendRequest {
   @@unique([senderId, receiverId])
   @@index([senderId])
   @@index([receiverId])
+}
+
+model ServerEvent {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  location    String
+  startDate   DateTime
+  endDate     DateTime?
+  serverId    String
+  server      Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  creatorId   String
+  creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum GameRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model GameRequest {
+  id          String            @id @default(uuid())
+  gameName    String
+  genre       String
+  logo        String?
+  status      GameRequestStatus @default(PENDING)
+  adminNote   String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([status])
+  @@index([userId])
 }

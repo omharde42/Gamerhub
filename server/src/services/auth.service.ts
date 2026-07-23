@@ -119,5 +119,147 @@ export class AuthService {
     if (!verified) throw new ValidationError({ token: ['Invalid 2FA token'] });
     await prisma.user.update({ where: { id: userId }, data: { isTwoFactorEnabled: false, twoFactorSecret: null } });
   }
+
+  async socialLogin(supabaseToken: string, providerName: string) {
+    if (!supabaseToken) {
+      throw new ValidationError({ token: ['Supabase token is required'] });
+    }
+
+    let decoded: any;
+    try {
+      const jwtSecret = process.env.SUPABASE_JWT_SECRET || 'dev-jwt-secret-change-in-production';
+      const jwt = await import('jsonwebtoken');
+      decoded = jwt.verify(supabaseToken, jwtSecret);
+    } catch (err: any) {
+      throw new UnauthorizedError('Invalid or expired Supabase authentication token');
+    }
+
+    const { email, sub: providerId, user_metadata } = decoded;
+
+    if (!email) {
+      throw new ValidationError({ email: ['Supabase token payload does not contain an email'] });
+    }
+
+    // Map provider name to our AccountProvider enum
+    let provider: any;
+    const normProvider = providerName.toUpperCase();
+    if (normProvider.includes('GOOGLE')) provider = 'GOOGLE';
+    else if (normProvider.includes('DISCORD')) provider = 'DISCORD';
+    else if (normProvider.includes('STEAM')) provider = 'STEAM';
+    else if (normProvider.includes('APPLE')) provider = 'APPLE';
+    else provider = 'GOOGLE'; // default fallback
+
+    // 1. Check if Account mapping already exists
+    let account = await prisma.account.findUnique({
+      where: {
+        provider_providerId: {
+          provider,
+          providerId,
+        },
+      },
+      include: {
+        user: {
+          include: {
+            profile: true,
+            subscription: true,
+          },
+        },
+      },
+    });
+
+    let user: any;
+
+    if (account) {
+      user = account.user;
+    } else {
+      // 2. Check if a User with the same email already exists
+      user = await prisma.user.findUnique({
+        where: { email },
+        include: {
+          profile: true,
+          subscription: true,
+        },
+      });
+
+      if (user) {
+        // Link the existing user to the new social account
+        await prisma.account.create({
+          data: {
+            provider,
+            providerId,
+            providerUsername: user_metadata?.full_name || user_metadata?.name || null,
+            userId: user.id,
+          },
+        });
+      } else {
+        // 3. Create a brand new user
+        // Generate a clean, unique username from email
+        const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        let username = `${emailPrefix}${randomNum}`;
+
+        // Ensure username uniqueness
+        let existingUser = await prisma.profile.findUnique({ where: { username } });
+        while (existingUser) {
+          username = `${emailPrefix}${Math.floor(1000 + Math.random() * 9000)}`;
+          existingUser = await prisma.profile.findUnique({ where: { username } });
+        }
+
+        const avatarUrl = user_metadata?.avatar_url || user_metadata?.picture || null;
+
+        user = await prisma.user.create({
+          data: {
+            email,
+            emailVerified: new Date(),
+            profile: {
+              create: {
+                username,
+                displayName: user_metadata?.full_name || user_metadata?.name || username,
+                avatar: avatarUrl,
+              },
+            },
+            notificationSettings: {
+              create: {},
+            },
+            accounts: {
+              create: {
+                provider,
+                providerId,
+                providerUsername: user_metadata?.full_name || user_metadata?.name || null,
+              },
+            },
+          },
+          include: {
+            profile: true,
+            subscription: true,
+          },
+        });
+      }
+    }
+
+    if (user.banned) {
+      throw new UnauthorizedError(`Account banned: ${user.banReason || 'No reason provided'}`);
+    }
+
+    // 4. Generate our standard app access/refresh tokens
+    const payload = { userId: user.id, email: user.email, role: user.role };
+    const accessToken = generateToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    await prisma.session.create({
+      data: {
+        refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+      requiresTwoFactor: false,
+    };
+  }
 }
 export const authService = new AuthService();

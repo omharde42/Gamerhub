@@ -27,11 +27,11 @@ export function AuthFormWrapper({ children, title, subtitle, footer }: AuthFormW
         <div className="relative cyber-card">
           <div className="bg-card/70 backdrop-blur-2xl border border-primary/20 rounded-2xl p-5 xs:p-6 sm:p-8 shadow-[0_0_30px_hsl(var(--primary)/0.08)] space-y-6">
             <div className="text-center space-y-2">
-              <Link href="/" className="inline-flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center shadow-lg shadow-gaming-purple/20 animate-bounce-in">
-                  <Gamepad2 className="h-5 w-5 text-white" />
+              <Link href="/" className="inline-flex items-center gap-2.5 mb-4">
+                <div className="w-12 h-12 rounded-2xl overflow-hidden border border-primary/20 shadow-lg shadow-primary/10 animate-bounce-in shrink-0">
+                  <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
                 </div>
-                <span className="text-lg font-bold bg-gradient-to-r from-gaming-purple to-gaming-cyan bg-clip-text text-transparent animate-glow-rainbow">GamerHub</span>
+                <span className="text-xl font-extrabold bg-gradient-to-r from-gaming-purple to-gaming-cyan bg-clip-text text-transparent animate-glow-rainbow">GamerZ Hub</span>
               </Link>
               <h1 className="text-2xl font-bold">{title}</h1>
               <p className="text-sm text-muted-foreground">{subtitle}</p>

@@ -98,7 +98,19 @@ const stats = [
   { value: '50+', label: 'Games Supported', icon: Globe },
 ];
 
+import { useAuthStore } from '@/store/authStore';
+import { useRouter } from 'next/navigation';
+
 export default function EnterPage() {
+  const { isAuthenticated } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/feed');
+    }
+  }, [isAuthenticated, router]);
+
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       {/* Sleek, professional grid background with subtle dark gradients */}
@@ -121,20 +133,20 @@ export default function EnterPage() {
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
             >
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto shadow-md relative">
-                <Gamepad2 className="h-8 w-8 text-white" />
+              <div className="w-20 h-20 rounded-2xl overflow-hidden border border-primary/20 flex items-center justify-center mx-auto shadow-xl relative shrink-0">
+                <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
               </div>
             </motion.div>
 
             <div className="space-y-3">
               <motion.h1
-                className="text-4xl md:text-5xl font-bold tracking-tight"
+                className="text-4xl md:text-5xl font-extrabold tracking-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
                 <span className="bg-gradient-to-r from-indigo-400 via-primary to-violet-500 bg-clip-text text-transparent">
-                  Welcome to GamerHub
+                  Welcome to GamerZ Hub
                 </span>
               </motion.h1>
               <motion.p

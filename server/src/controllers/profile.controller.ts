@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../config/database';
 import { AuthRequest } from '../types';
 import cloudinary from '../config/cloudinary';
+import { config } from '../config';
 import { aiService } from '../services/ai.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
@@ -40,10 +41,31 @@ export class ProfileController {
     const connectionsCount = sentCount + receivedCount;
     const profileViews = Math.floor((profile.kd || 0.0) * 142 + (profile.totalMatches || 0) * 3.5 + 57);
 
+    let friendshipStatus: 'friends' | 'pending' | null = null;
+    if (req.user) {
+      const relationship = await prisma.friendRequest.findFirst({
+        where: {
+          OR: [
+            { senderId: req.user.userId, receiverId: profile.userId },
+            { senderId: profile.userId, receiverId: req.user.userId },
+          ],
+        },
+      });
+
+      if (relationship) {
+        if (relationship.status === 'ACCEPTED') {
+          friendshipStatus = 'friends';
+        } else if (relationship.status === 'PENDING') {
+          friendshipStatus = 'pending';
+        }
+      }
+    }
+
     sendSuccess(res, {
       ...profile,
       connectionsCount,
       profileViews,
+      friendshipStatus,
     });
   });
 
@@ -58,40 +80,86 @@ export class ProfileController {
 
   uploadAvatar = asyncHandler(async (req: AuthRequest, res: Response) => {
     if (!req.file) {
-      return sendError(res, 400, 'No file uploaded');
+      return sendError(res, 400, 'No file uploaded. Please select an image.');
     }
+
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedMimeTypes.includes(req.file.mimetype.toLowerCase())) {
+      return sendError(res, 400, 'Unsupported file format. Please upload a JPG, JPEG, PNG, or WebP image.');
+    }
+
+    if (req.file.size > 5 * 1024 * 1024) {
+      return sendError(res, 400, 'Image is too large. Maximum size is 5MB.');
+    }
+
     const b64 = Buffer.from(req.file.buffer).toString('base64');
     const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-    const result = await cloudinary.uploader.upload(dataURI, {
-      folder: 'gamerhub/avatars',
-      width: 256,
-      height: 256,
-      crop: 'fill',
-    });
-    await prisma.profile.update({
+    let avatarUrl = dataURI;
+
+    if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
+      try {
+        const result = await cloudinary.uploader.upload(dataURI, {
+          folder: 'gamerhub/avatars',
+          width: 512,
+          height: 512,
+          crop: 'fill',
+        });
+        if (result && result.secure_url) {
+          avatarUrl = result.secure_url;
+        }
+      } catch (cloudErr) {
+        console.warn('Cloudinary upload failed, falling back to data URI:', cloudErr);
+      }
+    }
+
+    const profile = await prisma.profile.update({
       where: { userId: req.user!.userId },
-      data: { avatar: result.secure_url },
+      data: { avatar: avatarUrl },
     });
-    sendSuccess(res, { avatar: result.secure_url });
+
+    sendSuccess(res, { avatar: avatarUrl, profile }, 'Avatar updated successfully');
   });
 
   uploadBanner = asyncHandler(async (req: AuthRequest, res: Response) => {
     if (!req.file) {
-      return sendError(res, 400, 'No file uploaded');
+      return sendError(res, 400, 'No file uploaded. Please select an image.');
     }
+
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedMimeTypes.includes(req.file.mimetype.toLowerCase())) {
+      return sendError(res, 400, 'Unsupported file format. Please upload a JPG, JPEG, PNG, or WebP image.');
+    }
+
+    if (req.file.size > 10 * 1024 * 1024) {
+      return sendError(res, 400, 'Image is too large. Maximum size is 10MB.');
+    }
+
     const b64 = Buffer.from(req.file.buffer).toString('base64');
     const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-    const result = await cloudinary.uploader.upload(dataURI, {
-      folder: 'gamerhub/banners',
-      width: 1200,
-      height: 400,
-      crop: 'fill',
-    });
-    await prisma.profile.update({
+    let bannerUrl = dataURI;
+
+    if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
+      try {
+        const result = await cloudinary.uploader.upload(dataURI, {
+          folder: 'gamerhub/banners',
+          width: 1200,
+          height: 400,
+          crop: 'fill',
+        });
+        if (result && result.secure_url) {
+          bannerUrl = result.secure_url;
+        }
+      } catch (cloudErr) {
+        console.warn('Cloudinary banner upload failed, falling back to data URI:', cloudErr);
+      }
+    }
+
+    const profile = await prisma.profile.update({
       where: { userId: req.user!.userId },
-      data: { banner: result.secure_url },
+      data: { banner: bannerUrl },
     });
-    sendSuccess(res, { banner: result.secure_url });
+
+    sendSuccess(res, { banner: bannerUrl, profile }, 'Banner updated successfully');
   });
 
   getProfileAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {

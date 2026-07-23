@@ -3,8 +3,8 @@ const envSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
 
 export const API_URL = envApiUrl || 'http://localhost:4000/api';
 export const SOCKET_URL = envSocketUrl || 'http://localhost:4000';
-export const APP_NAME = 'GamerHub';
-export const COPYRIGHT = `© ${new Date().getFullYear()} GamerHub. All rights reserved.`;
+export const APP_NAME = 'GamerZ Hub';
+export const COPYRIGHT = `© ${new Date().getFullYear()} GamerZ Hub. All rights reserved.`;
 
 export const RANK_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Challenger'];
 export const GAMES = ['Valorant', 'CS2', 'League of Legends', 'Dota 2', 'Overwatch 2', 'Apex Legends', 'Fortnite', 'Rainbow Six Siege', 'Rocket League', 'Call of Duty', 'PUBG', 'Elden Ring', 'Street Fighter 6', 'Tekken 8', 'Super Smash Bros. Ultimate', 'Minecraft', 'GTA V', 'World of Warcraft', 'Final Fantasy XIV', 'Destiny 2', 'Warframe', 'Dead by Daylight', 'Fall Guys', 'Among Us', 'Rust', 'Escape from Tarkov', 'Halo Infinite', 'Battlefield 2042', 'Counter-Strike 1.6', 'Team Fortress 2'];

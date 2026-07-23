@@ -12,13 +12,14 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MapPin, Globe, Trophy, Target, TrendingUp, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Calendar, Award, Swords, X, Send, Plus, Hash, Search, Loader2, Heart, Reply, MoreVertical, Smile, Paperclip, Image as ImageIcon, UserCheck, UserPlus, Phone, Link as LinkIcon, Sparkles, Settings } from 'lucide-react';
+import { MapPin, Globe, Trophy, Target, TrendingUp, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Calendar, Award, Swords, X, Send, Plus, Hash, Search, Loader2, Heart, Reply, MoreVertical, Smile, Paperclip, Image as ImageIcon, UserCheck, UserPlus, Phone, Link as LinkIcon, Sparkles, Settings, Camera } from 'lucide-react';
 import { formatDate, formatNumber, getInitials, getRankColor, formatRelativeTime } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useSocket } from '@/hooks/useSocket';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PostCard } from '@/components/post/post-card';
 
 function StatCard({ value, label, color, delay = 0 }: { value: string | number; label: string; color: string; delay?: number }) {
   return (
@@ -60,11 +61,15 @@ export default function ProfilePage() {
   const { data: friendList } = useQuery({ queryKey: ['friends'], queryFn: () => api.get('/friends').then(r => r.data.data.map((f: any) => f.id)).catch(() => []), enabled: !!user });
   const { data: friendRequests } = useQuery({ queryKey: ['friend-requests'], queryFn: () => api.get('/friends/requests').then(r => r.data.data.map((r: any) => r.sender?.id)).catch(() => []), enabled: !!user });
   useEffect(() => {
-    if (!profile?.user?.id || !user) return;
-    if (friendList?.includes(profile.user.id)) setFriendStatus('friends');
-    else if (friendRequests?.includes(profile.user.id)) setFriendStatus('pending');
-    else setFriendStatus(null);
-  }, [friendList, friendRequests, profile?.user?.id, user]);
+    if (profile?.friendshipStatus !== undefined) {
+      setFriendStatus(profile.friendshipStatus);
+    } else {
+      if (!profile?.user?.id || !user) return;
+      if (friendList?.includes(profile.user.id)) setFriendStatus('friends');
+      else if (friendRequests?.includes(profile.user.id)) setFriendStatus('pending');
+      else setFriendStatus(null);
+    }
+  }, [friendList, friendRequests, profile?.user?.id, profile?.friendshipStatus, user]);
 
   const toggleFollow = useMutation({
     mutationFn: () => following ? api.post(`/feed/unfollow/${profile?.user?.id}`) : api.post(`/feed/follow/${profile?.user?.id}`),
@@ -77,7 +82,60 @@ export default function ProfilePage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed'),
   });
 
-  // Modal State for Followers, Following, Connections
+  // Photo Upload State & Handler
+  const [uploading, setUploading] = useState<'avatar' | 'banner' | null>(null);
+
+  const uploadPhoto = useMutation({
+    mutationFn: async ({ file, type }: { file: File; type: 'avatar' | 'banner' }) => {
+      const form = new FormData();
+      form.append(type === 'avatar' ? 'avatar' : 'banner', file);
+      return api.post(`/profiles/${type}`, form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['profile', username] });
+      setUploading(null);
+      const newUrl = variables.type === 'avatar' ? data.data?.avatar : data.data?.banner;
+      if (user && newUrl) {
+        if (variables.type === 'avatar') {
+          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, avatar: newUrl } });
+        } else {
+          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, banner: newUrl } });
+        }
+      }
+      toast.success(`${variables.type === 'avatar' ? 'Avatar' : 'Banner'} updated successfully!`);
+    },
+    onError: (err: any) => {
+      setUploading(null);
+      const msg = err.response?.data?.message || err.message || 'Upload failed. Please try again.';
+      toast.error(msg);
+    },
+  });
+
+  const handlePhotoUpload = (type: 'avatar' | 'banner') => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp,image/gif';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        toast.error('Unsupported file format. Please upload JPG, PNG, or WebP.');
+        return;
+      }
+
+      const maxSize = type === 'avatar' ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast.error(`Image is too large. Maximum size is ${type === 'avatar' ? '5MB' : '10MB'}.`);
+        return;
+      }
+
+      setUploading(type);
+      uploadPhoto.mutate({ file, type });
+    };
+    input.click();
+  };
   const [listModalOpen, setListModalOpen] = useState(false);
   const [listType, setListType] = useState<'connections' | 'followers' | 'following' | null>(null);
   const [listSearch, setListSearch] = useState('');
@@ -332,21 +390,39 @@ export default function ProfilePage() {
       {/* Profile header */}
       <Card variant="glass" className="overflow-hidden border-border/60" hover={false}>
         <motion.div
-          className="h-48 md:h-64 bg-gradient-to-br from-indigo-950 via-slate-950 to-violet-950 relative overflow-hidden"
+          className={`h-48 md:h-64 bg-gradient-to-br from-indigo-950 via-slate-950 to-violet-950 relative overflow-hidden ${user?.profile?.username === username ? 'group cursor-pointer' : ''}`}
+          onClick={() => user?.profile?.username === username && handlePhotoUpload('banner')}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
           {profile.banner && <img src={profile.banner} alt="" className="w-full h-full object-cover" />}
           <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
           <div className="absolute inset-0 bg-grid opacity-5" />
+          {user?.profile?.username === username && (
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+              <div className="opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center gap-1 text-white text-xs font-semibold">
+                <Camera className="h-6 w-6" /> Edit Banner
+              </div>
+            </div>
+          )}
         </motion.div>
         <CardContent className="relative px-6 pb-6">
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-16 md:-mt-20 mb-4">
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}>
-              <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-background ring-2 ring-indigo-500 shadow-md" hover>
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, delay: 0.2 }} className={`relative ${user?.profile?.username === username ? 'group cursor-pointer' : ''}`} onClick={() => user?.profile?.username === username && handlePhotoUpload('avatar')}>
+              <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-background ring-2 ring-indigo-500 shadow-md">
                 <AvatarImage src={profile.avatar || ''} />
                 <AvatarFallback className="text-4xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white">{getInitials(profile.username)}</AvatarFallback>
               </Avatar>
+              {user?.profile?.username === username && (
+                <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center text-white">
+                  <Camera className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              )}
+              {uploading === 'avatar' && (
+                <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center text-white">
+                  <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                </div>
+              )}
             </motion.div>
             <div className="flex-1 pt-14 md:pt-0">
               <motion.div className="flex flex-col md:flex-row md:items-center gap-2" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
@@ -377,18 +453,39 @@ export default function ProfilePage() {
               </motion.div>
             </div>
             {!isOwn ? (
-              <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-                <Button
-                  variant={friendStatus === 'friends' ? 'secondary' : friendStatus === 'pending' ? 'outline' : 'gradient'}
-                  size="sm"
-                  className="gap-1.5 w-full sm:w-auto h-11"
-                  onClick={() => sendFriendReq.mutate()}
-                  disabled={sendFriendReq.isPending || !!friendStatus}
-                  animate
-                >
-                  {friendStatus === 'friends' ? <UserCheck className="h-4 w-4" /> : friendStatus === 'pending' ? <Loader2 className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                  {friendStatus === 'friends' ? 'Friends' : friendStatus === 'pending' ? 'Pending' : 'Add Friend'}
-                </Button>
+              <motion.div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+                {friendStatus === 'friends' ? (
+                  <>
+                    <Badge variant="neon" className="bg-success/5 border-success/30 text-success gap-1.5 px-3 h-11 text-xs font-semibold rounded-xl w-full sm:w-auto justify-center">
+                      <UserCheck className="h-4 w-4 text-success" /> Connected
+                    </Badge>
+                    <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto h-11" onClick={() => setChatOpen(true)}>
+                      <MessageCircle className="h-4 w-4" /> Message
+                    </Button>
+                  </>
+                ) : friendStatus === 'pending' ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 w-full sm:w-auto h-11"
+                    disabled={true}
+                  >
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    Pending
+                  </Button>
+                ) : (
+                  <Button
+                    variant="gradient"
+                    size="sm"
+                    className="gap-1.5 w-full sm:w-auto h-11"
+                    onClick={() => sendFriendReq.mutate()}
+                    disabled={sendFriendReq.isPending}
+                    animate
+                  >
+                    <UserPlus className="h-4 w-4" /> Connect
+                  </Button>
+                )}
+
                 <Button
                   variant={following ? 'secondary' : 'gradient'}
                   size="sm"
@@ -399,9 +496,6 @@ export default function ProfilePage() {
                 >
                   {following ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                   {following ? 'Following' : 'Follow'}
-                </Button>
-                <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto h-11" onClick={() => setChatOpen(true)}>
-                  <MessageCircle className="h-4 w-4" /> Message
                 </Button>
               </motion.div>
             ) : (
@@ -534,20 +628,24 @@ export default function ProfilePage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="posts">
-          <Card variant="glass">
-            <CardContent className="p-6 space-y-4">
-              {posts?.map((post: any, i: number) => (
-                <motion.div key={i} className="p-4 rounded-xl border border-border/50 hover:border-primary/20 transition-all" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                  <p className="text-sm">{post.content}</p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Heart className="h-3 w-3" />{post._count?.likes}</span>
-                    <span className="flex items-center gap-1"><MessageCircle className="h-3 w-3" />{post._count?.comments}</span>
-                  </div>
-                </motion.div>
-              ))}
-            </CardContent>
-          </Card>
+        <TabsContent value="posts" className="space-y-4 outline-none">
+          {posts && posts.length > 0 ? (
+            posts.map((post: any) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onDelete={() => {
+                  queryClient.invalidateQueries({ queryKey: ['profile-posts', username] });
+                }}
+              />
+            ))
+          ) : (
+            <Card variant="glass">
+              <CardContent className="p-8 text-center text-muted-foreground text-sm">
+                No posts published yet.
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="about">
