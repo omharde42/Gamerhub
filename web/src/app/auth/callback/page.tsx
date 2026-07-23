@@ -38,34 +38,60 @@ function AuthCallbackContent() {
 
     const checkSession = async () => {
       try {
-        // Get the Supabase session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError || !session) {
-          // Fallback to query params if Supabase session is not found
-          const queryAccess = searchParams.get('accessToken');
-          const queryRefresh = searchParams.get('refreshToken');
-          if (queryAccess && queryRefresh) {
-            await verifyAndLogin(queryAccess, queryRefresh);
-          } else {
-            setStatus('error');
-            setError(sessionError?.message || 'Missing authentication tokens');
-          }
+        // 1. Check for query parameters (e.g. accessToken/refreshToken from Steam/Google backend callback)
+        const queryAccess = searchParams.get('accessToken');
+        const queryRefresh = searchParams.get('refreshToken');
+        if (queryAccess && queryRefresh) {
+          await verifyAndLogin(queryAccess, queryRefresh);
           return;
         }
 
-        const provider = session.user?.app_metadata?.provider || 'google';
-        const { data } = await api.post('/auth/social-login', {
-          token: session.access_token,
-          provider
-        });
+        // 2. Check for hash parameters from Google OAuth implicit redirect (#access_token=... or #id_token=...)
+        if (typeof window !== 'undefined' && window.location.hash) {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const googleAccessToken = hashParams.get('access_token');
+          if (googleAccessToken) {
+            try {
+              const userInfoRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${googleAccessToken}`);
+              const userInfo = await userInfoRes.json();
+              if (userInfo.email) {
+                const { data } = await api.post('/auth/google', {
+                  email: userInfo.email,
+                  displayName: userInfo.name || userInfo.email.split('@')[0],
+                  avatar: userInfo.picture || null,
+                  googleId: userInfo.sub,
+                });
+                login(data.data.user, data.data.accessToken, data.data.refreshToken);
+                setStatus('success');
+                setTimeout(() => router.push('/feed'), 1200);
+                return;
+              }
+            } catch (googleErr) {
+              console.warn('Google userinfo fetch failed:', googleErr);
+            }
+          }
+        }
 
-        login(data.data.user, data.data.accessToken, data.data.refreshToken);
-        setStatus('success');
-        setTimeout(() => router.push('/feed'), 1500);
+        // 3. Fallback to Supabase session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (session) {
+          const provider = session.user?.app_metadata?.provider || 'google';
+          const { data } = await api.post('/auth/social-login', {
+            token: session.access_token,
+            provider,
+          });
+
+          login(data.data.user, data.data.accessToken, data.data.refreshToken);
+          setStatus('success');
+          setTimeout(() => router.push('/feed'), 1200);
+          return;
+        }
+
+        setStatus('error');
+        setError(sessionError?.message || 'Authentication missing or cancelled.');
       } catch (err: any) {
         setStatus('error');
-        setError(err.response?.data?.message || err.message || 'Failed to exchange credentials');
+        setError(err.response?.data?.message || err.message || 'Failed to exchange authentication credentials');
       }
     };
 

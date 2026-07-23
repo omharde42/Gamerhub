@@ -97,6 +97,27 @@ export class AuthController {
     sendSuccess(res, result, 'Logged in successfully!');
   });
 
+  googleRedirect = asyncHandler(async (req: Request, res: Response) => {
+    const clientId = process.env.GOOGLE_CLIENT_ID || '1028691049535-cou454qqcspf45t2h0b2lllkqdsus1bi.apps.googleusercontent.com';
+    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const redirectUri = `${clientUrl}/auth/callback`;
+
+    const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    googleAuthUrl.searchParams.append('client_id', clientId);
+    googleAuthUrl.searchParams.append('redirect_uri', redirectUri);
+    googleAuthUrl.searchParams.append('response_type', 'token id_token');
+    googleAuthUrl.searchParams.append('scope', 'openid email profile');
+    googleAuthUrl.searchParams.append('nonce', 'gamerhub_google_auth');
+
+    res.redirect(googleAuthUrl.toString());
+  });
+
+  googleLogin = asyncHandler(async (req: Request, res: Response) => {
+    const { email, displayName, avatar, googleId } = req.body;
+    const result = await authService.directGoogleLogin(email, displayName, avatar, googleId);
+    sendSuccess(res, result, 'Logged in with Google successfully!');
+  });
+
   steamRedirect = asyncHandler(async (req: Request, res: Response) => {
     const host = req.get('host') || 'localhost:4000';
     const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';

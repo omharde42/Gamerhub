@@ -59,6 +59,10 @@ export default function RegisterPage() {
   const handleSocialLogin = async (provider: string) => {
     setSocialLoading(true);
     try {
+      if (provider === 'google') {
+        window.location.href = `${API_URL}/auth/google`;
+        return;
+      }
       if (provider === 'steam') {
         window.location.href = `${API_URL}/auth/steam`;
         return;

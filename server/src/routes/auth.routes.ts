@@ -9,6 +9,8 @@ const router = Router();
 router.post('/register', authLimiter, registerValidation, validate, authController.register);
 router.post('/login', authLimiter, loginValidation, validate, authController.login);
 router.post('/social-login', authLimiter, authController.socialLogin);
+router.get('/google', authController.googleRedirect);
+router.post('/google', authController.googleLogin);
 router.get('/steam', authController.steamRedirect);
 router.get('/steam/callback', authController.steamCallback);
 router.get('/accounts', authenticate, authController.getLinkedAccounts);

@@ -262,6 +262,110 @@ export class AuthService {
     };
   }
 
+  async directGoogleLogin(email: string, displayName: string, avatarUrl: string, googleId: string) {
+    if (!email) throw new ValidationError({ email: ['Email is required'] });
+
+    let account = await prisma.account.findUnique({
+      where: {
+        provider_providerId: {
+          provider: 'GOOGLE',
+          providerId: googleId || email,
+        },
+      },
+      include: {
+        user: {
+          include: {
+            profile: true,
+            subscription: true,
+          },
+        },
+      },
+    });
+
+    let user: any;
+
+    if (account) {
+      user = account.user;
+    } else {
+      user = await prisma.user.findUnique({
+        where: { email },
+        include: { profile: true, subscription: true },
+      });
+
+      if (user) {
+        await prisma.account.create({
+          data: {
+            provider: 'GOOGLE',
+            providerId: googleId || email,
+            providerUsername: displayName || null,
+            userId: user.id,
+          },
+        });
+      } else {
+        const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        let username = `${emailPrefix}${randomNum}`;
+
+        let existingUser = await prisma.profile.findUnique({ where: { username } });
+        while (existingUser) {
+          username = `${emailPrefix}${Math.floor(1000 + Math.random() * 9000)}`;
+          existingUser = await prisma.profile.findUnique({ where: { username } });
+        }
+
+        user = await prisma.user.create({
+          data: {
+            email,
+            emailVerified: new Date(),
+            profile: {
+              create: {
+                username,
+                displayName: displayName || username,
+                avatar: avatarUrl || null,
+              },
+            },
+            notificationSettings: {
+              create: {},
+            },
+            accounts: {
+              create: {
+                provider: 'GOOGLE',
+                providerId: googleId || email,
+                providerUsername: displayName || null,
+              },
+            },
+          },
+          include: {
+            profile: true,
+            subscription: true,
+          },
+        });
+      }
+    }
+
+    if (user.banned) {
+      throw new UnauthorizedError(`Account banned: ${user.banReason || 'No reason provided'}`);
+    }
+
+    const payload = { userId: user.id, email: user.email, role: user.role };
+    const accessToken = generateToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    await prisma.session.create({
+      data: {
+        refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+      requiresTwoFactor: false,
+    };
+  }
+
   async steamLogin(steamId: string, personaName: string, avatarUrl: string) {
     if (!steamId) throw new ValidationError({ steamId: ['Steam ID is required'] });
 
