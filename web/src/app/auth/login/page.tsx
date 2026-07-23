@@ -43,6 +43,11 @@ export default function LoginPage() {
   const handleSocialLogin = async (provider: string) => {
     setSocialLoading(true);
     try {
+      if (provider === 'steam') {
+        window.location.href = `${API_URL}/auth/steam`;
+        return;
+      }
+
       const { supabase } = await import('@/lib/supabase');
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider as any,
@@ -52,7 +57,7 @@ export default function LoginPage() {
       });
       if (error) throw error;
     } catch (err: any) {
-      toast.error(err.message || 'Social login failed');
+      toast.error(err.message || `${provider} login failed. Please try again.`);
       setSocialLoading(false);
     }
   };

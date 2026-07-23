@@ -261,5 +261,148 @@ export class AuthService {
       requiresTwoFactor: false,
     };
   }
+
+  async steamLogin(steamId: string, personaName: string, avatarUrl: string) {
+    if (!steamId) throw new ValidationError({ steamId: ['Steam ID is required'] });
+
+    let account = await prisma.account.findUnique({
+      where: {
+        provider_providerId: {
+          provider: 'STEAM',
+          providerId: steamId,
+        },
+      },
+      include: {
+        user: {
+          include: {
+            profile: true,
+            subscription: true,
+          },
+        },
+      },
+    });
+
+    let user: any;
+
+    if (account) {
+      user = account.user;
+    } else {
+      const cleanName = (personaName || 'Gamer').replace(/[^a-zA-Z0-9]/g, '') || 'SteamGamer';
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      let username = `${cleanName}${randomNum}`;
+
+      let existingUser = await prisma.profile.findUnique({ where: { username } });
+      while (existingUser) {
+        username = `${cleanName}${Math.floor(1000 + Math.random() * 9000)}`;
+        existingUser = await prisma.profile.findUnique({ where: { username } });
+      }
+
+      const email = `steam_${steamId}@gamerhub.app`;
+
+      user = await prisma.user.create({
+        data: {
+          email,
+          emailVerified: new Date(),
+          profile: {
+            create: {
+              username,
+              displayName: personaName || username,
+              avatar: avatarUrl || null,
+            },
+          },
+          notificationSettings: {
+            create: {},
+          },
+          accounts: {
+            create: {
+              provider: 'STEAM',
+              providerId: steamId,
+              providerUsername: personaName || null,
+            },
+          },
+        },
+        include: {
+          profile: true,
+          subscription: true,
+        },
+      });
+    }
+
+    if (user.banned) {
+      throw new UnauthorizedError(`Account banned: ${user.banReason || 'No reason provided'}`);
+    }
+
+    const payload = { userId: user.id, email: user.email, role: user.role };
+    const accessToken = generateToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    await prisma.session.create({
+      data: {
+        refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+      requiresTwoFactor: false,
+    };
+  }
+
+  async getLinkedAccounts(userId: string) {
+    const accounts = await prisma.account.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        provider: true,
+        providerId: true,
+        providerUsername: true,
+        createdAt: true,
+      },
+    });
+    return accounts;
+  }
+
+  async linkSocialAccount(userId: string, provider: 'GOOGLE' | 'DISCORD' | 'STEAM', providerId: string, providerUsername?: string) {
+    const existing = await prisma.account.findUnique({
+      where: {
+        provider_providerId: { provider, providerId },
+      },
+    });
+
+    if (existing) {
+      if (existing.userId === userId) return existing;
+      throw new ValidationError({ provider: [`This ${provider} account is already linked to another GamerHub user.`] });
+    }
+
+    return prisma.account.create({
+      data: {
+        userId,
+        provider,
+        providerId,
+        providerUsername: providerUsername || null,
+      },
+    });
+  }
+
+  async unlinkSocialAccount(userId: string, provider: 'GOOGLE' | 'DISCORD' | 'STEAM') {
+    const user = await prisma.user.findUnique({ where: { id: userId }, include: { accounts: true } });
+    if (!user) throw new NotFoundError('User');
+
+    if (!user.password && user.accounts.length <= 1) {
+      throw new ValidationError({ provider: ['Cannot unlink your only authentication method. Please set a password first.'] });
+    }
+
+    await prisma.account.deleteMany({
+      where: {
+        userId,
+        provider,
+      },
+    });
+    return { success: true };
+  }
 }
 export const authService = new AuthService();
