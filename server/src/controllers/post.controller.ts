@@ -1,4 +1,6 @@
 import { Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { AuthRequest } from '../types';
 import { postService } from '../services/post.service';
 import { io } from '../index';
@@ -6,26 +8,56 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 import { NotFoundError } from '../utils/errors';
 import cloudinary from '../config/cloudinary';
+import { config } from '../config';
 
 export class PostController {
   uploadMedia = asyncHandler(async (req: AuthRequest, res: Response) => {
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
-      return sendError(res, 400, 'No files uploaded');
+      return sendError(res, 400, 'No files uploaded. Please select an image or video.');
     }
 
-    const uploadPromises = files.map(async (file) => {
-      const b64 = Buffer.from(file.buffer).toString('base64');
-      const dataURI = `data:${file.mimetype};base64,${b64}`;
-      const result = await cloudinary.uploader.upload(dataURI, {
-        folder: 'gamerhub/posts',
-        resource_type: 'auto',
-      });
-      return result.secure_url;
+    const uploadPromises = files.map(async (file, idx) => {
+      let mediaUrl = '';
+
+      // 1. Try Cloudinary if configured
+      if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
+        try {
+          const b64 = Buffer.from(file.buffer).toString('base64');
+          const dataURI = `data:${file.mimetype};base64,${b64}`;
+          const result = await cloudinary.uploader.upload(dataURI, {
+            folder: 'gamerhub/posts',
+            resource_type: 'auto',
+          });
+          if (result && result.secure_url) {
+            mediaUrl = result.secure_url;
+          }
+        } catch (cloudErr) {
+          console.warn('Cloudinary post media upload warning:', cloudErr);
+        }
+      }
+
+      // 2. Disk Storage Fallback if Cloudinary is unconfigured or fails
+      if (!mediaUrl) {
+        const uploadsDir = path.join(__dirname, '../../public/uploads/posts');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        const ext = path.extname(file.originalname) || '.jpg';
+        const filename = `post_${req.user?.userId || 'user'}_${Date.now()}_${idx}${ext}`;
+        const filePath = path.join(uploadsDir, filename);
+        fs.writeFileSync(filePath, file.buffer);
+
+        const protocol = req.protocol || 'http';
+        const host = req.get('host') || 'localhost:4000';
+        mediaUrl = `${protocol}://${host}/uploads/posts/${filename}`;
+      }
+
+      return mediaUrl;
     });
 
     const urls = await Promise.all(uploadPromises);
-    sendSuccess(res, { urls });
+    sendSuccess(res, { urls }, 'Media uploaded successfully');
   });
 
   create = asyncHandler(async (req: AuthRequest, res: Response) => {
