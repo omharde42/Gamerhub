@@ -1,4 +1,6 @@
 import { Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import prisma from '../config/database';
 import { AuthRequest } from '../types';
 import cloudinary from '../config/cloudinary';
@@ -92,12 +94,13 @@ export class ProfileController {
       return sendError(res, 400, 'Image is too large. Maximum size is 5MB.');
     }
 
-    const b64 = Buffer.from(req.file.buffer).toString('base64');
-    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-    let avatarUrl = dataURI;
+    let avatarUrl = '';
 
+    // 1. Try Cloudinary upload if configured
     if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
       try {
+        const b64 = Buffer.from(req.file.buffer).toString('base64');
+        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
         const result = await cloudinary.uploader.upload(dataURI, {
           folder: 'gamerhub/avatars',
           width: 512,
@@ -108,8 +111,24 @@ export class ProfileController {
           avatarUrl = result.secure_url;
         }
       } catch (cloudErr) {
-        console.warn('Cloudinary upload failed, falling back to data URI:', cloudErr);
+        console.warn('Cloudinary avatar upload warning:', cloudErr);
       }
+    }
+
+    // 2. Local Disk Storage Fallback if Cloudinary is unconfigured or fails
+    if (!avatarUrl) {
+      const uploadsDir = path.join(__dirname, '../../public/uploads/avatars');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const ext = path.extname(req.file.originalname) || '.jpg';
+      const filename = `avatar_${req.user!.userId}_${Date.now()}${ext}`;
+      const filePath = path.join(uploadsDir, filename);
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      const protocol = req.protocol || 'http';
+      const host = req.get('host') || 'localhost:4000';
+      avatarUrl = `${protocol}://${host}/uploads/avatars/${filename}`;
     }
 
     const profile = await prisma.profile.update({
@@ -134,12 +153,12 @@ export class ProfileController {
       return sendError(res, 400, 'Image is too large. Maximum size is 10MB.');
     }
 
-    const b64 = Buffer.from(req.file.buffer).toString('base64');
-    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-    let bannerUrl = dataURI;
+    let bannerUrl = '';
 
     if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
       try {
+        const b64 = Buffer.from(req.file.buffer).toString('base64');
+        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
         const result = await cloudinary.uploader.upload(dataURI, {
           folder: 'gamerhub/banners',
           width: 1200,
@@ -150,8 +169,23 @@ export class ProfileController {
           bannerUrl = result.secure_url;
         }
       } catch (cloudErr) {
-        console.warn('Cloudinary banner upload failed, falling back to data URI:', cloudErr);
+        console.warn('Cloudinary banner upload warning:', cloudErr);
       }
+    }
+
+    if (!bannerUrl) {
+      const uploadsDir = path.join(__dirname, '../../public/uploads/banners');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const ext = path.extname(req.file.originalname) || '.jpg';
+      const filename = `banner_${req.user!.userId}_${Date.now()}${ext}`;
+      const filePath = path.join(uploadsDir, filename);
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      const protocol = req.protocol || 'http';
+      const host = req.get('host') || 'localhost:4000';
+      bannerUrl = `${protocol}://${host}/uploads/banners/${filename}`;
     }
 
     const profile = await prisma.profile.update({
