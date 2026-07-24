@@ -39,7 +39,7 @@ export class PostController {
 
       // 2. Disk Storage Fallback if Cloudinary is unconfigured or fails
       if (!mediaUrl) {
-        const uploadsDir = path.join(__dirname, '../../public/uploads/posts');
+        const uploadsDir = path.join(__dirname, '../../../public/uploads/posts');
         if (!fs.existsSync(uploadsDir)) {
           fs.mkdirSync(uploadsDir, { recursive: true });
         }

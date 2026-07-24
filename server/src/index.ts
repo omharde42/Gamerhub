@@ -157,8 +157,24 @@ app.use(
   })
 );
 
-app.use(compression());
-app.use(morgan('dev'));
+// duplicate import removed
+// Ensure public/uploads directories exist
+const uploadsRoot = path.join(__dirname, '../public/uploads');
+if (!fs.existsSync(uploadsRoot)) {
+  fs.mkdirSync(uploadsRoot, { recursive: true });
+}
+const postsDir = path.join(uploadsRoot, 'posts');
+if (!fs.existsSync(postsDir)) {
+  fs.mkdirSync(postsDir, { recursive: true });
+}
+const avatarsDir = path.join(uploadsRoot, 'avatars');
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir, { recursive: true });
+}
+const bannersDir = path.join(uploadsRoot, 'banners');
+if (!fs.existsSync(bannersDir)) {
+  fs.mkdirSync(bannersDir, { recursive: true });
+}
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
