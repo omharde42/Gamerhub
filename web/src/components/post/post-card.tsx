@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, Trash2, ChevronDown, Sparkles } from 'lucide-react';
-import { formatRelativeTime, formatNumber, getInitials } from '@/lib/utils';
+import { formatRelativeTime, formatNumber, getInitials, getMediaUrl } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -201,7 +201,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
             >
               {post.media[0].match(/\.(mp4|webm|ogg|mov)$/i) || post.media[0].includes('/video/upload/') ? (
                 <video
-                  src={post.media[0]}
+                  src={getMediaUrl(post.media[0])}
                   controls
                   poster={
                     post.media[0].includes('/video/upload/')
@@ -215,12 +215,15 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                   {post.media.map((imgUrl: string, imgIdx: number) => (
                     <img 
                       key={imgIdx}
-                      src={imgUrl} 
+                      src={getMediaUrl(imgUrl)} 
                       alt="Post media" 
                       className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.01] transition-transform duration-300" 
                       onClick={() => {
                         setSelectedImageIndex(imgIdx);
                         setPreviewOpen(true);
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
                       }}
                     />
                   ))}

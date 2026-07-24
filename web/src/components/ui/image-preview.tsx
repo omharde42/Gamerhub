@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Plus, Minus, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getMediaUrl } from '@/lib/utils';
 
 interface ImagePreviewProps {
   images: string[];
@@ -39,7 +40,7 @@ export function ImagePreview({ images, initialIndex = 0, isOpen, onClose }: Imag
 
   if (!isOpen || images.length === 0) return null;
 
-  const currentImage = images[index];
+  const currentImage = getMediaUrl(images[index]);
 
   const handleNext = (e?: React.MouseEvent) => {
     e?.stopPropagation();

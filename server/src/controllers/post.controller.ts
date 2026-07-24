@@ -48,7 +48,7 @@ export class PostController {
         const filePath = path.join(uploadsDir, filename);
         fs.writeFileSync(filePath, file.buffer);
 
-        const protocol = req.protocol || 'http';
+        const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
         const host = req.get('host') || 'localhost:4000';
         mediaUrl = `${protocol}://${host}/uploads/posts/${filename}`;
       }
