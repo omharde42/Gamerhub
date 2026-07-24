@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Search, Send, Paperclip, Image as ImageIcon, MoreVertical, Plus, Loader2,
-  MessageSquare, UserPlus, Phone, Mic, Headphones, Settings,
+  MessageSquare, UserPlus, Phone, Video, Mic, Headphones, Settings,
   Hash, Users, ChevronDown, ChevronRight, ChevronLeft, Heart, Smile, Reply,
   Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
   Sparkles, Volume2, Pause, Play, Square, Lock, Shield
@@ -24,6 +24,8 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { E2EEEngine } from '@/lib/e2ee';
+import { useWebRTC } from '@/hooks/useWebRTC';
+import { CallModal } from '@/components/chat/call-modal';
 
 function DiscordMessagesPage() {
   const searchParams = useSearchParams();
@@ -43,6 +45,18 @@ function DiscordMessagesPage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [shareOpen, setShareOpen] = useState<string | null>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
+
+  const {
+    callState,
+    localStream,
+    remoteStream,
+    startCall,
+    answerCall,
+    rejectCall,
+    endCall,
+    toggleAudio,
+    toggleVideo,
+  } = useWebRTC();
 
   // Voice recording state variables
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -548,7 +562,32 @@ function DiscordMessagesPage() {
                     </div>
                     <div className="flex-1" />
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl"><Phone className="h-4 w-4" /></Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl"
+                        onClick={() => {
+                          if (other?.id && selectedChat) {
+                            startCall(other.id, other.profile?.username || 'User', selectedChat, false);
+                          }
+                        }}
+                        title="Start Voice Call"
+                      >
+                        <Phone className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl"
+                        onClick={() => {
+                          if (other?.id && selectedChat) {
+                            startCall(other.id, other.profile?.username || 'User', selectedChat, true);
+                          }
+                        }}
+                        title="Start Video Call"
+                      >
+                        <Video className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => copyLink(selectedChat)} title="Copy chat link"><LinkIcon className="h-4 w-4" /></Button>
                     </div>
                   </div>
@@ -848,6 +887,17 @@ function DiscordMessagesPage() {
           </ScrollArea>
         </div>
       )}
+
+      <CallModal
+        callState={callState}
+        localStream={localStream}
+        remoteStream={remoteStream}
+        onAnswer={answerCall}
+        onReject={rejectCall}
+        onEnd={endCall}
+        onToggleAudio={toggleAudio}
+        onToggleVideo={toggleVideo}
+      />
     </div>
   );
 }

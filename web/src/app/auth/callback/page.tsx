@@ -46,36 +46,10 @@ function AuthCallbackContent() {
           return;
         }
 
-        // 2. Check for hash parameters from Google OAuth implicit redirect (#access_token=... or #id_token=...)
-        if (typeof window !== 'undefined' && window.location.hash) {
-          const hashParams = new URLSearchParams(window.location.hash.substring(1));
-          const googleAccessToken = hashParams.get('access_token');
-          if (googleAccessToken) {
-            try {
-              const userInfoRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${googleAccessToken}`);
-              const userInfo = await userInfoRes.json();
-              if (userInfo.email) {
-                const { data } = await api.post('/auth/google', {
-                  email: userInfo.email,
-                  displayName: userInfo.name || userInfo.email.split('@')[0],
-                  avatar: userInfo.picture || null,
-                  googleId: userInfo.sub,
-                });
-                login(data.data.user, data.data.accessToken, data.data.refreshToken);
-                setStatus('success');
-                setTimeout(() => router.push('/feed'), 1200);
-                return;
-              }
-            } catch (googleErr) {
-              console.warn('Google userinfo fetch failed:', googleErr);
-            }
-          }
-        }
-
-        // 3. Fallback to Supabase session
+        // 2. Check for Supabase Session first (handles Discord, Google, etc. via Supabase OAuth)
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (session) {
-          const provider = session.user?.app_metadata?.provider || 'google';
+        if (session && session.access_token) {
+          const provider = session.user?.app_metadata?.provider || 'discord';
           const { data } = await api.post('/auth/social-login', {
             token: session.access_token,
             provider,
@@ -85,6 +59,36 @@ function AuthCallbackContent() {
           setStatus('success');
           setTimeout(() => router.push('/feed'), 1200);
           return;
+        }
+
+        // 3. Fallback: Check for hash parameters specifically from Direct Google OAuth implicit redirect
+        if (typeof window !== 'undefined' && window.location.hash) {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const tokenType = hashParams.get('token_type');
+          // Only attempt Google userinfo fetch if explicitly Bearer or no Supabase metadata present
+          if (accessToken && (!tokenType || tokenType.toLowerCase() === 'bearer')) {
+            try {
+              const userInfoRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
+              if (userInfoRes.ok) {
+                const userInfo = await userInfoRes.json();
+                if (userInfo.email) {
+                  const { data } = await api.post('/auth/google', {
+                    email: userInfo.email,
+                    displayName: userInfo.name || userInfo.email.split('@')[0],
+                    avatar: userInfo.picture || null,
+                    googleId: userInfo.sub,
+                  });
+                  login(data.data.user, data.data.accessToken, data.data.refreshToken);
+                  setStatus('success');
+                  setTimeout(() => router.push('/feed'), 1200);
+                  return;
+                }
+              }
+            } catch (googleErr) {
+              console.warn('Google userinfo fetch skipped/failed:', googleErr);
+            }
+          }
         }
 
         setStatus('error');

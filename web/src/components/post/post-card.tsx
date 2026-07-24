@@ -359,6 +359,15 @@ export function PostCard({ post, onDelete }: PostCardProps) {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {post.media && post.media.length > 0 && (
+            <ImagePreview
+              images={post.media}
+              initialIndex={selectedImageIndex}
+              isOpen={previewOpen}
+              onClose={() => setPreviewOpen(false)}
+            />
+          )}
         </CardContent>
       </Card>
     </motion.div>
