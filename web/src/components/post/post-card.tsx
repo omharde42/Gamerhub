@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, Trash2, ChevronDown, Sparkles } from 'lucide-react';
-import { formatRelativeTime, formatNumber, getInitials, getMediaUrl } from '@/lib/utils';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, Trash2, ChevronDown, Sparkles, BarChart3, CheckCircle2 } from 'lucide-react';
+import { formatRelativeTime, formatNumber, getInitials, getMediaUrl, cn } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -59,49 +59,79 @@ function LikeButton({ post }: { post: any }) {
 }
 
 function PollDisplay({ poll }: { poll: any }) {
-  const [voted, setVoted] = useState(false);
+  const { user } = useAuthStore();
   const queryClient = useQueryClient();
-  const totalVotes = poll.options?.reduce((sum: number, o: any) => sum + o.votes, 0) || 0;
+
+  const userVotedOptionId = poll.options?.find((o: any) =>
+    o.voters?.some((v: any) => v.userId === user?.id)
+  )?.id;
+
+  const totalVotes = poll.options?.reduce((sum: number, o: any) => sum + (o.votes || o.voters?.length || 0), 0) || 0;
+  const hasVoted = Boolean(userVotedOptionId);
 
   const voteMutation = useMutation({
-    mutationFn: (optionId: string) => api.post(`/polls/${poll.id}/vote`, { optionId }),
-    onSuccess: () => { setVoted(true); queryClient.invalidateQueries({ queryKey: ['feed'] }); },
+    mutationFn: (optionId: string) => api.post('/posts/poll/vote', { optionId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to submit vote');
+    }
   });
 
   return (
-    <div className="space-y-2 bg-muted/30 rounded-xl p-3 border border-border/50">
-      <p className="text-sm font-medium">{poll.question}</p>
-      {poll.options?.map((option: any) => {
-        const pct = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
-        return (
-          <button
-            key={option.id}
-            disabled={voted}
-            onClick={() => voteMutation.mutate(option.id)}
-            className="relative w-full text-left p-2.5 rounded-lg border border-border bg-background hover:border-primary/50 transition-all disabled:cursor-not-allowed group overflow-hidden"
-          >
-            <motion.div
-              className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/20 to-gaming-cyan/10"
-              initial={{ width: '0%' }}
-              animate={{ width: voted ? `${pct}%` : '0%' }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
-            />
-            <div className="relative flex items-center justify-between z-10">
-              <span className="text-sm">{option.text}</span>
-              {voted && (
-                <motion.span
-                  className="text-xs text-muted-foreground font-medium"
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                >
-                  {pct}%
-                </motion.span>
+    <div className="space-y-2 bg-muted/30 rounded-xl p-3 border border-border/50 my-2">
+      <div className="flex items-center gap-2 mb-1">
+        <BarChart3 className="h-4 w-4 text-primary" />
+        <p className="text-sm font-semibold">{poll.question}</p>
+      </div>
+      <div className="space-y-2">
+        {poll.options?.map((option: any) => {
+          const optionVotes = option.votes || option.voters?.length || 0;
+          const pct = totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0;
+          const isSelected = option.id === userVotedOptionId;
+
+          return (
+            <button
+              key={option.id}
+              disabled={voteMutation.isPending}
+              onClick={() => voteMutation.mutate(option.id)}
+              className={cn(
+                "relative w-full text-left p-3 rounded-lg border transition-all overflow-hidden group select-none cursor-pointer",
+                isSelected
+                  ? "border-primary bg-primary/10 font-medium"
+                  : "border-border/60 bg-background hover:border-primary/50"
               )}
-            </div>
-          </button>
-        );
-      })}
-      <p className="text-xs text-muted-foreground">{totalVotes} votes</p>
+            >
+              {(hasVoted || totalVotes > 0) && (
+                <motion.div
+                  className={cn(
+                    "absolute left-0 top-0 bottom-0 opacity-20",
+                    isSelected ? "bg-primary" : "bg-muted-foreground/30"
+                  )}
+                  initial={{ width: '0%' }}
+                  animate={{ width: `${pct}%` }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                />
+              )}
+              <div className="relative flex items-center justify-between z-10 text-xs sm:text-sm">
+                <span className="flex items-center gap-2">
+                  {isSelected && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                  <span>{option.text}</span>
+                </span>
+                {(hasVoted || totalVotes > 0) && (
+                  <span className="text-xs text-muted-foreground font-mono font-medium ml-2 shrink-0">
+                    {pct}% ({optionVotes})
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-muted-foreground font-medium pt-1">
+        {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}
+      </p>
     </div>
   );
 }
@@ -231,6 +261,8 @@ export function PostCard({ post, onDelete }: PostCardProps) {
               )}
             </motion.div>
           )}
+
+          {post.poll && <PollDisplay poll={post.poll} />}
 
           <ImagePreview 
             images={post.media || []} 

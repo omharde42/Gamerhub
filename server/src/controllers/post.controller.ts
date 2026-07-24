@@ -105,6 +105,13 @@ export class PostController {
     sendSuccess(res, comment, undefined, 201);
   });
 
+  votePoll = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { optionId } = req.body;
+    if (!optionId) return sendError(res, 400, 'Option ID is required');
+    const poll = await postService.votePoll(optionId, req.user!.userId);
+    sendSuccess(res, poll, 'Vote updated');
+  });
+
   getTrending = asyncHandler(async (_req: AuthRequest, res: Response) => {
     const trending = await postService.getTrending();
     sendSuccess(res, trending);

@@ -8,6 +8,7 @@ router.get('/', authenticate, postController.list);
 router.get('/:id', authenticate, postController.getById);
 router.post('/', authenticate, postController.create);
 router.post('/upload', authenticate, uploadMedia, postController.uploadMedia);
+router.post('/poll/vote', authenticate, postController.votePoll);
 router.delete('/:id', authenticate, postController.delete);
 router.post('/:id/like', authenticate, postController.like);
 router.get('/:id/comments', authenticate, postController.getComments);
