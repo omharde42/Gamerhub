@@ -45,6 +45,7 @@ import friendRoutes from './routes/friend.routes';
 import presenceRoutes from './routes/presence.routes';
 import newsRoutes from './routes/news.routes';
 import gameRequestRoutes from './routes/game-request.routes';
+import appRoutes from './routes/app.routes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -162,6 +163,7 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
 app.use(generalLimiter);
 
 // Health check
@@ -170,6 +172,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Routes
+app.use('/api/app', appRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/posts', postRoutes);

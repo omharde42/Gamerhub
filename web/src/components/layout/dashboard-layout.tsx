@@ -7,6 +7,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
+import { UpdateChecker } from '../common/update-checker';
+
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -79,6 +81,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </div>
       <MobileNav />
+      <UpdateChecker />
     </div>
   );
 }
