@@ -99,7 +99,17 @@ export class AuthController {
 
   googleRedirect = asyncHandler(async (req: Request, res: Response) => {
     const clientId = process.env.GOOGLE_CLIENT_ID || '1028691049535-cou454qqcspf45t2h0b2lllkqdsus1bi.apps.googleusercontent.com';
-    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    const originHeader = req.get('origin') || req.get('referer');
+    let clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    if (originHeader) {
+      try {
+        const parsed = new URL(originHeader);
+        clientUrl = parsed.origin;
+      } catch {}
+    }
+
     const redirectUri = `${clientUrl}/auth/callback`;
 
     const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
