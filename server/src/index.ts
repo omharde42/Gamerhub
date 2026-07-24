@@ -186,8 +186,12 @@ app.use('/api/passport', passportRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/presence', presenceRoutes);
+import cryptoRoutes from './routes/crypto.routes';
+
+// ... (existing code continues)
 app.use('/api/news', newsRoutes);
 app.use('/api/game-requests', gameRequestRoutes);
+app.use('/api/crypto', cryptoRoutes);
 
 // Error handling
 app.use(notFoundHandler);

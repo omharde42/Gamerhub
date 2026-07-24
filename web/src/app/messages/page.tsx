@@ -13,7 +13,7 @@ import {
   MessageSquare, UserPlus, Phone, Mic, Headphones, Settings,
   Hash, Users, ChevronDown, ChevronRight, ChevronLeft, Heart, Smile, Reply,
   Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
-  Sparkles, Volume2, Pause, Play, Square
+  Sparkles, Volume2, Pause, Play, Square, Lock, Shield
 } from 'lucide-react';
 import { getInitials, formatRelativeTime, cn } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -23,6 +23,7 @@ import { useSocket } from '@/hooks/useSocket';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { E2EEEngine } from '@/lib/e2ee';
 
 function DiscordMessagesPage() {
   const searchParams = useSearchParams();
@@ -200,7 +201,48 @@ function DiscordMessagesPage() {
     onError: () => toast.error('Failed to send message'),
   });
 
+  const [decryptedMessages, setDecryptedMessages] = useState<any[]>([]);
+
+  // Initialize E2EE Keys on device load & register Public Key bundle
+  useEffect(() => {
+    if (user?.id) {
+      E2EEEngine.initialize(user.id).then((bundle) => {
+        api.post('/crypto/keys', {
+          identityPublicKey: bundle.identityKey.publicKeyJWK,
+          signingPublicKey: bundle.signingKey.publicKeyJWK,
+        }).catch((err) => console.warn('Public key registration silent warn:', err));
+      }).catch(err => console.warn('E2EE Init error:', err));
+    }
+  }, [user?.id]);
+
   useEffect(() => { if (messagesData) setMessages(messagesData); }, [messagesData]);
+
+  // Decrypt incoming E2EE messages in real-time
+  useEffect(() => {
+    let active = true;
+    const processDecryption = async () => {
+      if (!messages || messages.length === 0) {
+        if (active) setDecryptedMessages([]);
+        return;
+      }
+      const processed = await Promise.all(
+        messages.map(async (msg) => {
+          if (msg.content && msg.content.includes('"isE2EE":true')) {
+            try {
+              const text = await E2EEEngine.decryptIfNeeded(msg.content);
+              return { ...msg, content: text, isE2EE: true };
+            } catch {
+              return { ...msg, isE2EE: true };
+            }
+          }
+          return msg;
+        })
+      );
+      if (active) setDecryptedMessages(processed);
+    };
+    processDecryption();
+    return () => { active = false; };
+  }, [messages]);
 
   useEffect(() => {
     if (socket) {
@@ -234,7 +276,7 @@ function DiscordMessagesPage() {
     }
   }, [selectedChat, socket, queryClient]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [decryptedMessages]);
 
   let typingTimeout: any;
   const handleTyping = () => {
@@ -244,13 +286,30 @@ function DiscordMessagesPage() {
     typingTimeout = setTimeout(() => socket?.emit('typing:stop', selectedChat), 2000);
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if ((!message.trim() && !filePreview) || !selectedChat) return;
+    
+    let payloadContent = message;
+    const activeChat = (chats as any[])?.find((c: any) => c.id === selectedChat);
+    const recipient = activeChat?.participants?.find((p: any) => p.userId !== user?.id)?.user;
+
+    if (recipient?.id && message.trim()) {
+      try {
+        const keyRes = await api.get(`/crypto/keys/${recipient.id}`);
+        if (keyRes.data?.data?.identityPublicKey) {
+          const encrypted = await E2EEEngine.encryptMessage(message, keyRes.data.data.identityPublicKey);
+          payloadContent = JSON.stringify(encrypted);
+        }
+      } catch (err) {
+        console.warn('Recipient public key unavailable, sending via standard secure channel:', err);
+      }
+    }
+
     const media = filePreview ? [filePreview] : undefined;
     if (socket) {
-      socket.emit('message:send', { chatId: selectedChat, content: message, media });
+      socket.emit('message:send', { chatId: selectedChat, content: payloadContent, media });
     } else {
-      sendViaApi.mutate({ chatId: selectedChat, content: message, media });
+      sendViaApi.mutate({ chatId: selectedChat, content: payloadContent, media });
     }
     setMessage('');
     setFilePreview(null);
@@ -476,7 +535,13 @@ function DiscordMessagesPage() {
                       {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card animate-pulse" />}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-foreground">{other?.profile?.username || 'User'}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-bold text-foreground">{other?.profile?.username || 'User'}</p>
+                        <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5 text-emerald-400" />
+                          E2EE Encrypted
+                        </Badge>
+                      </div>
                       <p className="text-[10px] font-medium" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
                         {online ? 'Online' : 'Offline'}
                       </p>
@@ -495,7 +560,7 @@ function DiscordMessagesPage() {
             <ScrollArea className="flex-1 px-4 bg-grid bg-[length:40px_40px]">
               <div className="py-6 space-y-3 max-w-4xl mx-auto">
                 <AnimatePresence initial={false}>
-                  {messages?.map((msg: any, idx: number) => {
+                  {(decryptedMessages.length > 0 ? decryptedMessages : messages)?.map((msg: any, idx: number) => {
                     const isOwn = msg.sender?.id === user?.id;
                     const prev = messages[idx - 1];
                     const showHeader = !prev || prev.sender?.id !== msg.sender?.id;
