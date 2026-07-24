@@ -19,7 +19,7 @@ export class AuthService {
     const payload = { userId: user.id, email: user.email, role: user.role };
     const accessToken = generateToken(payload);
     const refreshToken = generateRefreshToken(payload);
-    await prisma.session.create({ data: { refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
+    await prisma.session.create({ data: { refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) } });
     return { user: sanitizeUser(user), accessToken, refreshToken };
   }
 
@@ -36,7 +36,7 @@ export class AuthService {
     const payload = { userId: user.id, email: user.email, role: user.role };
     const accessToken = generateToken(payload);
     const refreshToken = generateRefreshToken(payload);
-    await prisma.session.create({ data: { refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
+    await prisma.session.create({ data: { refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) } });
     return { user: sanitizeUser(user), accessToken, refreshToken, requiresTwoFactor: user.isTwoFactorEnabled };
   }
 
@@ -46,7 +46,7 @@ export class AuthService {
     const payload = { userId: session.user.id, email: session.user.email, role: session.user.role };
     const accessToken = generateToken(payload);
     const newRefreshToken = generateRefreshToken(payload);
-    await prisma.session.update({ where: { id: session.id }, data: { refreshToken: newRefreshToken, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
+    await prisma.session.update({ where: { id: session.id }, data: { refreshToken: newRefreshToken, expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) } });
     return { accessToken, refreshToken: newRefreshToken };
   }
 
@@ -250,7 +250,7 @@ export class AuthService {
       data: {
         refreshToken,
         userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
       },
     });
 
@@ -354,7 +354,7 @@ export class AuthService {
       data: {
         refreshToken,
         userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
       },
     });
 
@@ -444,7 +444,7 @@ export class AuthService {
       data: {
         refreshToken,
         userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
       },
     });
 

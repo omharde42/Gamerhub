@@ -21,14 +21,19 @@ api.interceptors.response.use(
         const refreshToken = useAuthStore.getState().refreshToken;
         if (refreshToken) {
           const { data } = await axios.post(`${API_URL}/auth/refresh-token`, { refreshToken });
-          useAuthStore.getState().setTokens(data.data.accessToken, data.data.refreshToken);
-          originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`;
+          const newAccess = data.data.accessToken;
+          const newRefresh = data.data.refreshToken || refreshToken;
+          useAuthStore.getState().setTokens(newAccess, newRefresh);
+          originalRequest.headers.Authorization = `Bearer ${newAccess}`;
           return api(originalRequest);
         }
-      } catch {
-        const { useAuthStore } = await import('@/store/authStore');
-        useAuthStore.getState().logout();
-        if (typeof window !== 'undefined') window.location.href = '/';
+      } catch (refreshErr: any) {
+        const status = refreshErr.response?.status;
+        if (status === 401 || status === 403) {
+          const { useAuthStore } = await import('@/store/authStore');
+          useAuthStore.getState().logout();
+          if (typeof window !== 'undefined') window.location.href = '/auth/login';
+        }
       }
     }
     return Promise.reject(error);
