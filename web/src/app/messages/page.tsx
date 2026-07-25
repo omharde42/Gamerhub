@@ -25,8 +25,6 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { E2EEEngine } from '@/lib/e2ee';
-import { useWebRTC } from '@/hooks/useWebRTC';
-import { CallModal } from '@/components/chat/call-modal';
 
 function DiscordMessagesPage() {
   const searchParams = useSearchParams();
@@ -46,18 +44,6 @@ function DiscordMessagesPage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [shareOpen, setShareOpen] = useState<string | null>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
-
-  const {
-    callState,
-    localStream,
-    remoteStream,
-    startCall,
-    answerCall,
-    rejectCall,
-    endCall,
-    toggleAudio,
-    toggleVideo,
-  } = useWebRTC();
 
   // Voice recording state variables
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -929,7 +915,7 @@ function DiscordMessagesPage() {
             <div className="space-y-0.5">
               {(() => {
                 const chat = chats?.find((c: any) => c.id === selectedChat);
-                return chat?.participants?.map((p: any) => {
+                return (chat?.participants || []).map((p: any) => {
                   const prof = p.user?.profile;
                   const online = isOnline(p.user?.id);
                   return prof ? (
