@@ -243,19 +243,25 @@ export function PostCard({ post, onDelete }: PostCardProps) {
               ) : (
                 <div className={`grid gap-1 ${post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   {post.media.map((imgUrl: string, imgIdx: number) => (
-                    <img 
-                      key={imgIdx}
-                      src={getMediaUrl(imgUrl)} 
-                      alt="Post media" 
-                      className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.01] transition-transform duration-300" 
-                      onClick={() => {
-                        setSelectedImageIndex(imgIdx);
-                        setPreviewOpen(true);
-                      }}
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
+                    <div key={imgIdx} className="relative overflow-hidden bg-black/20 rounded-lg max-h-96">
+                      <img 
+                        src={getMediaUrl(imgUrl)} 
+                        alt="Post media" 
+                        className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.01] transition-transform duration-300" 
+                        onClick={() => {
+                          setSelectedImageIndex(imgIdx);
+                          setPreviewOpen(true);
+                        }}
+                        onError={(e) => {
+                          const target = e.target as HTMLElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = '<div class="flex items-center justify-center p-8 bg-muted/60 text-muted-foreground text-xs font-medium border border-border/40 rounded-lg">🖼️ Image unavailable</div>';
+                          }
+                        }}
+                      />
+                    </div>
                   ))}
                 </div>
               )}
@@ -265,7 +271,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
           {post.poll && <PollDisplay poll={post.poll} />}
 
           <ImagePreview 
-            images={post.media || []} 
+            images={(post.media || []).filter((url: string) => !url.match(/\.(mp4|webm|ogg|mov)$/i) && !url.includes('/video/upload/'))} 
             initialIndex={selectedImageIndex} 
             isOpen={previewOpen} 
             onClose={() => setPreviewOpen(false)} 

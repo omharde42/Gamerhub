@@ -133,6 +133,66 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- WebRTC Call Signaling Handlers ---
+  socket.on('call:request', (data: { toUserId: string; chatId: string; type: 'audio' | 'video'; callerInfo: any }) => {
+    io.to(`user:${data.toUserId}`).emit('call:incoming', {
+      fromUserId: userId,
+      chatId: data.chatId,
+      type: data.type,
+      callerInfo: data.callerInfo,
+    });
+  });
+
+  socket.on('call:accept', (data: { toUserId: string; chatId: string; type: 'audio' | 'video' }) => {
+    io.to(`user:${data.toUserId}`).emit('call:accepted', {
+      fromUserId: userId,
+      chatId: data.chatId,
+      type: data.type,
+    });
+  });
+
+  socket.on('call:reject', (data: { toUserId: string; chatId: string; reason?: string }) => {
+    io.to(`user:${data.toUserId}`).emit('call:rejected', {
+      fromUserId: userId,
+      chatId: data.chatId,
+      reason: data.reason || 'Call rejected',
+    });
+  });
+
+  socket.on('call:offer', (data: { toUserId: string; sdp: any }) => {
+    io.to(`user:${data.toUserId}`).emit('call:offer', {
+      fromUserId: userId,
+      sdp: data.sdp,
+    });
+  });
+
+  socket.on('call:answer', (data: { toUserId: string; sdp: any }) => {
+    io.to(`user:${data.toUserId}`).emit('call:answer', {
+      fromUserId: userId,
+      sdp: data.sdp,
+    });
+  });
+
+  socket.on('call:ice-candidate', (data: { toUserId: string; candidate: any }) => {
+    io.to(`user:${data.toUserId}`).emit('call:ice-candidate', {
+      fromUserId: userId,
+      candidate: data.candidate,
+    });
+  });
+
+  socket.on('call:end', (data: { toUserId: string; chatId?: string }) => {
+    if (data.toUserId) {
+      io.to(`user:${data.toUserId}`).emit('call:ended', { fromUserId: userId, chatId: data.chatId });
+    }
+  });
+
+  socket.on('call:ice-restart', (data: { toUserId: string; sdp: any }) => {
+    io.to(`user:${data.toUserId}`).emit('call:ice-restart', {
+      fromUserId: userId,
+      sdp: data.sdp,
+    });
+  });
+
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${userId}`);
     onlineUsers.delete(userId);

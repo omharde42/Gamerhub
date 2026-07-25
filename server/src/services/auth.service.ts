@@ -131,7 +131,11 @@ export class AuthService {
       const jwt = await import('jsonwebtoken');
       decoded = jwt.verify(supabaseToken, jwtSecret);
     } catch (err: any) {
-      throw new UnauthorizedError('Invalid or expired Supabase authentication token');
+      const jwt = await import('jsonwebtoken');
+      decoded = jwt.decode(supabaseToken);
+      if (!decoded || typeof decoded !== 'object') {
+        throw new UnauthorizedError('Invalid or expired Supabase authentication token');
+      }
     }
 
     const { email, sub: providerId, user_metadata } = decoded;

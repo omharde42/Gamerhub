@@ -12,9 +12,10 @@ export function getMediaUrl(url: string | null | undefined): string {
   if (!url) return '';
   if (url.startsWith('data:') || url.startsWith('blob:')) return url;
   
-  if (url.startsWith('/uploads')) {
-    const baseUrl = API_URL.replace(/\/api$/, '');
-    return `${baseUrl}${url}`;
+  if (url.startsWith('/uploads') || url.startsWith('uploads/')) {
+    const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+    const baseUrl = API_URL.replace(/\/api\/?$/, '');
+    return `${baseUrl}${cleanUrl}`;
   }
 
   if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {

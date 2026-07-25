@@ -10,11 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Search, Send, Paperclip, Image as ImageIcon, MoreVertical, Plus, Loader2,
-  MessageSquare, UserPlus, Phone, Mic, Headphones, Settings,
+  MessageSquare, UserPlus, Phone, Video, Mic, Headphones, Settings,
   Hash, Users, ChevronDown, ChevronRight, ChevronLeft, Heart, Smile, Reply,
   Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
   Sparkles, Volume2, Pause, Play, Square, Lock, Shield
 } from 'lucide-react';
+import { CallModal } from '@/components/chat/call-modal';
 import { getInitials, formatRelativeTime, cn } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -243,6 +244,93 @@ function DiscordMessagesPage() {
     processDecryption();
     return () => { active = false; };
   }, [messages]);
+
+  const [callState, setCallState] = useState<{
+    active: boolean;
+    mode: 'incoming' | 'outgoing' | 'connected';
+    type: 'audio' | 'video';
+    toUser?: any;
+    fromUser?: any;
+    chatId?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (socket) {
+      const handleIncoming = (data: any) => {
+        setCallState({
+          active: true,
+          mode: 'incoming',
+          type: data.type,
+          fromUser: data.callerInfo,
+          chatId: data.chatId,
+        });
+        toast(`Incoming ${data.type} call from ${data.callerInfo?.displayName || data.callerInfo?.username || 'User'}`, {
+          icon: '📞',
+          duration: 10000,
+        });
+      };
+
+      const handleAccepted = () => {
+        setCallState((prev) => (prev ? { ...prev, mode: 'connected' } : null));
+        toast.success('Call connected!');
+      };
+
+      const handleRejected = (data: any) => {
+        setCallState(null);
+        toast.error(data.reason || 'Call was rejected');
+      };
+
+      const handleEnded = () => {
+        setCallState(null);
+        toast('Call ended', { icon: '📞' });
+      };
+
+      socket.on('call:incoming', handleIncoming);
+      socket.on('call:accepted', handleAccepted);
+      socket.on('call:rejected', handleRejected);
+      socket.on('call:ended', handleEnded);
+
+      return () => {
+        socket.off('call:incoming', handleIncoming);
+        socket.off('call:accepted', handleAccepted);
+        socket.off('call:rejected', handleRejected);
+        socket.off('call:ended', handleEnded);
+      };
+    }
+  }, [socket]);
+
+  const initiateCall = (type: 'audio' | 'video') => {
+    if (!selectedChat) {
+      toast.error('Select a conversation to start a call');
+      return;
+    }
+    const currentChat = chats?.find((c: any) => c.id === selectedChat);
+    const otherUser = currentChat ? getOtherParticipant(currentChat) : null;
+    if (!otherUser) {
+      toast.error('Participant unavailable for call');
+      return;
+    }
+
+    socket?.emit('call:request', {
+      toUserId: otherUser.id,
+      chatId: selectedChat,
+      type,
+      callerInfo: {
+        id: user?.id,
+        username: user?.profile?.username,
+        displayName: user?.profile?.displayName,
+        avatar: user?.profile?.avatar,
+      },
+    });
+
+    setCallState({
+      active: true,
+      mode: 'outgoing',
+      type,
+      toUser: otherUser,
+      chatId: selectedChat,
+    });
+  };
 
   useEffect(() => {
     if (socket) {
@@ -548,7 +636,8 @@ function DiscordMessagesPage() {
                     </div>
                     <div className="flex-1" />
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl"><Phone className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => initiateCall('audio')} title="Start Voice Call"><Phone className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => initiateCall('video')} title="Start Video Call"><Video className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => copyLink(selectedChat)} title="Copy chat link"><LinkIcon className="h-4 w-4" /></Button>
                     </div>
                   </div>
@@ -848,6 +937,15 @@ function DiscordMessagesPage() {
           </ScrollArea>
         </div>
       )}
+
+      {/* WebRTC Voice & Video Call Modal */}
+      <CallModal
+        socket={socket}
+        user={user}
+        callState={callState}
+        onEndCall={() => setCallState(null)}
+        onAcceptCall={() => setCallState((prev) => (prev ? { ...prev, mode: 'connected' } : null))}
+      />
     </div>
   );
 }

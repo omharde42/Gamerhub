@@ -152,7 +152,7 @@ export class AuthController {
       return res.redirect(`${clientUrl}/auth/callback?error=${encodeURIComponent('Steam authentication was cancelled or failed')}`);
     }
 
-    const matches = claimedId.match(/\/id\/(\d+)/);
+    const matches = claimedId.match(/\/id\/(\d+)/) || claimedId.match(/(\d{17,19})/);
     const steamId = matches ? matches[1] : null;
 
     if (!steamId) {
