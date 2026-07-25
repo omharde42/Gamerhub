@@ -429,7 +429,10 @@ function DiscordMessagesPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-9.5rem)] md:h-[calc(100vh-7rem)] flex border border-border/40 rounded-none md:rounded-2xl overflow-hidden bg-card/45 backdrop-blur-md shadow-2xl w-full max-w-full md:max-w-7xl mx-auto relative group/container">
+    <div className={cn(
+      "flex border-0 md:border md:border-border/40 rounded-none md:rounded-2xl overflow-hidden bg-card/45 backdrop-blur-md shadow-2xl w-full max-w-full md:max-w-7xl mx-auto relative group/container",
+      selectedChat ? "fixed inset-0 z-40 bg-background md:relative md:inset-auto md:z-auto h-dvh md:h-[calc(100vh-7rem)]" : "h-[calc(100dvh-4.5rem)] md:h-[calc(100vh-7rem)]"
+    )}>
       {/* Server sidebar (Desktop only) */}
       <div className="w-16 bg-muted/40 border-r border-border/40 hidden md:flex flex-col items-center py-4 gap-3 shrink-0">
         <Link href="/dashboard">
@@ -759,7 +762,7 @@ function DiscordMessagesPage() {
             </ScrollArea>
 
             {/* Message input */}
-            <div className="p-4 border-t border-border/40 bg-muted/10">
+            <div className="shrink-0 p-3 md:p-4 border-t border-border/40 bg-card/80 backdrop-blur-md sticky bottom-0 z-30 shadow-lg">
               {filePreview && (
                 <motion.div
                   className="flex items-center gap-2 mb-3 p-2 bg-muted/50 rounded-xl border border-border/30"

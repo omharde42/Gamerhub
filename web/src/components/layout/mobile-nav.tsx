@@ -53,23 +53,17 @@ export function MobileNav() {
         </Link>
 
         {/* Item 3: Create Post (+) */}
-        <Dialog open={createPostOpen} onOpenChange={setCreatePostOpen}>
-          <DialogTrigger asChild>
-            <button
-              className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md hover:scale-105 active:scale-95 transition-all -translate-y-2 border-2 border-background"
-            >
-              <Plus className="h-6 w-6 font-bold" />
-            </button>
-          </DialogTrigger>
-          <DialogContent className="w-[95%] max-w-lg rounded-2xl p-0 overflow-hidden border border-border/60 bg-background">
-            <DialogHeader className="p-4 border-b border-border/50 bg-muted/10">
-              <DialogTitle className="text-base font-bold text-foreground">Create Post</DialogTitle>
-            </DialogHeader>
-            <div className="p-4 bg-background">
-              <CreatePost />
-            </div>
-          </DialogContent>
-        </Dialog>
+        <button
+          onClick={() => setCreatePostOpen(true)}
+          className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md hover:scale-105 active:scale-95 transition-all -translate-y-2 border-2 border-background"
+        >
+          <Plus className="h-6 w-6 font-bold" />
+        </button>
+
+        {/* Full-Screen Create Post Modal */}
+        {createPostOpen && (
+          <CreatePost isFullScreen onClose={() => setCreatePostOpen(false)} />
+        )}
 
         {/* Item 4: Notifications */}
         <Link
