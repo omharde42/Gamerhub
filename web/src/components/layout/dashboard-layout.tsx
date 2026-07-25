@@ -20,14 +20,20 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const hideSidebar = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages');
 
   useEffect(() => {
-    // Wait for store to rehydrate from preferences
     const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
       setHasHydrated(true);
     });
     if (useAuthStore.persist.hasHydrated()) {
       setHasHydrated(true);
     }
-    return () => unsubscribe();
+    const timer = setTimeout(() => {
+      setHasHydrated(true);
+    }, 300);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
