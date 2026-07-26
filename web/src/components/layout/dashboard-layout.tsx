@@ -2,18 +2,12 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Navbar } from './navbar';
 import { Sidebar } from './sidebar';
-<<<<<<< HEAD
 import { MobileBottomNav } from './mobile-bottom-nav';
-import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-=======
-import { MobileNav } from './mobile-nav';
 import { usePathname, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
-
 import { UpdateChecker } from '../common/update-checker';
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -24,11 +18,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const isLanding = pathname === '/';
   const isAuthOrLanding = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');
   const hideSidebar = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages');
-  const hideBottomNav = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');
+  const hideBottomNav = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages');
   const isServerPage = pathname?.startsWith('/servers/');
   const isMessages = pathname?.startsWith('/messages');
-  // Mobile bottom nav offset
-  const bottomNavHeight = 'pb-16';
 
   useEffect(() => {
     const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
@@ -77,44 +69,35 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [hasHydrated, user, isAuthenticated, isAuthOrLanding, pathname, router]);
 
-  // Render a loading state until rehydration is complete to prevent layout flashes
+  // Render a subtle loading state until rehydration is complete to prevent layout flashes
   if (!hasHydrated) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl overflow-hidden border border-primary/20 shadow-sm">
+            <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
+          </div>
+          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
+        </div>
       </div>
     );
   }
 
-  const isMessages = pathname === '/messages';
-
   return (
-<<<<<<< HEAD
     <div className="min-h-screen bg-background overflow-x-hidden">
-      <Navbar />
-      <div className={`w-full ${!isLanding ? 'pt-14' : ''} ${!hideBottomNav ? bottomNavHeight : ''}`}>
-        <div className="w-full mx-auto flex gap-4 px-3 sm:px-4 md:px-6 py-3 sm:py-4">
-          {!hideSidebar && !isServerPage && !isMessages && <Sidebar />}
-=======
-    <div className="min-h-screen bg-background">
       <div className={isMessages ? "hidden md:block" : "block"}>
         <Navbar />
       </div>
       <div className={`w-full ${!isLanding ? (isMessages ? 'pt-0 md:pt-16 pb-0' : 'pt-16 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0') : ''}`}>
         <div className={`w-full mx-auto flex gap-3 lg:gap-4 ${isMessages ? 'px-0 md:px-6 py-0 md:py-4' : 'px-3 md:px-6 py-3 md:py-4'}`}>
-          {!hideSidebar && <Sidebar />}
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
+          {!hideSidebar && !isServerPage && !isMessages && <Sidebar />}
           <main className="flex-1 min-w-0 max-w-full">
             {children}
           </main>
         </div>
       </div>
-<<<<<<< HEAD
       {!hideBottomNav && <MobileBottomNav />}
-=======
-      <MobileNav />
       <UpdateChecker />
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
     </div>
   );
 }

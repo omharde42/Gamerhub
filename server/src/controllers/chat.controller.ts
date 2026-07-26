@@ -42,6 +42,11 @@ export class ChatController {
     sendSuccess(res, result);
   });
 
+  getUnreadCounts = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const counts = await chatService.getUnreadCounts(req.user!.userId);
+    sendSuccess(res, counts);
+  });
+
   setTyping = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { isTyping } = req.body;
     await chatService.setTyping(req.params.id, req.user!.userId, isTyping);

@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
 import { useState } from 'react';
 
 const getNavItems = (username: string) => [
@@ -42,6 +44,13 @@ export function Sidebar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const { data: chatUnreadData } = useQuery({
+    queryKey: ['chat-unread'],
+    queryFn: () => api.get('/chat/unread-counts').then(r => r.data.data || {}),
+    refetchInterval: 15000,
+  });
+  const totalChatUnread = Object.values(chatUnreadData || {}).reduce((sum: number, c: any) => sum + (c as number), 0);
 
   if (pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/')) return null;
 
@@ -127,7 +136,14 @@ export function Sidebar() {
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent'
                 )}>
                 {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-full animate-scale-in" />}
-                <Icon className={cn('h-5 w-5 shrink-0 transition-all duration-200', isActive && 'text-primary')} />
+                <div className="relative">
+                  <Icon className={cn('h-5 w-5 shrink-0 transition-all duration-200', isActive && 'text-primary')} />
+                  {item.href === '/messages' && totalChatUnread > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center animate-scale-in shadow-sm shadow-destructive/30">
+                      {totalChatUnread > 9 ? '9+' : totalChatUnread}
+                    </span>
+                  )}
+                </div>
                 <span className="hidden lg:block">{item.label}</span>
               </Link>
             );

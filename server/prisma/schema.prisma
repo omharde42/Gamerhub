@@ -9,178 +9,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model accounts {
-  id                String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  provider          account_provider
-  provider_id       String
-  provider_username String?
-  access_token      String?
-  refresh_token     String?
-  expires_at        DateTime?        @db.Timestamptz(6)
-  user_id           String           @db.Uuid
-  users             users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([provider, provider_id])
-}
-
-model connected_games {
-  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  game_name           String
-  publisher           String?
-  player_id           String?
-  server              String?
-  region              String?
-  level               String?
-  rank                String?
-  highest_rank        String?
-  current_rank        String?
-  kd_ratio            Float?
-  win_rate            Float?
-  accuracy            Float?
-  headshot_pct        Float?
-  matches_played      Int       @default(0)
-  wins                Int       @default(0)
-  losses              Int       @default(0)
-  mvp_count           Int       @default(0)
-  favorite_weapon     String?
-  favorite_character  String?
-  preferred_role      String?
-  hours_played        Float     @default(0)
-  last_active         DateTime? @db.Timestamptz(6)
-  leaderboard_pos     Int?
-  verification_status String    @default("Manual")
-  data_source         String    @default("Manual")
-  profile_id          String    @db.Uuid
-  created_at          DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
-  profiles            profiles  @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model email_verification_tokens {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  token      String   @unique
-  expires_at DateTime @db.Timestamptz(6)
-  user_id    String   @db.Uuid
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model password_reset_tokens {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  token      String   @unique
-  expires_at DateTime @db.Timestamptz(6)
-  user_id    String   @db.Uuid
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model profiles {
-  id                    String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  username              String            @unique
-  display_name          String?
-  avatar                String?
-  banner                String?
-  bio                   String?
-  country               String?
-  city                  String?
-  languages             String[]          @default([])
-  experience_level      String?
-  play_style            String?
-  communication_style   String?
-  active_time           String?
-  age                   Int?
-  timezone              String?
-  availability          String?
-  preferred_gaming_time String?
-  toxicity_score        Float             @default(0)
-  win_rate              Float             @default(0)
-  kd                    Float             @default(0)
-  accuracy              Float             @default(0)
-  total_matches         Int               @default(0)
-  wins                  Int               @default(0)
-  losses                Int               @default(0)
-  rank                  String?
-  rank_score            Int               @default(0)
-  role                  String?
-  main_games            String[]          @default([])
-  gamer_score           Int               @default(0)
-  skill_score           Int               @default(0)
-  competitive_score     Int               @default(0)
-  communication_score   Int               @default(0)
-  leadership_score      Int               @default(0)
-  teamwork_score        Int               @default(0)
-  improvement_rate      Float             @default(0)
-  ai_summary            String?
-  verified              Boolean           @default(false)
-  twitch                String?
-  youtube               String?
-  discord               String?
-  steam                 String?
-  twitter               String?
-  instagram             String?
-  kick                  String?
-  facebook_gaming       String?
-  website               String?
-  user_id               String            @unique @db.Uuid
-  created_at            DateTime          @default(now()) @db.Timestamptz(6)
-  updated_at            DateTime          @default(now()) @db.Timestamptz(6)
-  connected_games       connected_games[]
-  users                 users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model sessions {
-  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  refresh_token String   @unique
-  user_agent    String?
-  ip            String?
-  expires_at    DateTime @db.Timestamptz(6)
-  user_id       String   @db.Uuid
-  users         users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model users {
-  id                        String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  email                     String                      @unique
-  email_verified            DateTime?                   @db.Timestamptz(6)
-  password                  String?
-  role                      user_role                   @default(USER)
-  is_two_factor_enabled     Boolean                     @default(false)
-  two_factor_secret         String?
-  banned                    Boolean                     @default(false)
-  ban_reason                String?
-  created_at                DateTime                    @default(now()) @db.Timestamptz(6)
-  updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
-  presence                  user_presence               @default(OFFLINE)
-  accounts                  accounts[]
-  email_verification_tokens email_verification_tokens[]
-  password_reset_tokens     password_reset_tokens[]
-  profiles                  profiles?
-  sessions                  sessions[]
-}
-
-enum account_provider {
-  GOOGLE
-  DISCORD
-  STEAM
-  APPLE
-  CREDENTIALS
-}
-
-enum user_presence {
-  ONLINE
-  IDLE
-  DND
-  INVISIBLE
-  OFFLINE
-}
-
-<<<<<<< HEAD
-enum user_role {
-  USER
-  MODERATOR
-  ADMIN
-  SUPER_ADMIN
-=======
 model User {
   id              String   @id @default(uuid())
   email           String   @unique
@@ -1067,7 +895,6 @@ model FriendRequest {
   @@unique([senderId, receiverId])
   @@index([senderId])
   @@index([receiverId])
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
 }
 
 model ServerEvent {
@@ -1083,6 +910,145 @@ model ServerEvent {
   creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserPresence {
+  ONLINE
+  IDLE
+  DND
+  INVISIBLE
+  OFFLINE
+}
+
+enum AccountProvider {
+  GOOGLE
+  DISCORD
+  STEAM
+  APPLE
+  CREDENTIALS
+}
+
+enum PostType {
+  POST
+  ARTICLE
+  VIDEO
+  NEWS
+  POLL
+}
+
+enum TeamStatus {
+  ACTIVE
+  INACTIVE
+  OPEN
+  DISBANDED
+}
+
+enum TeamRole {
+  LEADER
+  CO_LEADER
+  CAPTAIN
+  MEMBER
+}
+
+enum TournamentType {
+  SINGLE_ELIMINATION
+  DOUBLE_ELIMINATION
+  ROUND_ROBIN
+  SWISS
+  BATTLE_ROYALE
+}
+
+enum TournamentStatus {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum OrgMemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum JobType {
+  PLAYER
+  COACH
+  MANAGER
+  CASTER
+  ANALYST
+  CONTENT_CREATOR
+  OTHER
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+  FILLED
+  ON_HOLD
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  LIKE
+  COMMENT
+  FOLLOW
+  MESSAGE
+  TEAM_INVITE
+  TOURNAMENT
+  SYSTEM
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  CHEATING
+  TOXIC_BEHAVIOR
+  INAPPROPRIATE_CONTENT
+  OTHER
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+  PRO
+  ENTERPRISE
+}
+
+enum ChannelType {
+  TEXT
+  VOICE
+  ANNOUNCEMENT
+}
+
+enum ServerMemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
 }
 
 enum GameRequestStatus {

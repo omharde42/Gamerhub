@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useAuthStore } from '@/store/authStore';
 
 export const CURRENT_APP_VERSION = '1.0.0';
 
@@ -18,6 +19,31 @@ export function isNewerVersion(latest: string, current: string): boolean {
   return lPatch > cPatch;
 }
 
+const DISMISSED_KEY = 'gamerhub_dismissed_update';
+const DISMISS_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function getDismissedVersion(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem(DISMISSED_KEY);
+    if (!stored) return null;
+    const { version, timestamp } = JSON.parse(stored);
+    if (Date.now() - timestamp > DISMISS_EXPIRY_MS) {
+      localStorage.removeItem(DISMISSED_KEY);
+      return null;
+    }
+    return version;
+  } catch {
+    return null;
+  }
+}
+
+function setDismissedVersion(version: string) {
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify({ version, timestamp: Date.now() }));
+  } catch {}
+}
+
 export function UpdateChecker() {
   const [updateData, setUpdateData] = useState<{
     latestVersion: string;
@@ -28,8 +54,13 @@ export function UpdateChecker() {
   } | null>(null);
 
   const [isOpen, setIsOpen] = useState(false);
+  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
+    // Wait for auth state to be determined before checking for updates
+    // This prevents the update popup from flashing before auth hydration completes
+    if (isAuthenticated === undefined) return;
+    
     const checkVersion = async () => {
       try {
         const { data } = await api.get('/app/version');
@@ -38,8 +69,8 @@ export function UpdateChecker() {
         if (info && info.latestVersion && isNewerVersion(info.latestVersion, CURRENT_APP_VERSION)) {
           setUpdateData(info);
           
-          // Check if user dismissed optional update in this session
-          const dismissedVersion = sessionStorage.getItem('dismissed_update_version');
+          // Check if user dismissed this version within the last 24 hours
+          const dismissedVersion = getDismissedVersion();
           if (!info.isForceUpdate && dismissedVersion === info.latestVersion) {
             return;
           }
@@ -51,7 +82,7 @@ export function UpdateChecker() {
     };
 
     checkVersion();
-  }, []);
+  }, [isAuthenticated]);
 
   if (!isOpen || !updateData) return null;
 
@@ -63,7 +94,7 @@ export function UpdateChecker() {
 
   const handleDismiss = () => {
     if (updateData.latestVersion) {
-      sessionStorage.setItem('dismissed_update_version', updateData.latestVersion);
+      setDismissedVersion(updateData.latestVersion);
     }
     setIsOpen(false);
   };

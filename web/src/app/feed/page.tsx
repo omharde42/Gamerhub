@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/authStore';
 import { SOCKET_URL } from '@/lib/constants';
 import { getInitials } from '@/lib/utils';
 import { PostCard } from '@/components/post/post-card';
+import { PostCardSkeleton } from '@/components/post/post-card-skeleton';
 import { CreatePost } from '@/components/post/create-post';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
@@ -27,7 +28,8 @@ export default function FeedPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>('all');
   const socketRef = useRef<any>(null);
-  const observerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const observerInstanceRef = useRef<IntersectionObserver | null>(null);
 
   const {
     data,
@@ -72,21 +74,36 @@ export default function FeedPage() {
     return () => { socket.disconnect(); };
   }, [queryClient]);
 
+  // Stable intersection observer for infinite scroll - avoids re-creating on every render
   useEffect(() => {
-    const observer = new IntersectionObserver(
+    // Disconnect any previous instance
+    if (observerInstanceRef.current) {
+      observerInstanceRef.current.disconnect();
+    }
+
+    observerInstanceRef.current = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
       },
-      { threshold: 0.1 }
+      { 
+        rootMargin: '200px 0px',
+        threshold: 0,
+      }
     );
-    const target = observerRef.current;
-    if (target) observer.observe(target);
+
+    const sentinel = sentinelRef.current;
+    if (sentinel) {
+      observerInstanceRef.current.observe(sentinel);
+    }
+
     return () => {
-      if (target) observer.unobserve(target);
+      observerInstanceRef.current?.disconnect();
     };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+    // Only re-create observer when these critical values change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasNextPage, fetchNextPage]);
 
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden">
@@ -109,11 +126,7 @@ export default function FeedPage() {
             <CreatePost />
           </motion.div>
           {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} variant="glass"><CardContent className="p-4 space-y-3"><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-20" /></div></div><Skeleton className="h-20 w-full" /><Skeleton className="h-8 w-full" /></CardContent></Card>
-              ))}
-            </div>
+            <PostCardSkeleton count={3} withMedia />
           ) : (
             <>
               {posts.map((post: any, i: number) => (
@@ -122,8 +135,20 @@ export default function FeedPage() {
                 </motion.div>
               ))}
               
-              <div ref={observerRef} className="py-6 flex justify-center">
-                {isFetchingNextPage && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+              <div ref={sentinelRef} className="py-4">
+                {isFetchingNextPage ? (
+                  <PostCardSkeleton count={1} withMedia />
+                ) : posts.length > 0 && !hasNextPage ? (
+                  <div className="flex items-center justify-center gap-2 py-6 text-center">
+                    <div className="w-10 h-[1px] bg-border/60" />
+                    <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-widest">
+                      You're all caught up
+                    </span>
+                    <div className="w-10 h-[1px] bg-border/60" />
+                  </div>
+                ) : (
+                  <div className="h-4" /> /* Spacer for initial observer trigger */
+                )}
               </div>
             </>
           )}
@@ -143,24 +168,41 @@ export default function FeedPage() {
         </div>
 
         <div className="space-y-4 hidden lg:block">
+          {/* Trending Topics */}
           <Card variant="glass" className="border-border/60">
             <CardHeader className="pb-2">
               <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Zap className="h-4 w-4 text-indigo-500" /> Trending Topics</h3>
             </CardHeader>
             <CardContent className="space-y-1 pt-0">
-              {trending?.slice(0, 8).map((h: any, i: number) => (
-                <button key={i} onClick={() => setFilter(h.name)} className={`w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/60 transition-all text-left group ${filter === h.name ? 'bg-primary/5 text-primary border border-primary/20' : 'border border-transparent'}`}>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold w-5 text-center ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-zinc-400' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                      {i < 3 ? ['🥇', '🥈', '🥉'][i] : `#${i + 1}`}
-                    </span>
-                    <span className="text-sm font-medium group-hover:text-primary transition-colors">#{h.name}</span>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] bg-muted text-muted-foreground">{h.count}</Badge>
-                </button>
-              ))}
-              {filter !== 'all' && (
-                <Button variant="ghost" size="sm" className="w-full text-xs mt-2 text-muted-foreground h-9" onClick={() => setFilter('all')}>Clear filter</Button>
+              {isLoading ? (
+                <div className="space-y-2 pt-2">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <Skeleton className="h-4 w-4 rounded-full" />
+                        <Skeleton className="h-3 flex-1 max-w-[100px]" />
+                      </div>
+                      <Skeleton className="h-4 w-8 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {trending?.slice(0, 8).map((h: any, i: number) => (
+                    <button key={i} onClick={() => setFilter(h.name)} className={`w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/60 transition-all text-left group ${filter === h.name ? 'bg-primary/5 text-primary border border-primary/20' : 'border border-transparent'}`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold w-5 text-center ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-zinc-400' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                          {i < 3 ? ['🥇', '🥈', '🥉'][i] : `#${i + 1}`}
+                        </span>
+                        <span className="text-sm font-medium group-hover:text-primary transition-colors">#{h.name}</span>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] bg-muted text-muted-foreground">{h.count}</Badge>
+                    </button>
+                  ))}
+                  {filter !== 'all' && (
+                    <Button variant="ghost" size="sm" className="w-full text-xs mt-2 text-muted-foreground h-9" onClick={() => setFilter('all')}>Clear filter</Button>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -170,7 +212,20 @@ export default function FeedPage() {
               <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Newspaper className="h-4 w-4 text-primary" /> Gaming News</h3>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
-              {newsData?.length > 0 ? newsData.map((article: any, i: number) => (
+              {isLoading ? (
+                <div className="space-y-2 pt-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-start gap-2.5 p-2">
+                      <Skeleton className="w-12 h-12 rounded-lg shrink-0" />
+                      <div className="flex-1 space-y-2 min-w-0">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-[60%]" />
+                        <Skeleton className="h-2 w-20" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : newsData?.length > 0 ? newsData.map((article: any, i: number) => (
                 <a key={i} href={article.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/60 transition-all group">
                   {article.image && <img src={article.image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-border/40" />}
                   <div className="min-w-0">
@@ -212,20 +267,35 @@ export default function FeedPage() {
               <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Users className="h-4 w-4 text-primary" /> Suggested Players</h3>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
-              {SUGGESTED_PLAYERS.map((p, i) => (
-                <motion.div key={i} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/60 transition-all cursor-pointer group" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                  <Avatar className="h-9 w-9 border border-border/40">
-                    <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{getInitials(p.username)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{p.username}</p>
-                    <p className="text-xs text-muted-foreground truncate">{p.rank} &bull; {p.role}</p>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] gap-1 bg-muted text-muted-foreground select-none">
-                    <Gamepad2 className="h-3 w-3 shrink-0" /> {p.game}
-                  </Badge>
-                </motion.div>
-              ))}
+              {isLoading ? (
+                <div className="space-y-2 pt-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center gap-2.5 p-2">
+                      <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                      <div className="flex-1 space-y-2 min-w-0">
+                        <Skeleton className="h-3 w-24" />
+                        <Skeleton className="h-2 w-32" />
+                      </div>
+                      <Skeleton className="h-5 w-14 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                SUGGESTED_PLAYERS.map((p, i) => (
+                  <motion.div key={i} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/60 transition-all cursor-pointer group" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                    <Avatar className="h-9 w-9 border border-border/40">
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{getInitials(p.username)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{p.username}</p>
+                      <p className="text-xs text-muted-foreground truncate">{p.rank} &bull; {p.role}</p>
+                    </div>
+                    <Badge variant="secondary" className="text-[10px] gap-1 bg-muted text-muted-foreground select-none">
+                      <Gamepad2 className="h-3 w-3 shrink-0" /> {p.game}
+                    </Badge>
+                  </motion.div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

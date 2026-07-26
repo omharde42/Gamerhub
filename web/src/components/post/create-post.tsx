@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import { getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { useKeyboard, scrollInputIntoView } from '@/hooks/useKeyboard';
 
 interface CreatePostProps {
   isFullScreen?: boolean;
@@ -62,9 +63,29 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
     if (mediaUrl.trim()) { setMedia([...media, mediaUrl.trim()]); setMediaUrl(''); }
   };
 
+  const { keyboardHeight, isKeyboardOpen } = useKeyboard();
+  const contentBodyRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleTextareaFocus = useCallback(() => {
+    scrollInputIntoView(textareaRef.current);
+  }, []);
+
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [localThumbnails, setLocalThumbnails] = useState<Record<string, string>>({});
+  const [videoMeta, setVideoMeta] = useState<Record<string, { duration: number; width: number; height: number }>>({});
+  const blobUrlsRef = useRef<Set<string>>(new Set());
+
+  // Cleanup blob URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      blobUrlsRef.current.forEach(url => {
+        try { URL.revokeObjectURL(url); } catch {}
+      });
+      blobUrlsRef.current.clear();
+    };
+  }, []);
 
   const generateVideoThumbnail = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -92,40 +113,124 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
     });
   };
 
+  const getVideoMetadata = (file: File): Promise<{ duration: number; width: number; height: number }> => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+      const objectUrl = URL.createObjectURL(file);
+      video.src = objectUrl;
+      video.onloadedmetadata = () => {
+        resolve({
+          duration: video.duration,
+          width: video.videoWidth,
+          height: video.videoHeight,
+        });
+        URL.revokeObjectURL(objectUrl);
+      };
+      video.onerror = () => { resolve({ duration: 0, width: 0, height: 0 }); URL.revokeObjectURL(objectUrl); };
+    });
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setUploading(true);
-      setUploadProgress(0);
-      const toastId = toast.loading('Uploading media to network...');
-      try {
-        let localThumb = '';
-        if (file.type.startsWith('video/')) {
-          localThumb = await generateVideoThumbnail(file);
+      // Validate file size
+      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB (matches server)
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error('File too large. Maximum size is 50MB.');
+        if (e.target) e.target.value = '';
+        return;
+      }
+
+      // If video, validate metadata and show local preview
+      if (file.type.startsWith('video/')) {
+        const meta = await getVideoMetadata(file);
+        
+        if (meta.duration === 0) {
+          toast.error('Could not read video file. Try a different file.');
+          if (e.target) e.target.value = '';
+          return;
         }
 
-        const fd = new FormData();
-        fd.append('media', file);
-        const { data } = await api.post('/posts/upload', fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (progressEvent) => {
-            if (progressEvent.total) {
-              const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              setUploadProgress(percent);
-            }
-          }
-        });
-        const url = data.data.urls[0];
-        setMedia([...media, url]);
-        if (localThumb) {
-          setLocalThumbnails(prev => ({ ...prev, [url]: localThumb }));
-        }
-        toast.success('Media uploaded successfully!', { id: toastId });
-      } catch (err: any) {
-        toast.error(err.response?.data?.message || 'Failed to upload media', { id: toastId });
-      } finally {
-        setUploading(false);
+        // Create local blob URL for preview
+        const localUrl = URL.createObjectURL(file);
+        blobUrlsRef.current.add(localUrl);
+        setVideoMeta(prev => ({ ...prev, [localUrl]: meta }));
+        
+        // Generate thumbnail
+        const localThumb = await generateVideoThumbnail(file);
+        
+        setUploading(true);
         setUploadProgress(0);
+        const toastId = toast.loading('Uploading video to network...');
+        
+        try {
+          const fd = new FormData();
+          fd.append('media', file);
+          const { data } = await api.post('/posts/upload', fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: (progressEvent) => {
+              if (progressEvent.total) {
+                const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                setUploadProgress(percent);
+              }
+            }
+          });
+          const url = data.data.urls[0];
+          setMedia([...media, url]);
+          if (localThumb) {
+            setLocalThumbnails(prev => ({ ...prev, [url]: localThumb }));
+          }
+          toast.success('Video uploaded successfully!', { id: toastId });
+          
+          // Clean up local blob URL after successful upload
+          URL.revokeObjectURL(localUrl);
+          blobUrlsRef.current.delete(localUrl);
+          setVideoMeta(prev => {
+            const next = { ...prev };
+            delete next[localUrl];
+            return next;
+          });
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Failed to upload video', { id: toastId });
+        } finally {
+          setUploading(false);
+          setUploadProgress(0);
+        }
+      } else {
+        // Image upload (existing flow)
+        setUploading(true);
+        setUploadProgress(0);
+        const toastId = toast.loading('Uploading image to network...');
+        try {
+          const fd = new FormData();
+          fd.append('media', file);
+          const { data } = await api.post('/posts/upload', fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: (progressEvent) => {
+              if (progressEvent.total) {
+                const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                setUploadProgress(percent);
+              }
+            }
+          });
+          const url = data.data.urls[0];
+          setMedia([...media, url]);
+          toast.success('Image uploaded successfully!', { id: toastId });
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Failed to upload image', { id: toastId });
+        } finally {
+          setUploading(false);
+          setUploadProgress(0);
+        }
       }
     }
   };
@@ -162,9 +267,11 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
 
       {/* Large Text Area */}
       <Textarea
+        ref={textareaRef as any}
         placeholder="Share something with the gaming community..."
         value={content}
         onChange={(e) => setContent(e.target.value)}
+        onFocus={handleTextareaFocus}
         className={`w-full resize-none border-0 bg-muted/20 rounded-2xl p-4 text-base focus-visible:ring-1 focus-visible:ring-primary/20 ${
           isFullScreen ? 'min-h-[160px]' : 'min-h-[100px]'
         }`}
@@ -183,29 +290,41 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
 
       {/* Media Previews */}
       {media.length > 0 && (
-        <motion.div className="flex gap-2 flex-wrap" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div className="flex gap-3 flex-wrap" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           {media.map((url, i) => {
-            const isVideoFile = url.match(/\.(mp4|webm|ogg|mov)$/i) || url.includes('/video/upload/') || url.startsWith('data:video/') || url.startsWith('blob:');
+            const isVideoFile = url.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i) || url.includes('/video/upload/') || url.startsWith('data:video/') || url.startsWith('blob:');
             const thumb = localThumbnails[url] || (url.includes('/video/upload/') ? url.replace(/\/video\/upload\/(v\d+\/)?/, '/video/upload/c_limit,w_100,h_100/').replace(/\.[^/.]+$/, '.jpg') : null);
+            const meta = videoMeta[url];
             return (
               <div key={i} className="relative group">
                 {isVideoFile ? (
-                  <div className="h-24 w-24 rounded-xl overflow-hidden relative border border-border bg-black flex items-center justify-center shadow-sm">
+                  <div className="w-32 h-24 rounded-xl overflow-hidden relative border border-border bg-black flex items-center justify-center shadow-sm cursor-pointer group/vid">
                     {thumb ? (
-                      <img src={thumb} alt="" className="h-full w-full object-cover" />
+                      <img src={thumb} alt="Video preview" className="h-full w-full object-cover" />
                     ) : (
                       <video src={url} className="h-full w-full object-cover" />
                     )}
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <Video className="h-6 w-6 text-white/90" />
+                    {/* Play button overlay */}
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover/vid:bg-black/40 transition-all">
+                      <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover/vid:scale-110 transition-transform">
+                        <Video className="h-5 w-5 text-black ml-0.5" fill="currentColor" />
+                      </div>
                     </div>
+                    {/* Duration badge */}
+                    {meta?.duration && (
+                      <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] font-mono px-1.5 py-0.5 rounded-md">
+                        {formatDuration(meta.duration)}
+                      </span>
+                    )}
                   </div>
                 ) : (
-                  <img src={url} alt="" className="h-24 w-24 rounded-xl object-cover border border-border shadow-sm" />
+                  <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-border shadow-sm group/img">
+                    <img src={url} alt="" className="h-full w-full object-cover group-hover/img:scale-105 transition-transform duration-300" />
+                  </div>
                 )}
                 <button
                   onClick={() => setMedia(media.filter((_, j) => j !== i))}
-                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-white flex items-center justify-center shadow-md transition-all"
+                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive/90 text-white flex items-center justify-center shadow-md hover:bg-destructive transition-all hover:scale-110"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -288,12 +407,19 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div 
+          ref={contentBodyRef}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+          style={{ paddingBottom: isKeyboardOpen ? `${keyboardHeight + 16}px` : undefined }}
+        >
           {mainFormContent}
         </div>
 
-        {/* Fixed Action Toolbar at Bottom */}
-        <div className="shrink-0 border-t border-border/40 p-3 bg-card/60 backdrop-blur-md flex items-center justify-around gap-2">
+        {/* Fixed Action Toolbar at Bottom - adjusts for keyboard */}
+        <div 
+          className="shrink-0 border-t border-border/40 p-3 bg-card/60 backdrop-blur-md flex items-center justify-around gap-2 transition-all duration-200"
+          style={{ paddingBottom: isKeyboardOpen ? `${keyboardHeight}px` : undefined }}
+        >
           <input type="file" accept="image/*,video/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
           <Button
             variant="outline"

@@ -96,11 +96,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('presence:update', (presence: string) => {
+    const now = new Date();
     if (presence === 'INVISIBLE' || presence === 'OFFLINE') {
       onlineUsers.delete(userId);
     } else {
       onlineUsers.add(userId);
     }
+    // Update updatedAt as a last-seen timestamp whenever presence changes
+    prisma.user.update({ where: { id: userId }, data: { updatedAt: now } }).catch(() => {});
     io.emit('user:presence', { userId, presence });
   });
 
@@ -131,6 +134,23 @@ io.on('connection', (socket) => {
       io.to(`chat:${data.chatId}`).emit('message:new', message);
     } catch (error: any) {
       socket.emit('error', { message: error.message || 'Failed to send message' });
+    }
+  });
+
+  // Read receipts: when a user reads messages, notify the chat room
+  socket.on('messages:read', async (data: { chatId: string }) => {
+    try {
+      const result = await chatService.markAsRead(data.chatId, userId);
+      // Notify the other participants with the actual message IDs that were marked
+      if (result.messageIds.length > 0) {
+        io.to(`chat:${data.chatId}`).emit('messages:read', {
+          chatId: data.chatId,
+          readBy: userId,
+          messageIds: result.messageIds,
+        });
+      }
+    } catch (error: any) {
+      console.warn('Failed to mark messages as read:', error.message);
     }
   });
 
@@ -197,6 +217,8 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${userId}`);
     onlineUsers.delete(userId);
+    // Record last seen timestamp via updatedAt
+    prisma.user.update({ where: { id: userId }, data: { updatedAt: new Date() } }).catch(() => {});
     io.emit('user:offline', userId);
   });
 });

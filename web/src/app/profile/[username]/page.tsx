@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MapPin, Globe, Trophy, Target, TrendingUp, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Calendar, Award, Swords, X, Send, Plus, Hash, Search, Loader2, Heart, Reply, MoreVertical, Smile, Paperclip, Image as ImageIcon, UserCheck, UserPlus, Phone, Link as LinkIcon, Sparkles, Settings, Camera } from 'lucide-react';
+import { MapPin, Globe, Trophy, Target, TrendingUp, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Calendar, Award, Swords, X, Plus, Hash, Search, Loader2, Heart, Reply, MoreVertical, Smile, Paperclip, Image as ImageIcon, UserCheck, UserPlus, Phone, Link as LinkIcon, Sparkles, Settings, Camera } from 'lucide-react';
 import { formatDate, formatNumber, getInitials, getRankColor, formatRelativeTime } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useSocket } from '@/hooks/useSocket';
@@ -201,30 +201,15 @@ export default function ProfilePage() {
     setListModalOpen(true);
   };
 
-  // Full-screen chat
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatId, setChatId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [msgText, setMsgText] = useState('');
-  const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Navigate to unified messages page
+  const router = useRouter();
+  const openMessages = () => {
+    if (profile?.user?.id) {
+      router.push(`/messages?userId=${profile.user.id}`);
+    }
+  };
+
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
-
-  const { data: chatData } = useQuery({
-    queryKey: ['chat-with', profile?.user?.id],
-    queryFn: () => api.post('/chat/direct', { userId: profile.user.id }).then(r => r.data.data),
-    enabled: chatOpen && !!profile?.user?.id,
-  });
-  useEffect(() => { if (chatData?.id) setChatId(chatData.id); }, [chatData]);
-
-  const { data: messagesData } = useQuery({
-    queryKey: ['messages', chatId],
-    queryFn: () => api.get(`/chat/${chatId}/messages`).then(r => r.data.data),
-    enabled: !!chatId,
-  });
-  useEffect(() => { if (messagesData) setMessages(messagesData); }, [messagesData]);
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   useEffect(() => {
     if (socket) {
@@ -235,25 +220,6 @@ export default function ProfilePage() {
       return () => { socket.off('user:online', onOnline); socket.off('user:offline', onOffline); };
     }
   }, [socket]);
-
-  useEffect(() => {
-    if (socket && chatId) {
-      socket.emit('join:chat', chatId);
-      const onMessage = (msg: any) => setMessages(prev => [...prev, msg]);
-      socket.on('message:new', onMessage);
-      return () => { socket.emit('leave:chat', chatId); socket.off('message:new', onMessage); };
-    }
-  }, [chatId, socket]);
-
-  const sendMessage = () => {
-    if (!msgText.trim() || !chatId) return;
-    if (socket) {
-      socket.emit('message:send', { chatId, content: msgText });
-    } else {
-      api.post(`/chat/${chatId}/messages`, { content: msgText }).then(() => queryClient.invalidateQueries({ queryKey: ['messages', chatId] }));
-    }
-    setMsgText('');
-  };
 
   const isOnline = (userId: string) => onlineUsers.has(userId);
 
@@ -270,122 +236,7 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Full-screen chat overlay */}
-      <AnimatePresence>
-        {chatOpen && (
-          <motion.div
-            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-2xl flex flex-col"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="flex items-center justify-between px-4 h-14 border-b border-border/50 shrink-0 bg-muted/10">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9" status={profile?.user?.id && isOnline(profile.user.id) ? 'online' : undefined}>
-                  <AvatarImage src={profile?.avatar || ''} />
-                  <AvatarFallback className="text-xs">{getInitials(profile?.username || '')}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-semibold">{profile?.displayName || profile?.username}</p>
-                  <p className="text-[10px]" style={{ color: isOnline(profile?.user?.id) ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
-                    {profile?.user?.id && isOnline(profile.user.id) ? 'Online' : 'Offline'}
-                  </p>
-                </div>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => { setChatOpen(false); setChatId(null); setMessages([]); }}>
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-            <ScrollArea className="flex-1 px-4 bg-grid bg-[length:40px_40px]">
-              <div className="py-4 space-y-0.5 max-w-3xl mx-auto">
-                <AnimatePresence>
-                  {messages?.map((msg: any, idx: number) => {
-                    const isOwnMsg = msg.sender?.id === user?.id;
-                    const prev = messages[idx - 1];
-                    const showHeader = !prev || prev.sender?.id !== msg.sender?.id;
-                    const isHovered = hoveredMsgId === msg.id;
-                    return (
-                      <motion.div
-                        key={msg.id}
-                        className={`flex gap-3 ${showHeader ? 'mt-4' : 'mt-0.5'} ${isOwnMsg ? 'flex-row-reverse' : ''}`}
-                        onHoverStart={() => setHoveredMsgId(msg.id)}
-                        onHoverEnd={() => setHoveredMsgId(null)}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        layout
-                      >
-                        {showHeader && (
-                          <Avatar className="h-9 w-9 mt-0.5 shrink-0">
-                            <AvatarImage src={msg.sender?.profile?.avatar || ''} />
-                            <AvatarFallback className="text-[10px]">{getInitials(msg.sender?.profile?.username || 'U')}</AvatarFallback>
-                          </Avatar>
-                        )}
-                        {!showHeader && <div className="w-9 shrink-0" />}
-                        <div className={`flex flex-col min-w-0 max-w-[70%] ${isOwnMsg ? 'items-end' : ''}`}>
-                          {showHeader && (
-                            <div className={`flex items-center gap-2 mb-1 ${isOwnMsg ? 'flex-row-reverse' : ''}`}>
-                              <span className="text-sm font-semibold">{msg.sender?.profile?.username}</span>
-                              <span className="text-[10px] text-muted-foreground">{formatRelativeTime(msg.createdAt)}</span>
-                            </div>
-                          )}
-                          {msg.media?.length > 0 && msg.media.map((url: string, i: number) => (
-                            url.match(/\.(mp4|webm|ogg)$/i)
-                              ? <video key={i} src={url} controls className="max-w-60 max-h-40 rounded-xl border border-border/30" />
-                              : <img key={i} src={url} alt="" className="max-w-60 max-h-40 rounded-xl object-cover border border-border/30" />
-                          ))}
-                          {msg.content && (
-                            <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${isOwnMsg ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-muted/70 border border-border/30 rounded-tl-sm'}`}>
-                              {msg.content}
-                            </div>
-                          )}
-                          <AnimatePresence>
-                            {isHovered && (
-                              <motion.div className={`flex items-center gap-0.5 mt-1 ${isOwnMsg ? 'flex-row-reverse' : ''}`} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground transition-all"><Heart className="h-3 w-3" /></button>
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground transition-all"><MoreVertical className="h-3 w-3" /></button>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-                {chatId && typingUsers[chatId]?.length > 0 && (
-                  <motion.div className="flex items-center gap-2 text-xs text-muted-foreground py-1 ml-12" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <div className="flex gap-1">
-                      {[0, 150, 300].map((delay, i) => (
-                        <span key={i} className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full" style={{ animation: 'typing-dot 1.4s ease-in-out infinite', animationDelay: `${delay}ms` }} />
-                      ))}
-                    </div>
-                    Typing...
-                  </motion.div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
-            <div className="p-4 border-t border-border/50 bg-muted/10">
-              <div className="max-w-3xl mx-auto flex items-center gap-2 bg-muted/30 rounded-xl px-4 py-2 border border-border/30">
-                <Input
-                  placeholder={`Message @${profile?.username}`}
-                  value={msgText}
-                  onChange={(e) => {
-                    setMsgText(e.target.value);
-                    if (socket && chatId) socket.emit('typing:start', chatId);
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
-                  className="flex-1 h-10 border-0 bg-transparent text-sm focus-visible:ring-0 px-0"
-                  variant="ghost"
-                />
-                <Button variant="gradient" size="icon" className="h-9 w-9 rounded-xl" disabled={!msgText.trim()} onClick={sendMessage} animate>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* No duplicate chat overlay - use unified /messages page */}
 
       {/* Profile header */}
       <Card variant="glass" className="overflow-hidden border-border/60" hover={false}>
@@ -459,7 +310,7 @@ export default function ProfilePage() {
                     <Badge variant="neon" className="bg-success/5 border-success/30 text-success gap-1.5 px-3 h-11 text-xs font-semibold rounded-xl w-full sm:w-auto justify-center">
                       <UserCheck className="h-4 w-4 text-success" /> Connected
                     </Badge>
-                    <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto h-11" onClick={() => setChatOpen(true)}>
+                    <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto h-11" onClick={openMessages}>
                       <MessageCircle className="h-4 w-4" /> Message
                     </Button>
                   </>

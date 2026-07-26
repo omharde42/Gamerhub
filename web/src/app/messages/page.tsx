@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +15,10 @@ import {
   Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
   Sparkles, Volume2, Pause, Play, Square, Lock, Shield
 } from 'lucide-react';
+import { useKeyboard, scrollInputIntoView } from '@/hooks/useKeyboard';
 import { CallModal } from '@/components/chat/call-modal';
-import { getInitials, formatRelativeTime, cn } from '@/lib/utils';
+import { ImagePreview } from '@/components/ui/image-preview';
+import { getInitials, formatRelativeTime, formatLastSeen, cn, getMediaUrl } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -44,6 +46,24 @@ function DiscordMessagesPage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [shareOpen, setShareOpen] = useState<string | null>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { keyboardHeight, isKeyboardOpen } = useKeyboard();
+
+  // Media lightbox state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
+  const openLightbox = (images: string[], index: number) => {
+    setPreviewImages(images);
+    setPreviewIndex(index);
+    setPreviewOpen(true);
+  };
+
+  // Scroll the message input into view when it receives focus on mobile
+  const handleInputFocus = useCallback(() => {
+    scrollInputIntoView(inputRef.current);
+  }, []);
 
   // Voice recording state variables
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -162,6 +182,12 @@ function DiscordMessagesPage() {
   const { data: chats, isLoading: chatsLoading } = useQuery({
     queryKey: ['chats'],
     queryFn: () => api.get('/chat').then(r => r.data.data),
+    refetchInterval: 10000,
+  });
+
+  const { data: unreadCounts } = useQuery({
+    queryKey: ['chat-unread'],
+    queryFn: () => api.get('/chat/unread-counts').then(r => r.data.data || {}),
     refetchInterval: 10000,
   });
 
@@ -352,17 +378,38 @@ function DiscordMessagesPage() {
   useEffect(() => {
     if (socket && selectedChat) {
       socket.emit('join:chat', selectedChat);
+      
       const onMessage = (msg: any) => {
         setMessages(prev => [...prev, msg]);
         queryClient.invalidateQueries({ queryKey: ['chats'] });
       };
+      
+      const onMessagesRead = (data: { chatId: string; readBy: string; messageIds: string[] }) => {
+        // Update read receipts in real-time for our own sent messages
+        // The 'messages:read' event fires when the OTHER participant reads our messages
+        setMessages(prev => prev.map(msg => 
+          msg.sender?.id === user?.id && data.messageIds.includes(msg.id)
+            ? { 
+                ...msg, 
+                readBy: [
+                  ...(msg.readBy || []), 
+                  { id: `read-${msg.id}-${data.readBy}`, userId: data.readBy, readAt: new Date().toISOString() }
+                ] 
+              }
+            : msg
+        ));
+      };
+      
       socket.on('message:new', onMessage);
+      socket.on('messages:read', onMessagesRead);
+      
       return () => {
         socket.emit('leave:chat', selectedChat);
         socket.off('message:new', onMessage);
+        socket.off('messages:read', onMessagesRead);
       };
     }
-  }, [selectedChat, socket, queryClient]);
+  }, [selectedChat, socket, queryClient, user?.id]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [decryptedMessages]);
 
@@ -417,7 +464,9 @@ function DiscordMessagesPage() {
 
   const handleSelectChat = (chatId: string) => {
     setSelectedChat(chatId);
-    api.post(`/chat/${chatId}/read`).catch(() => {});
+    // Emit socket event to mark messages as read and notify the other participant
+    // (the server handler calls markAsRead and broadcasts the actual message IDs)
+    socket?.emit('messages:read', { chatId });
   };
 
   const isOnline = (userId: string) => onlineUsers.has(userId);
@@ -567,11 +616,40 @@ function DiscordMessagesPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-semibold truncate text-foreground">{other?.profile?.username || 'Unknown'}</p>
-                        {chat.messages?.[0] && (
-                          <span className="text-[9px] text-muted-foreground shrink-0">{formatRelativeTime(chat.messages[0].createdAt)}</span>
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {(unreadCounts?.[chat.id] || 0) > 0 && (
+                            <span className="h-4 min-w-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center animate-scale-in">
+                              {unreadCounts[chat.id] > 9 ? '9+' : unreadCounts[chat.id]}
+                            </span>
+                          )}
+                          {!typingUsers[chat.id]?.length && chat.messages?.[0] && (
+                            <span className="text-[9px] text-muted-foreground">{formatRelativeTime(chat.messages[0].createdAt)}</span>
+                          )}
+                        </div>
                       </div>
-                      {chat.messages?.[0] && <p className="text-xs text-muted-foreground truncate mt-0.5">{chat.messages[0].content}</p>}
+                      {typingUsers[chat.id]?.length > 0 ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex gap-0.5 items-center">
+                            {[0, 200, 400].map((delay) => (
+                              <span
+                                key={delay}
+                                className="w-1 h-1 bg-primary/60 rounded-full"
+                                style={{ animation: 'typing-dot 1.2s ease-in-out infinite', animationDelay: `${delay}ms` }}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[10px] font-medium text-primary/70">typing...</span>
+                        </div>
+                      ) : (
+                        <>
+                          {chat.messages?.[0] && <p className="text-xs text-muted-foreground truncate mt-0.5">{chat.messages[0].content}</p>}
+                          {!online && other && (
+                            <p className="text-[9px] text-muted-foreground/60 mt-0.5">
+                              {other.presence === 'IDLE' ? 'Idle' : `Last seen ${formatLastSeen(other.updatedAt)}`}
+                            </p>
+                          )}
+                        </>
+                      )}
                     </div>
                   </motion.div>
                 );
@@ -630,11 +708,17 @@ function DiscordMessagesPage() {
                         <p className="text-sm font-bold text-foreground">{other?.profile?.username || 'User'}</p>
                         <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 flex items-center gap-1">
                           <Lock className="w-2.5 h-2.5 text-emerald-400" />
-                          E2EE Encrypted
+                          E2EE
                         </Badge>
                       </div>
-                      <p className="text-[10px] font-medium" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
-                        {online ? 'Online' : 'Offline'}
+                      <p className="text-[10px] font-medium flex items-center gap-1" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
+                        {online ? (
+                          <><span className="w-1.5 h-1.5 bg-success rounded-full inline-block" /> Online</>
+                        ) : other?.presence === 'IDLE' ? (
+                          <><span className="w-1.5 h-1.5 bg-yellow-500 rounded-full inline-block" /> Idle</>
+                        ) : (
+                          <>Last seen {formatLastSeen(other?.updatedAt)}</>
+                        )}
                       </p>
                     </div>
                     <div className="flex-1" />
@@ -695,7 +779,11 @@ function DiscordMessagesPage() {
                               {msg.media.map((url: string, i: number) => (
                                 url.match(/\.(mp4|webm|ogg)$/i)
                                   ? <video key={i} src={url} controls className="max-w-60 max-h-40 rounded-xl border border-border/30 shadow-md animate-scale-in" />
-                                  : <img key={i} src={url} alt="" className="max-w-60 max-h-40 rounded-xl object-cover border border-border/30 shadow-md hover:scale-[1.02] transition-transform duration-300 cursor-zoom-in animate-scale-in" />
+                                  : <img key={i} src={getMediaUrl(url)} alt="" className="max-w-60 max-h-40 rounded-xl object-cover border border-border/30 shadow-md hover:scale-[1.02] transition-transform duration-300 cursor-zoom-in animate-scale-in" onClick={() => {
+                                      const imageUrls = msg.media.filter((u: string) => !u.match(/\.(mp4|webm|ogg)$/i));
+                                      const imageIndex = imageUrls.indexOf(url);
+                                      openLightbox(imageUrls, imageIndex !== -1 ? imageIndex : 0);
+                                    }} />
                               ))}
                             </div>
                           )}
@@ -714,7 +802,29 @@ function DiscordMessagesPage() {
                               {msg.content}
                             </div>
                           )}
-                          
+
+                          {/* Read Receipts: shown under own messages */}
+                          {isOwn && !msg.content?.includes('"isE2EE":true') && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              {msg.readBy && msg.readBy.length > 0 ? (
+                                <span className="flex items-center gap-0.5 text-[9px] text-primary/70 font-medium">
+                                  <svg width="14" height="10" viewBox="0 0 14 10" fill="none" className="h-3 w-3">
+                                    <path d="M1 5.5L4 8.5L9.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <path d="M5.5 5.5L8.5 8.5L13 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                  Read
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/60 font-medium">
+                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="h-2.5 w-2.5">
+                                    <path d="M1 4.5L4 8L9 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                  Sent
+                                </span>
+                              )}
+                            </div>
+                          )}
+
                           {/* Floating micro-actions menu */}
                           <AnimatePresence>
                             {isHovered && (
@@ -761,8 +871,14 @@ function DiscordMessagesPage() {
               </div>
             </ScrollArea>
 
-            {/* Message input */}
-            <div className="shrink-0 p-3 md:p-4 border-t border-border/40 bg-card/80 backdrop-blur-md sticky bottom-0 z-30 shadow-lg">
+            {/* Message input - keyboard aware */}
+            <div 
+              className="shrink-0 border-t border-border/40 bg-card/80 backdrop-blur-md shadow-lg transition-all duration-200"
+              style={{ 
+                paddingBottom: isKeyboardOpen ? `${keyboardHeight}px` : undefined,
+              }}
+            >
+              <div className="p-3 md:p-4">
               {filePreview && (
                 <motion.div
                   className="flex items-center gap-2 mb-3 p-2 bg-muted/50 rounded-xl border border-border/30"
@@ -849,9 +965,11 @@ function DiscordMessagesPage() {
                     <input type="file" accept="image/*,video/*" hidden ref={fileInputRef} onChange={handleFileSelect} />
                     <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => fileInputRef.current?.click()}><Plus className="h-5 w-5 text-primary" /></button>
                     <Input
+                      ref={inputRef}
                       placeholder={`Message ${(() => { const c = chats?.find((c: any) => c.id === selectedChat); const o = c ? getOtherParticipant(c) : null; return o?.profile?.username || 'User'; })()}`}
                       value={message}
                       onChange={(e) => { setMessage(e.target.value); handleTyping(); }}
+                      onFocus={handleInputFocus}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
                       className="flex-1 h-9 border-0 bg-transparent text-sm focus-visible:ring-0 px-0 placeholder:text-muted-foreground/60 min-w-0"
                       variant="ghost"
@@ -864,6 +982,7 @@ function DiscordMessagesPage() {
                   </>
                 )}
               </div>
+            </div>
             </div>
           </>
         ) : (
@@ -948,6 +1067,14 @@ function DiscordMessagesPage() {
         callState={callState}
         onEndCall={() => setCallState(null)}
         onAcceptCall={() => setCallState((prev) => (prev ? { ...prev, mode: 'connected' } : null))}
+      />
+
+      {/* Image Lightbox for viewing media in full-screen */}
+      <ImagePreview
+        images={previewImages}
+        initialIndex={previewIndex}
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
       />
     </div>
   );

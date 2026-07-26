@@ -229,53 +229,79 @@ export function PostCard({ post, onDelete }: PostCardProps) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
             >
-              {post.media[0].match(/\.(mp4|webm|ogg|mov)$/i) || post.media[0].includes('/video/upload/') ? (
-                <video
-                  src={getMediaUrl(post.media[0])}
-                  controls
-                  poster={
-                    post.media[0].includes('/video/upload/')
-                      ? post.media[0].replace(/\/video\/upload\/(v\d+\/)?/, '/video/upload/c_limit,w_1200,h_675/').replace(/\.[^/.]+$/, '.jpg')
-                      : undefined
-                  }
-                  className="w-full max-h-96 object-contain bg-black"
-                />
-              ) : (
-                <div className={`grid gap-1 ${post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                  {post.media.map((imgUrl: string, imgIdx: number) => (
-                    <div key={imgIdx} className="relative overflow-hidden bg-black/20 rounded-lg max-h-96">
-                      <img 
-                        src={getMediaUrl(imgUrl)} 
-                        alt="Post media" 
-                        className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.01] transition-transform duration-300" 
-                        onClick={() => {
-                          setSelectedImageIndex(imgIdx);
-                          setPreviewOpen(true);
-                        }}
-                        onError={(e) => {
-                          const target = e.target as HTMLElement;
-                          target.style.display = 'none';
-                          const parent = target.parentElement;
-                          if (parent) {
-                            parent.innerHTML = '<div class="flex items-center justify-center p-8 bg-muted/60 text-muted-foreground text-xs font-medium border border-border/40 rounded-lg">🖼️ Image unavailable</div>';
+              {
+                // Check if ALL media items are videos (mixed media uses image grid with first video)
+                post.media.every((url: string) => url.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i) || url.includes('/video/upload/')) ? (
+                  // Multiple videos: show in a stacked layout
+                  <div className="space-y-2">
+                    {post.media.map((videoUrl: string, vidIdx: number) => (
+                      <div key={vidIdx} className="relative">
+                        <video
+                          src={getMediaUrl(videoUrl)}
+                          controls
+                          preload="metadata"
+                          poster={
+                            videoUrl.includes('/video/upload/')
+                              ? videoUrl.replace(/\/video\/upload\/(v\d+\/)?/, '/video/upload/c_limit,w_1200,h_675/').replace(/\.[^/.]+$/, '.jpg')
+                              : undefined
                           }
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+                          className="w-full max-h-96 object-contain bg-black rounded-lg"
+                        />
+                        {post.media.length > 1 && (
+                          <span className="absolute top-2 left-2 bg-black/70 text-white text-[10px] font-mono px-2 py-0.5 rounded-md">
+                            {vidIdx + 1}/{post.media.length}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={`grid gap-1 ${post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    {post.media.map((imgUrl: string, imgIdx: number) => {
+                      const isVideo = imgUrl.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i) || imgUrl.includes('/video/upload/');
+                      return (
+                        <div key={imgIdx} className="relative overflow-hidden bg-black/20 rounded-lg max-h-96">
+                          {isVideo ? (
+                            <video
+                              src={getMediaUrl(imgUrl)}
+                              controls
+                              preload="metadata"
+                              poster={
+                                imgUrl.includes('/video/upload/')
+                                  ? imgUrl.replace(/\/video\/upload\/(v\d+\/)?/, '/video/upload/c_limit,w_1200,h_675/').replace(/\.[^/.]+$/, '.jpg')
+                                  : undefined
+                              }
+                              className="w-full max-h-96 object-contain bg-black"
+                            />
+                          ) : (
+                            <img 
+                              src={getMediaUrl(imgUrl)} 
+                              alt="Post media" 
+                              className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.01] transition-transform duration-300" 
+                              onClick={() => {
+                                setSelectedImageIndex(imgIdx);
+                                setPreviewOpen(true);
+                              }}
+                              onError={(e) => {
+                                const target = e.target as HTMLElement;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  parent.innerHTML = '<div class="flex items-center justify-center p-8 bg-muted/60 text-muted-foreground text-xs font-medium border border-border/40 rounded-lg">\uD83D\uDDBC\uFE0F Image unavailable</div>';
+                                }
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              }
             </motion.div>
           )}
 
           {post.poll && <PollDisplay poll={post.poll} />}
-
-          <ImagePreview 
-            images={(post.media || []).filter((url: string) => !url.match(/\.(mp4|webm|ogg|mov)$/i) && !url.includes('/video/upload/'))} 
-            initialIndex={selectedImageIndex} 
-            isOpen={previewOpen} 
-            onClose={() => setPreviewOpen(false)} 
-          />
 
           {post.tags?.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -288,8 +314,6 @@ export function PostCard({ post, onDelete }: PostCardProps) {
               ))}
             </div>
           )}
-
-          {post.poll && <PollDisplay poll={post.poll} />}
 
           <div className="flex items-center justify-between border-t border-border/50 pt-3">
             <div className="flex items-center gap-0.5">
@@ -366,14 +390,12 @@ export function PostCard({ post, onDelete }: PostCardProps) {
             )}
           </AnimatePresence>
 
-          {post.media && post.media.length > 0 && (
-            <ImagePreview
-              images={post.media}
-              initialIndex={selectedImageIndex}
-              isOpen={previewOpen}
-              onClose={() => setPreviewOpen(false)}
-            />
-          )}
+          <ImagePreview 
+            images={(post.media || []).filter((url: string) => !url.match(/\.(mp4|webm|ogg|mov)$/i) && !url.includes('/video/upload/'))} 
+            initialIndex={selectedImageIndex} 
+            isOpen={previewOpen} 
+            onClose={() => setPreviewOpen(false)} 
+          />
         </CardContent>
       </Card>
     </motion.div>

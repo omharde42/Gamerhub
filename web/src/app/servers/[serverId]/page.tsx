@@ -56,10 +56,8 @@ export default function ServerPage() {
   const [showMembers, setShowMembers] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
-<<<<<<< HEAD
   const [showServerSidebar, setShowServerSidebar] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-=======
   const [showSettings, setShowSettings] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   
@@ -68,7 +66,6 @@ export default function ServerPage() {
   const [editDesc, setEditDesc] = useState('');
   const [editAvatar, setEditAvatar] = useState('');
   const [editBanner, setEditBanner] = useState('');
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
 
   // Event form states
   const [eventTitle, setEventTitle] = useState('');

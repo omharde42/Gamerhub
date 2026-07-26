@@ -21,9 +21,37 @@ export class ChatService {
     return prisma.chat.create({ data: { participants: { create: [{ userId: userId1 }, { userId: userId2 }] } }, include: { participants: { include: { user: { select: { id: true, profile: true } } } } } });
   }
   async createGroupChat(name: string, userIds: string[]) { return prisma.chat.create({ data: { name, isGroup: true, participants: { create: userIds.map(userId => ({ userId })) } }, include: { participants: { include: { user: { select: { id: true, profile: true } } } } } }); }
-  async getUserChats(userId: string) { return prisma.chat.findMany({ where: { participants: { some: { userId } } }, include: { participants: { include: { user: { select: { id: true, profile: true } } } }, messages: { take: 1, orderBy: { createdAt: 'desc' } } }, orderBy: { updatedAt: 'desc' } }); }
+  async getUserChats(userId: string) { 
+    const chats = await prisma.chat.findMany({ 
+      where: { participants: { some: { userId } } }, 
+      include: { 
+        participants: { 
+          include: { 
+            user: { 
+              select: { id: true, presence: true, updatedAt: true, profile: true } 
+            } 
+          } 
+        }, 
+        messages: { take: 1, orderBy: { createdAt: 'desc' } } 
+      }, 
+      orderBy: { updatedAt: 'desc' } 
+    });
+    return chats;
+  }
   async getChatMessages(chatId: string, page: number = 1, limit: number = 50) {
-    const [messages, total] = await Promise.all([prisma.message.findMany({ where: { chatId, isDeleted: false }, skip: (page - 1) * limit, take: limit, include: { sender: { select: { id: true, profile: true } }, readBy: true }, orderBy: { createdAt: 'desc' } }), prisma.message.count({ where: { chatId, isDeleted: false } })]);
+    const [messages, total] = await Promise.all([
+      prisma.message.findMany({ 
+        where: { chatId, isDeleted: false }, 
+        skip: (page - 1) * limit, 
+        take: limit, 
+        include: { 
+          sender: { select: { id: true, profile: true } }, 
+          readBy: { include: { user: { select: { id: true, presence: true, updatedAt: true } } } } 
+        }, 
+        orderBy: { createdAt: 'desc' } 
+      }), 
+      prisma.message.count({ where: { chatId, isDeleted: false } })
+    ]);
     return { data: messages.reverse(), meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
   async sendMessage(chatId: string, senderId: string, data: { content?: string; media?: string[]; gif?: string; voiceNote?: string; fileUrl?: string; fileName?: string; fileSize?: number }) {
@@ -54,11 +82,45 @@ export class ChatService {
     await prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } }); return message;
   }
   async markAsRead(chatId: string, userId: string) {
-    const unreadMessages = await prisma.message.findMany({ where: { chatId, senderId: { not: userId }, readBy: { none: { userId } } } });
-    for (const msg of unreadMessages) { await prisma.messageRead.create({ data: { messageId: msg.id, userId } }); }
+    const unreadMessages = await prisma.message.findMany({ 
+      where: { chatId, senderId: { not: userId }, readBy: { none: { userId } } },
+      select: { id: true },
+    });
+    const ids = unreadMessages.map(m => m.id);
+    for (const msg of unreadMessages) {
+      await prisma.messageRead.create({ data: { messageId: msg.id, userId } });
+    }
     await prisma.chatParticipant.updateMany({ where: { chatId, userId }, data: { lastReadAt: new Date() } });
-    return { markedAsRead: unreadMessages.length };
+    return { markedAsRead: ids.length, messageIds: ids };
   }
+  async getUnreadCounts(userId: string) {
+    const participants = await prisma.chatParticipant.findMany({
+      where: { userId },
+      select: {
+        chatId: true,
+        lastReadAt: true,
+      },
+    });
+
+    const counts: Record<string, number> = {};
+
+    for (const participant of participants) {
+      const whereClause: any = {
+        chatId: participant.chatId,
+        senderId: { not: userId },
+      };
+      if (participant.lastReadAt) {
+        whereClause.createdAt = { gt: participant.lastReadAt };
+      }
+      const count = await prisma.message.count({ where: whereClause });
+      if (count > 0) {
+        counts[participant.chatId] = count;
+      }
+    }
+
+    return counts;
+  }
+
   async setTyping(chatId: string, userId: string, isTyping: boolean) {
     if (isTyping) { await prisma.typingIndicator.upsert({ where: { chatId_userId: { chatId, userId } }, update: {}, create: { chatId, userId } }); } else { await prisma.typingIndicator.deleteMany({ where: { chatId, userId } }); }
   }

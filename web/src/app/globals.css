@@ -139,7 +139,6 @@
     background-image: radial-gradient(hsl(var(--foreground)/0.04) 1px, transparent 1px);
     background-size: 20px 20px;
   }
-<<<<<<< HEAD
   .bg-grid-neon {
     background-image:
       linear-gradient(hsl(var(--neon-cyan)/0.05) 1px, transparent 1px),
@@ -222,8 +221,6 @@
   .safe-area-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
-=======
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
 }
 
 /* Animations */
