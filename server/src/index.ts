@@ -46,6 +46,7 @@ import presenceRoutes from './routes/presence.routes';
 import newsRoutes from './routes/news.routes';
 import gameRequestRoutes from './routes/game-request.routes';
 import appRoutes from './routes/app.routes';
+import cryptoRoutes from './routes/crypto.routes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -281,7 +282,6 @@ app.use('/api/passport', passportRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/presence', presenceRoutes);
-import cryptoRoutes from './routes/crypto.routes';
 app.use('/api/news', newsRoutes);
 app.use('/api/game-requests', gameRequestRoutes);
 app.use('/api/crypto', cryptoRoutes);

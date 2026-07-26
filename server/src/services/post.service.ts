@@ -6,10 +6,12 @@ export class PostService {
     data: { content: string; type?: string; media?: string[]; tags?: string[]; poll?: { question: string; options: string[] } },
     userId: string
   ) {
+    type PostType = 'POST' | 'ARTICLE' | 'CLIP' | 'POLL';
+    const postType: PostType = (data.type as PostType) || (data.poll ? 'POLL' : data.media?.length ? 'CLIP' : 'POST');
     const post = await prisma.post.create({
       data: {
         content: data.content,
-        type: (data.type as any) || (data.poll ? 'POLL' : data.media?.length ? 'CLIP' : 'POST'),
+        type: postType,
         media: data.media || [],
         tags: data.tags || [],
         userId,
@@ -52,12 +54,12 @@ export class PostService {
 
   async list(params: { page?: number; limit?: number; hashtag?: string; userId?: string; following?: string }) {
     const { page = 1, limit = 20, hashtag, userId, following } = params;
-    const where: any = { isPublished: true };
+    const where: Record<string, unknown> = { isPublished: true };
     if (hashtag) where.hashtags = { some: { hashtag: { name: hashtag.toLowerCase() } } };
     if (userId) where.userId = userId;
     if (following) {
       const follows = await prisma.follow.findMany({ where: { followerId: following }, select: { followingId: true } });
-      where.userId = { in: [...follows.map((f: any) => f.followingId), following] };
+      where.userId = { in: [...follows.map((f) => f.followingId), following] };
     }
 
     const [posts, total] = await Promise.all([

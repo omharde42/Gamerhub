@@ -125,7 +125,7 @@ export class AuthService {
       throw new ValidationError({ token: ['Supabase token is required'] });
     }
 
-    let decoded: any;
+    let decoded: { email: string; sub: string; user_metadata?: Record<string, unknown> } | null = null;
     try {
       const jwtSecret = process.env.SUPABASE_JWT_SECRET || 'dev-jwt-secret-change-in-production';
       const jwt = await import('jsonwebtoken');
@@ -145,7 +145,7 @@ export class AuthService {
     }
 
     // Map provider name to our AccountProvider enum
-    let provider: any;
+    let provider: 'GOOGLE' | 'DISCORD' | 'STEAM' | 'APPLE' = 'GOOGLE';
     const normProvider = providerName.toUpperCase();
     if (normProvider.includes('GOOGLE')) provider = 'GOOGLE';
     else if (normProvider.includes('DISCORD')) provider = 'DISCORD';
@@ -373,6 +373,8 @@ export class AuthService {
   async steamLogin(steamId: string, personaName: string, avatarUrl: string) {
     if (!steamId) throw new ValidationError({ steamId: ['Steam ID is required'] });
 
+    type UserWithRelations = Awaited<ReturnType<typeof prisma.user.findUnique<{ include: { profile: true; subscription: true } }>>>;
+
     let account = await prisma.account.findUnique({
       where: {
         provider_providerId: {
@@ -390,7 +392,7 @@ export class AuthService {
       },
     });
 
-    let user: any;
+    let user: UserWithRelations;
 
     if (account) {
       user = account.user;

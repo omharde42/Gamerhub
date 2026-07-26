@@ -12,7 +12,7 @@ export class OrganizationService {
     if (!org) throw new NotFoundError('Organization'); return org;
   }
   async list(params: { page?: number; limit?: number; verified?: boolean }) {
-    const { page = 1, limit = 20, verified } = params; const where: any = {};
+    const { page = 1, limit = 20, verified } = params; const where: Record<string, unknown> = {};
     if (verified !== undefined) where.verified = verified;
     const [orgs, total] = await Promise.all([prisma.organization.findMany({ where, skip: (page - 1) * limit, take: limit, include: { _count: { select: { members: true, jobs: true } } }, orderBy: { createdAt: 'desc' } }), prisma.organization.count({ where })]);
     return { data: orgs, meta: { page, limit, total, totalPages: Math.ceil(total / limit), hasNext: page * limit < total, hasPrev: page > 1 } };

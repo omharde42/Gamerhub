@@ -26,14 +26,14 @@ export class ChatService {
     const [messages, total] = await Promise.all([prisma.message.findMany({ where: { chatId, isDeleted: false }, skip: (page - 1) * limit, take: limit, include: { sender: { select: { id: true, profile: true } }, readBy: true }, orderBy: { createdAt: 'desc' } }), prisma.message.count({ where: { chatId, isDeleted: false } })]);
     return { data: messages.reverse(), meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
-  async sendMessage(chatId: string, senderId: string, data: any) {
+  async sendMessage(chatId: string, senderId: string, data: { content?: string; media?: string[]; gif?: string; voiceNote?: string; fileUrl?: string; fileName?: string; fileSize?: number }) {
     const chat = await prisma.chat.findUnique({ where: { id: chatId }, include: { participants: true } });
     if (!chat) throw new NotFoundError('Chat not found');
-    const isParticipant = chat.participants.some((p: any) => p.userId === senderId);
+    const isParticipant = chat.participants.some((p) => p.userId === senderId);
     if (!isParticipant) throw new ForbiddenError('Not a participant in this chat');
 
     if (!chat.isGroup) {
-      const otherParticipant = chat.participants.find((p: any) => p.userId !== senderId);
+      const otherParticipant = chat.participants.find((p) => p.userId !== senderId);
       if (otherParticipant) {
         const friendship = await prisma.friendRequest.findFirst({
           where: {

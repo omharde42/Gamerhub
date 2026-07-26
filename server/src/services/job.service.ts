@@ -2,7 +2,7 @@ import prisma from '../config/database';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/errors';
 
 export class JobService {
-  async create(data: any, organizationId: string) {
+  async create(data: { title: string; description?: string; type: string; game?: string; location?: string; salary?: string; requirements?: string; status?: string }, organizationId: string) {
     if (!data.title || !data.type) {
       throw new ValidationError({ title: ['Title is required'], type: ['Job type is required'] });
     }
@@ -11,7 +11,7 @@ export class JobService {
     return prisma.job.create({ data: { ...data, organizationId }, include: { organization: { select: { id: true, name: true, avatar: true } } } });
   }
   async list(params: { page?: number; limit?: number; type?: string; game?: string; status?: string }) {
-    const { page = 1, limit = 20, type, game, status } = params; const where: any = {};
+    const { page = 1, limit = 20, type, game, status } = params; const where: Record<string, unknown> = {};
     if (type) where.type = type; if (game) where.game = game; if (status) where.status = status; else where.status = 'OPEN';
     const [jobs, total] = await Promise.all([prisma.job.findMany({ where, skip: (page - 1) * limit, take: limit, include: { organization: { select: { id: true, name: true, avatar: true, verified: true } }, _count: { select: { applications: true } } }, orderBy: { createdAt: 'desc' } }), prisma.job.count({ where })]);
     return { data: jobs, meta: { page, limit, total, totalPages: Math.ceil(total / limit), hasNext: page * limit < total, hasPrev: page > 1 } };
