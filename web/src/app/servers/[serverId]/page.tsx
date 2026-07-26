@@ -315,13 +315,12 @@ export default function ServerPage() {
       >
         <Hash className="h-4 w-4" />
       </button>
-      {/* Server sidebar */}
-      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} md:flex flex-col fixed md:static inset-y-0 left-0 top-14 md:top-0 z-20 w-16 bg-muted/40 border-r items-center py-3 gap-2 shrink-0 overflow-y-auto`}
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} md:flex flex-col fixed md:static inset-y-0 left-0 top-14 md:top-0 z-20 w-16 bg-muted/40 border-r items-center py-3 gap-2 shrink-0 overflow-y-auto`}>
         <button onClick={() => router.push('/servers')} className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center text-lg font-bold text-primary hover:bg-primary/20 transition-all shrink-0">
           <MessageCircle className="h-5 w-5" />
         </button>
         <div className="w-8 h-px bg-border my-1" />
-        {user?.servers?.map((ms: any) => (
+        {(user as any)?.servers?.map((ms: any) => (
           <button key={ms.serverId} onClick={() => router.push(`/servers/${ms.serverId}`)}
             className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xs font-bold transition-all shrink-0 overflow-hidden relative ${ms.serverId === serverId ? 'rounded-xl bg-primary text-primary-foreground border-2 border-primary' : 'bg-muted hover:bg-muted-foreground/20 hover:rounded-xl text-muted-foreground hover:text-foreground'}`}
             title={ms.server?.name || ''}>

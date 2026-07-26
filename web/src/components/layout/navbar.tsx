@@ -385,7 +385,7 @@ export function Navbar() {
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate">{user?.profile?.displayName || user?.profile?.username}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user?.profile?.headline || 'Gamer'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{(user?.profile as any)?.headline || 'Gamer'}</p>
                   </div>
                 </div>
                 <DropdownMenuSeparator />

@@ -30,7 +30,7 @@ export default function SettingsPage() {
     displayName: user?.profile?.displayName || '',
     bio: user?.profile?.bio || '',
     country: user?.profile?.country || '',
-    city: user?.profile?.city || '',
+    city: (user?.profile as any)?.city || '',
     playStyle: user?.profile?.playStyle || '',
     communicationStyle: user?.profile?.communicationStyle || '',
     rank: user?.profile?.rank || '',
@@ -54,7 +54,7 @@ export default function SettingsPage() {
         displayName: user.profile.displayName || '',
         bio: user.profile.bio || '',
         country: user.profile.country || '',
-        city: user.profile.city || '',
+        city: (user.profile as any).city || '',
         playStyle: user.profile.playStyle || '',
         communicationStyle: user.profile.communicationStyle || '',
         rank: user.profile.rank || '',
@@ -94,9 +94,9 @@ export default function SettingsPage() {
     mutationFn: () => api.put('/profiles', profile),
     onSuccess: (res: any) => {
       const updated = res.data.data;
-      setUser({ ...user, profile: updated });
+      setUser({ ...user, profile: updated } as any);
       
-      const username = updated.username || user?.profile?.username || user?.username;
+      const username = updated.username || user?.profile?.username || (user as any)?.username;
       
       // Invalidate the cache for profile query so it reloads in real time without refreshing
       queryClient.invalidateQueries({ queryKey: ['profile', username] });
@@ -170,7 +170,7 @@ export default function SettingsPage() {
     },
     onSuccess: async (data) => {
       const avatarUrl = data.data.data.avatar;
-      setUser({ ...user, profile: { ...user?.profile, avatar: avatarUrl } });
+      setUser({ ...user, profile: { ...user?.profile, avatar: avatarUrl } } as any);
       toast.success('Avatar updated!');
     },
     onError: () => toast.error('Failed to upload avatar')

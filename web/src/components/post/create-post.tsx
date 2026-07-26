@@ -414,22 +414,11 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
         </div>
 
         {/* Scrollable Content Body */}
-<<<<<<< HEAD
         <div 
           ref={contentBodyRef}
-          className="flex-1 overflow-y-auto p-4 space-y-4"
+          className="flex-1 overflow-y-auto p-4 space-y-5 pb-safe"
           style={{ paddingBottom: isKeyboardOpen ? `${keyboardHeight + 16}px` : undefined }}
         >
-          {mainFormContent}
-        </div>
-
-        {/* Fixed Action Toolbar at Bottom - adjusts for keyboard */}
-        <div 
-          className="shrink-0 border-t border-border/40 p-3 bg-card/60 backdrop-blur-md flex items-center justify-around gap-2 transition-all duration-200"
-          style={{ paddingBottom: isKeyboardOpen ? `${keyboardHeight}px` : undefined }}
-        >
-=======
-        <div className="flex-1 overflow-y-auto p-4 space-y-5 pb-safe">
           {/* User Profile & Rank Badge Header */}
           <div className="flex items-center gap-3">
             <Avatar className="h-11 w-11 ring-2 ring-primary/20 shrink-0">

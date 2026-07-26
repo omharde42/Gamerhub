@@ -87,7 +87,7 @@ export function Sidebar() {
                 <Link href={`/profile/${user?.profile?.username}`} className="block mt-2">
                   <p className="font-semibold text-sm hover:text-primary transition-colors">{user?.profile?.displayName || user?.profile?.username}</p>
                 </Link>
-                <p className="text-xs text-muted-foreground">{user?.profile?.headline || user?.profile?.role || 'Gamer'}</p>
+                <p className="text-xs text-muted-foreground">{(user?.profile as any)?.headline || user?.profile?.role || 'Gamer'}</p>
                 {user?.profile?.rank && (
                   <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
                     <Trophy className="h-3 w-3" /> {user.profile.rank}
@@ -99,7 +99,7 @@ export function Sidebar() {
               <div className="border-t border-border/40 px-3 py-2 space-y-1 hidden lg:block">
                 <Link href="/connections" className="flex items-center justify-between text-xs hover:bg-muted/80 rounded-lg px-2 py-1.5 -mx-1 transition-colors">
                   <span className="text-muted-foreground">Connections</span>
-                  <span className="text-primary font-semibold">{user?.profile?._count?.following || 0}</span>
+                  <span className="text-primary font-semibold">{(user?.profile as any)?._count?.following || 0}</span>
                 </Link>
                 <Link href="/profile/settings" className="flex items-center text-xs text-muted-foreground hover:bg-muted/80 rounded-lg px-2 py-1.5 -mx-1 transition-colors">
                   <Settings className="h-3 w-3 mr-1.5" /> Edit Profile

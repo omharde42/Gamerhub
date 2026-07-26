@@ -97,9 +97,9 @@ export default function ProfilePage() {
       const newUrl = variables.type === 'avatar' ? data.data?.avatar : data.data?.banner;
       if (user && newUrl) {
         if (variables.type === 'avatar') {
-          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, avatar: newUrl } });
+          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, avatar: newUrl } as any });
         } else {
-          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, banner: newUrl } });
+          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, banner: newUrl } as any });
         }
       }
       toast.success(`${variables.type === 'avatar' ? 'Avatar' : 'Banner'} updated successfully!`);
