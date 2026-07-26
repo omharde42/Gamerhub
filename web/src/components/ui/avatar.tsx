@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
-import { cn } from '@/lib/utils';
+import { cn, getMediaUrl } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
 const Avatar = React.forwardRef<
@@ -55,9 +55,10 @@ Avatar.displayName = AvatarPrimitive.Root.displayName;
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, ...props }, ref) => (
+>(({ className, src, ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
+    src={getMediaUrl(typeof src === 'string' ? src : undefined)}
     className={cn('aspect-square h-full w-full object-cover', className)}
     {...props}
   />

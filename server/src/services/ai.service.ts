@@ -115,7 +115,7 @@ export class AIService {
     const profile = user.profile; const limit = params.limit || 10;
     const candidates = await prisma.profile.findMany({ where: { userId: { not: params.userId }, mainGames: profile.mainGames.length > 0 ? { hasSome: profile.mainGames } : undefined }, include: { user: { select: { id: true } } }, take: 50 });
     if (candidates.length === 0) return [];
-    const ranked = candidates.map((candidate) => {
+    const ranked = candidates.map((candidate: any) => {
       let score = 0; const reasons: string[] = [];
       if (profile.rank && candidate.rank) { const rankOrder = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Challenger']; const userRankIdx = rankOrder.indexOf(profile.rank); const candRankIdx = rankOrder.indexOf(candidate.rank); const rankDiff = Math.abs(userRankIdx - candRankIdx); if (rankDiff <= 1) { score += 30; reasons.push('Similar rank'); } }
       if (profile.country && candidate.country === profile.country) { score += 20; reasons.push('Same region'); }
@@ -126,7 +126,7 @@ export class AIService {
       const compatibility = Math.min(Math.max(Math.round(score), 0), 100);
       return { userId: candidate.userId, username: candidate.username, avatar: candidate.avatar, rank: candidate.rank, role: candidate.role, winRate: candidate.winRate, compatibility, reasons };
     });
-    return ranked.sort((a, b) => b.compatibility - a.compatibility).slice(0, limit);
+    return ranked.sort((a: any, b: any) => b.compatibility - a.compatibility).slice(0, limit);
   }
 
   async analyzeProfileForOptimization(profile: any) {

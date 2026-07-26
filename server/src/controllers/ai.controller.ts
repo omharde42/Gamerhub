@@ -5,7 +5,7 @@ import prisma from '../config/database';
 import { analyticsService } from '../services/analytics.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
-import { NotFoundError } from '../utils/errors';
+import { NotFoundError, ValidationError } from '../utils/errors';
 
 export class AIController {
   getRecommendations = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -40,12 +40,18 @@ export class AIController {
 
   detectToxicity = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { content } = req.body;
+    if (!content || typeof content !== 'string') {
+      throw new ValidationError({ content: ['Content is required'] });
+    }
     const result = await aiService.detectToxicity(content);
     sendSuccess(res, result);
   });
 
   chat = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { message, history } = req.body;
+    if (!message || typeof message !== 'string') {
+      throw new ValidationError({ message: ['Message is required'] });
+    }
     const profile = await prisma.profile.findUnique({ where: { userId: req.user!.userId } });
     const response = await aiService.chat(message, history || [], profile);
     sendSuccess(res, { response });

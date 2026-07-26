@@ -1,14 +1,28 @@
 'use client';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Navbar } from './navbar';
 import { Sidebar } from './sidebar';
+<<<<<<< HEAD
 import { MobileBottomNav } from './mobile-bottom-nav';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+=======
+import { MobileNav } from './mobile-nav';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
+import toast from 'react-hot-toast';
+
+import { UpdateChecker } from '../common/update-checker';
+>>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
+  const [hasHydrated, setHasHydrated] = useState(false);
+
   const isLanding = pathname === '/';
+  const isAuthOrLanding = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');
   const hideSidebar = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages');
   const hideBottomNav = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');
   const isServerPage = pathname?.startsWith('/servers/');
@@ -16,28 +30,91 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   // Mobile bottom nav offset
   const bottomNavHeight = 'pb-16';
 
+  useEffect(() => {
+    const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
+      setHasHydrated(true);
+    });
+    if (useAuthStore.persist.hasHydrated()) {
+      setHasHydrated(true);
+    }
+    const timer = setTimeout(() => {
+      setHasHydrated(true);
+    }, 300);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    // Guard 1: Redirect to login if unauthenticated and trying to access private page
+    if (!isAuthenticated && !isAuthOrLanding) {
+      router.push('/auth/login');
+      return;
+    }
+
+    // Guard 2: Redirect to feed if authenticated and trying to access landing/auth page
+    if (isAuthenticated && isAuthOrLanding && pathname !== '/auth/callback') {
+      router.push('/feed');
+      return;
+    }
+
+    // Guard 3: Redirect to profile settings if profile is incomplete
+    if (isAuthenticated && user) {
+      const isProfileIncomplete = 
+        !user.profile ||
+        !user.profile.displayName?.trim();
+
+      const onSettingsPage = pathname === '/profile/settings';
+
+      if (isProfileIncomplete && !onSettingsPage && !isAuthOrLanding) {
+        toast('Gamer Passport incomplete. Please complete setup!', { id: 'setup-guard-toast' });
+        router.push('/profile/settings');
+      }
+    }
+  }, [hasHydrated, user, isAuthenticated, isAuthOrLanding, pathname, router]);
+
+  // Render a loading state until rehydration is complete to prevent layout flashes
+  if (!hasHydrated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const isMessages = pathname === '/messages';
+
   return (
+<<<<<<< HEAD
     <div className="min-h-screen bg-background overflow-x-hidden">
       <Navbar />
       <div className={`w-full ${!isLanding ? 'pt-14' : ''} ${!hideBottomNav ? bottomNavHeight : ''}`}>
         <div className="w-full mx-auto flex gap-4 px-3 sm:px-4 md:px-6 py-3 sm:py-4">
           {!hideSidebar && !isServerPage && !isMessages && <Sidebar />}
+=======
+    <div className="min-h-screen bg-background">
+      <div className={isMessages ? "hidden md:block" : "block"}>
+        <Navbar />
+      </div>
+      <div className={`w-full ${!isLanding ? (isMessages ? 'pt-0 md:pt-16 pb-0' : 'pt-16 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0') : ''}`}>
+        <div className={`w-full mx-auto flex gap-3 lg:gap-4 ${isMessages ? 'px-0 md:px-6 py-0 md:py-4' : 'px-3 md:px-6 py-3 md:py-4'}`}>
+          {!hideSidebar && <Sidebar />}
+>>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
           <main className="flex-1 min-w-0 max-w-full">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={pathname}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.1, ease: 'easeOut' }}
-              >
-                {children}
-              </motion.div>
-            </AnimatePresence>
+            {children}
           </main>
         </div>
       </div>
+<<<<<<< HEAD
       {!hideBottomNav && <MobileBottomNav />}
+=======
+      <MobileNav />
+      <UpdateChecker />
+>>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
     </div>
   );
 }

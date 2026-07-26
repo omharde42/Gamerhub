@@ -1,10 +1,12 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": "./src",
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "paths": { "@/*": ["src/*"] }
   },
   "include": ["src/**/*"],

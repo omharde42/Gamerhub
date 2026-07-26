@@ -19,18 +19,18 @@ export class TeamService {
   async update(id: string, data: any, userId: string) {
     const team = await prisma.team.findUnique({ where: { id }, include: { members: true } });
     if (!team) throw new NotFoundError('Team');
-    const member = team.members.find(m => m.userId === userId);
+    const member = team.members.find((m: any) => m.userId === userId);
     if (!member || !['CAPTAIN', 'MANAGER'].includes(member.role)) throw new ForbiddenError('Only captains and managers can update the team');
     return prisma.team.update({ where: { id }, data, include: { members: { include: { user: { select: { id: true, email: true, profile: true } } } } } });
   }
   async invite(teamId: string, userId: string, inviterId: string) {
     const team = await prisma.team.findUnique({ where: { id: teamId }, include: { members: true } });
     if (!team) throw new NotFoundError('Team');
-    const inviter = team.members.find(m => m.userId === inviterId);
+    const inviter = team.members.find((m: any) => m.userId === inviterId);
     if (!inviter || !['CAPTAIN', 'MANAGER'].includes(inviter.role)) throw new ForbiddenError('Only captains and managers can invite');
     const existingInvite = await prisma.teamInvite.findUnique({ where: { teamId_userId: { teamId, userId } } });
     if (existingInvite) throw new ConflictError('User already invited');
-    const alreadyMember = team.members.find(m => m.userId === userId);
+    const alreadyMember = team.members.find((m: any) => m.userId === userId);
     if (alreadyMember) throw new ConflictError('User is already a member');
     return prisma.teamInvite.create({ data: { teamId, userId }, include: { team: true, user: { select: { id: true, email: true, profile: true } } } });
   }
@@ -44,16 +44,16 @@ export class TeamService {
     if (!team) throw new NotFoundError('Team');
     const existing = await prisma.teamApplication.findUnique({ where: { teamId_userId: { teamId, userId } } });
     if (existing) throw new ConflictError('Already applied');
-    const alreadyMember = team.members.find(m => m.userId === userId);
+    const alreadyMember = team.members.find((m: any) => m.userId === userId);
     if (alreadyMember) throw new ConflictError('Already a member');
     return prisma.teamApplication.create({ data: { teamId, userId, message } });
   }
   async kick(teamId: string, userId: string, kickerId: string) {
     const team = await prisma.team.findUnique({ where: { id: teamId }, include: { members: true } });
     if (!team) throw new NotFoundError('Team');
-    const kicker = team.members.find(m => m.userId === kickerId);
+    const kicker = team.members.find((m: any) => m.userId === kickerId);
     if (!kicker || !['CAPTAIN', 'MANAGER'].includes(kicker.role)) throw new ForbiddenError('Only captains and managers can kick members');
-    const target = team.members.find(m => m.userId === userId);
+    const target = team.members.find((m: any) => m.userId === userId);
     if (!target) throw new NotFoundError('Member');
     if (target.role === 'CAPTAIN') throw new ForbiddenError('Cannot kick the captain');
     await prisma.teamMember.delete({ where: { id: target.id } });

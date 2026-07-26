@@ -26,12 +26,14 @@ export class FeedController {
   });
 
   getFollowing = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const data = await feedService.getFollowing(req.user!.userId);
+    const targetUserId = (req.query.userId as string) || req.user!.userId;
+    const data = await feedService.getFollowing(targetUserId);
     sendSuccess(res, data);
   });
 
   getFollowers = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const data = await feedService.getFollowers(req.user!.userId);
+    const targetUserId = (req.query.userId as string) || req.user!.userId;
+    const data = await feedService.getFollowers(targetUserId);
     sendSuccess(res, data);
   });
 }

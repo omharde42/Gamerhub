@@ -1,14 +1,35 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
+import type { User } from '@/types';
+
+// Simple localStorage adapter (removed Capacitor dependency for web-only)
+const webStorageAdapter: StateStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window !== 'undefined') {
+      try { return localStorage.getItem(name); } catch { return null; }
+    }
+    return null;
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem(name, value); } catch {}
+    }
+  },
+  removeItem: (name: string): void => {
+    if (typeof window !== 'undefined') {
+      try { localStorage.removeItem(name); } catch {}
+    }
+  },
+};
 
 interface AuthState {
-  user: any | null;
+  user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
-  setUser: (user: any) => void;
+  setUser: (user: User) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
-  login: (user: any, accessToken: string, refreshToken: string) => void;
+  login: (user: User, accessToken: string, refreshToken: string) => void;
   logout: () => void;
 }
 
@@ -20,10 +41,14 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
 
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setUser: (user) => set({ user, isAuthenticated: true }),
 
       setTokens: (accessToken, refreshToken) => {
-        set({ accessToken, refreshToken });
+        set((state) => ({
+          accessToken,
+          refreshToken,
+          isAuthenticated: !!(state.user || accessToken),
+        }));
       },
 
       login: (user, accessToken, refreshToken) => {
@@ -36,12 +61,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'gamerhub-auth',
-      onRehydrateStorage: () => (state) => {
-        if (state?.accessToken && state?.refreshToken) {
-          localStorage.setItem('accessToken', state.accessToken);
-          localStorage.setItem('refreshToken', state.refreshToken);
-        }
-      },
+      storage: createJSONStorage(() => webStorageAdapter),
     }
   )
 );

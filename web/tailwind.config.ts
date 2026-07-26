@@ -49,7 +49,7 @@ const config: Config = {
         '2xl': 'calc(var(--radius) + 8px)',
       },
       fontFamily: {
-        heading: ['Orbitron', 'var(--font-orbitron)', 'system-ui', 'sans-serif'],
+        heading: ['Inter', 'var(--font-inter)', 'system-ui', 'sans-serif'],
         body: ['Inter', 'var(--font-inter)', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },

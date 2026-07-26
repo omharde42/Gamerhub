@@ -30,8 +30,8 @@ export const config = {
   jwt: {
     secret: requiredEnv('JWT_SECRET', process.env.NODE_ENV === 'production' ? undefined : 'dev-jwt-secret-change-in-production'),
     refreshSecret: requiredEnv('JWT_REFRESH_SECRET', process.env.NODE_ENV === 'production' ? undefined : 'dev-refresh-secret-change-in-production'),
-    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
-    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+    expiresIn: process.env.JWT_EXPIRES_IN || '30d',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '90d',
   },
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',

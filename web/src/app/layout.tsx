@@ -7,9 +7,15 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'GamerHub - The Ultimate Gaming Network',
+  title: 'GamerZ Hub - The Ultimate Gaming Network',
   description: 'Connect, compete, and level up. The professional network for gamers.',
   keywords: 'gaming, esports, tournaments, teams, gaming community',
+  icons: {
+    icon: '/logo.jpg',
+    shortcut: '/favicon.ico',
+    apple: '/apple-icon.png',
+  },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
