@@ -59,7 +59,7 @@ export default function FriendsPage() {
   const requestIds = new Set(requests?.map((r: any) => r.sender?.id) || []);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
       <motion.div className="flex items-center justify-between" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Users className="h-6 w-6 text-primary" /> Friends</h1>

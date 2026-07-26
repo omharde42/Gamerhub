@@ -15,7 +15,7 @@ import {
   LogOut, User, Settings, Crown, Home, Briefcase, ChevronDown,
   Heart, Trophy, Loader2, LayoutDashboard, Compass,
   Bookmark, Bot, Shield, BarChart3, Gamepad2 as GamepadIcon, Building2, MoreHorizontal,
-  Globe, UserCheck, Zap, Sparkles, Newspaper, Film
+  Globe, UserCheck, Zap, Sparkles, Newspaper, Film, Menu, X
 } from 'lucide-react';
 
 const navIcons = [
@@ -46,6 +46,8 @@ export function Navbar() {
   const { user, logout } = useAuthStore();
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -88,12 +90,58 @@ export function Navbar() {
           <span className="text-lg font-bold hidden sm:block bg-gradient-to-r from-gaming-purple to-gaming-cyan bg-clip-text text-transparent animate-glow-rainbow">GamerHub</span>
         </Link>
 
-        <div className="hidden md:flex relative flex-1 max-w-sm">
+        {/* Mobile search toggle */}
+        <button
+          className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
+          onClick={() => setShowMobileSearch(!showMobileSearch)}
+          aria-label="Search"
+        >
+          <Search className="h-5 w-5" />
+        </button>
+
+        {/* Search bar - visible on md+ or when toggled on mobile */}
+        <div className={`${showMobileSearch ? 'flex absolute left-0 right-0 top-16 z-50 px-3 py-3 bg-background/95 backdrop-blur-xl border-b border-primary/20 md:static md:bg-transparent md:border-0 md:p-0' : 'hidden md:flex'} relative flex-1 max-w-sm`}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30" placeholder="Search players, teams..." variant="ghost" />
         </div>
 
         <div className="flex-1" />
+
+        {/* Hamburger menu for mobile */}
+        <button
+          className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+        >
+          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+
+        {/* Mobile menu dropdown */}
+        {mobileMenuOpen && (
+          <div className="absolute top-16 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-b border-primary/20 shadow-xl md:hidden max-h-[70vh] overflow-y-auto">
+            <div className="p-3 space-y-0.5">
+              {[...navIcons, { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' }].map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href || (item.href !== '/feed' && pathname?.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'text-primary bg-primary/10'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <nav className="hidden md:flex items-center gap-0.5">
           {navIcons.map((item) => {

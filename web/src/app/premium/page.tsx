@@ -95,7 +95,7 @@ export default function PremiumPage() {
             whileHover={{ y: -4 }}
             className="relative"
           >
-            <Card className={`relative overflow-hidden ${plan.popular ? 'border-primary/50 ring-1 ring-primary/30 scale-105' : ''}`}>
+            <Card className={`relative overflow-hidden ${plan.popular ? 'border-primary/50 ring-1 ring-primary/30 md:scale-105' : ''}`}>
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                   <Badge variant="glowing" className="px-4 gap-1"><Sparkles className="h-3 w-3" /> Most Popular</Badge>

@@ -42,7 +42,7 @@ export default function ConnectionsPage() {
   const data = tab === 'following' ? followingData : followersData;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto px-4 md:px-0 space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/friends">
           <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>

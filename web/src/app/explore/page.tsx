@@ -35,7 +35,7 @@ export default function ExplorePage() {
     : popularGames;
 
   return (
-    <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.div className="space-y-4 max-w-full overflow-x-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div>
         <h1 className="text-xl font-bold flex items-center gap-2">
           <Compass className="h-5 w-5 text-primary" />

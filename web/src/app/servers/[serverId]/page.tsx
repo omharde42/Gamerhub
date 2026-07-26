@@ -36,6 +36,8 @@ export default function ServerPage() {
   const [showMembers, setShowMembers] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showServerSidebar, setShowServerSidebar] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { data: server } = useQuery({ queryKey: ['server', serverId], queryFn: () => api.get(`/servers/${serverId}`).then(r => r.data.data), enabled: !!serverId });
   const { data: channelMessages, refetch: refetchMessages } = useQuery({
@@ -81,9 +83,17 @@ export default function ServerPage() {
   const myMember = server?.members?.find((m: any) => m.userId === user?.id);
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex bg-background">
+    <div className="h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-4rem)] flex bg-background overflow-hidden">
+      {/* Mobile channel toggle button */}
+      <button
+        className="md:hidden fixed top-16 left-2 z-30 w-8 h-8 rounded-lg bg-background/90 backdrop-blur-sm border border-primary/20 flex items-center justify-center text-muted-foreground hover:text-foreground shadow-lg"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        aria-label="Toggle channels"
+      >
+        <Hash className="h-4 w-4" />
+      </button>
       {/* Server sidebar */}
-      <div className="w-16 bg-muted/40 border-r flex flex-col items-center py-3 gap-2 shrink-0 overflow-y-auto">
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} md:flex flex-col fixed md:static inset-y-0 left-0 top-14 md:top-0 z-20 w-16 bg-muted/40 border-r items-center py-3 gap-2 shrink-0 overflow-y-auto`}
         <button onClick={() => router.push('/servers')} className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center text-lg font-bold text-primary hover:bg-primary/20 transition-all shrink-0">
           <MessageCircle className="h-5 w-5" />
         </button>
@@ -100,8 +110,7 @@ export default function ServerPage() {
         </button>
       </div>
 
-      {/* Channel sidebar */}
-      <div className="w-56 bg-muted/20 border-r flex flex-col shrink-0">
+      {/* Channel sidebar - collapsible on mobile */}          <div className={`${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:static inset-y-0 left-16 md:left-0 top-14 md:top-0 z-10 w-56 bg-muted/20 border-r flex flex-col shrink-0 transition-transform duration-200 ease-in-out`}
         <div className="h-12 border-b flex items-center px-4 font-semibold text-sm gap-2 cursor-pointer hover:bg-muted/50">
           {server?.name || 'Loading...'} <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
         </div>
@@ -138,8 +147,14 @@ export default function ServerPage() {
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {selectedChannel ? (
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        {/* Overlay for mobile menu */}
+        {mobileMenuOpen && (
+          <div
+            className="md:hidden fixed inset-0 bg-black/40 z-[5]"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
           <>
             <div className="h-12 border-b flex items-center px-4 gap-2 text-sm font-semibold shrink-0">
               {selectedChannelData?.type === 'VOICE' ? <Volume2 className="h-4 w-4 text-muted-foreground" /> : selectedChannelData?.type === 'ANNOUNCEMENT' ? <Bell className="h-4 w-4 text-muted-foreground" /> : <Hash className="h-4 w-4 text-muted-foreground" />}

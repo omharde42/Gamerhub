@@ -205,6 +205,14 @@
   .linkedin-card { @apply bg-card border border-border rounded-lg; }
   .linkedin-btn-primary { @apply bg-primary text-primary-foreground font-semibold rounded-full px-4 py-1.5 text-sm hover:opacity-90 transition-all; }
   .linkedin-btn-outline { @apply border border-primary text-primary font-semibold rounded-full px-4 py-1.5 text-sm hover:bg-primary/5 transition-all; }
+
+  /* Mobile safe area support */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
 }
 
 @keyframes gradient-shift {

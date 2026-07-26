@@ -55,8 +55,7 @@ export default function LoginPage() {
           <Link href="/auth/register" className="text-primary hover:underline font-medium">Sign up</Link>
         </span>
       }
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
+    >            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         <motion.div className="space-y-2" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
           <Label htmlFor="email">Email</Label>
           <Input

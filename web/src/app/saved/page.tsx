@@ -25,7 +25,7 @@ export default function SavedPostsPage() {
   const validPosts = posts?.filter(Boolean) || [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-hidden">
       <div className="flex items-center gap-3">
         <Link href="/feed">
           <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
