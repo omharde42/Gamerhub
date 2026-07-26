@@ -306,7 +306,6 @@ export default function ServerPage() {
   };
 
   return (
-<<<<<<< HEAD
     <div className="h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-4rem)] flex bg-background overflow-hidden">
       {/* Mobile channel toggle button */}
       <button
@@ -318,11 +317,6 @@ export default function ServerPage() {
       </button>
       {/* Server sidebar */}
       <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} md:flex flex-col fixed md:static inset-y-0 left-0 top-14 md:top-0 z-20 w-16 bg-muted/40 border-r items-center py-3 gap-2 shrink-0 overflow-y-auto`}
-=======
-    <div className="h-[calc(100vh-4rem)] flex bg-background">
-      {/* Servers icon list sidebar */}
-      <div className="w-16 bg-muted/40 border-r flex flex-col items-center py-3 gap-2.5 shrink-0 overflow-y-auto">
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
         <button onClick={() => router.push('/servers')} className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center text-lg font-bold text-primary hover:bg-primary/20 transition-all shrink-0">
           <MessageCircle className="h-5 w-5" />
         </button>
@@ -343,24 +337,6 @@ export default function ServerPage() {
         </button>
       </div>
 
-<<<<<<< HEAD
-      {/* Channel sidebar - collapsible on mobile */}          <div className={`${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:static inset-y-0 left-16 md:left-0 top-14 md:top-0 z-10 w-56 bg-muted/20 border-r flex flex-col shrink-0 transition-transform duration-200 ease-in-out`}
-        <div className="h-12 border-b flex items-center px-4 font-semibold text-sm gap-2 cursor-pointer hover:bg-muted/50">
-          {server?.name || 'Loading...'} <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-        </div>
-        <ScrollArea className="flex-1 p-2">
-          <div className="space-y-0.5">
-            <div className="flex items-center justify-between px-2 py-1">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Channels</span>
-              {(isOwner || isAdmin) && (
-                <Dialog>
-                  <DialogTrigger asChild><button className="text-muted-foreground hover:text-foreground"><Plus className="h-3.5 w-3.5" /></button></DialogTrigger>
-                  <DialogContent><DialogHeader><DialogTitle>Create Channel</DialogTitle></DialogHeader>
-                    <ChannelCreateForm serverId={serverId as string} onCreated={() => queryClient.invalidateQueries({ queryKey: ['server', serverId] })} />
-                  </DialogContent>
-                </Dialog>
-              )}
-=======
       {/* Channels & Events Sidebar */}
       <div className="w-56 bg-muted/20 border-r flex flex-col shrink-0">
         {/* Server Header Card */}
@@ -384,7 +360,6 @@ export default function ServerPage() {
                 </AvatarFallback>
               </Avatar>
               <h2 className="font-bold text-sm text-white truncate drop-shadow-md">{server?.name || 'Loading...'}</h2>
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
             </div>
             
             <DropdownMenu>
@@ -494,8 +469,7 @@ export default function ServerPage() {
         </div>
       </div>
 
-<<<<<<< HEAD
-      {/* Main chat area */}
+      {/* Main content display area */}
       <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Overlay for mobile menu */}
         {mobileMenuOpen && (
@@ -504,27 +478,6 @@ export default function ServerPage() {
             onClick={() => setMobileMenuOpen(false)}
           />
         )}
-          <>
-            <div className="h-12 border-b flex items-center px-4 gap-2 text-sm font-semibold shrink-0">
-              {selectedChannelData?.type === 'VOICE' ? <Volume2 className="h-4 w-4 text-muted-foreground" /> : selectedChannelData?.type === 'ANNOUNCEMENT' ? <Bell className="h-4 w-4 text-muted-foreground" /> : <Hash className="h-4 w-4 text-muted-foreground" />}
-              {selectedChannelData?.name}
-              <div className="flex-1" />
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowMembers(!showMembers)}><Users className="h-4 w-4" /></Button>
-              {(isOwner || isAdmin) && (
-                <Dialog open={showInvite} onOpenChange={setShowInvite}>
-                  <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><UserPlus className="h-4 w-4" /></Button></DialogTrigger>
-                  <DialogContent><DialogHeader><DialogTitle>Invite to Server</DialogTitle></DialogHeader>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 p-3 rounded-lg bg-muted"><code className="flex-1 text-sm font-mono">{server?.inviteCode}</code>
-                        <Button variant="ghost" size="icon" onClick={() => { navigator.clipboard.writeText(server?.inviteCode); toast.success('Copied!'); }}><Copy className="h-4 w-4" /></Button>
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full" onClick={() => regenerateInvite.mutate()}>Regenerate Code</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-=======
-      {/* Main content display area */}
-      <div className="flex-1 flex flex-col min-w-0">
         {selectedChannel === '__events' ? (
           /* Events Panel Page */
           <div className="flex-1 flex flex-col min-h-0 bg-background">
@@ -537,7 +490,6 @@ export default function ServerPage() {
                 <Button onClick={() => setShowCreateEvent(true)} size="sm" className="bg-gaming-pink hover:bg-gaming-pink/90 text-white gap-1.5">
                   <Plus className="h-4 w-4" /> Schedule Event
                 </Button>
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
               )}
             </div>
 

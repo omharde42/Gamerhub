@@ -25,11 +25,7 @@ export function AuthFormWrapper({ children, title, subtitle, footer }: AuthFormW
         className="w-full max-w-md relative z-10"
       >
         <div className="relative cyber-card">
-<<<<<<< HEAD
           <div className="bg-card/70 backdrop-blur-2xl border border-primary/20 rounded-2xl p-4 sm:p-6 md:p-8 shadow-[0_0_30px_hsl(var(--primary)/0.08)] space-y-4 sm:space-y-6">
-=======
-          <div className="bg-card/70 backdrop-blur-2xl border border-primary/20 rounded-2xl p-5 xs:p-6 sm:p-8 shadow-[0_0_30px_hsl(var(--primary)/0.08)] space-y-6">
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
             <div className="text-center space-y-2">
               <Link href="/" className="inline-flex items-center gap-2.5 mb-4">
                 <div className="w-12 h-12 rounded-2xl overflow-hidden border border-primary/20 shadow-lg shadow-primary/10 animate-bounce-in shrink-0">

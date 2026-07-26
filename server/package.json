@@ -52,22 +52,16 @@
     "@types/speakeasy": "^2.0.10",
     "@types/uuid": "^10.0.0",
     "jest": "^29.7.0",
-<<<<<<< HEAD
     "prisma": "^6.19.3",
-=======
-    "prisma": "^5.22.0",
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
     "ts-jest": "^29.2.5"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
-<<<<<<< HEAD
   },
   "allowScripts": {
     "@prisma/engines@6.19.3": true,
     "esbuild@0.28.1": true,
     "prisma@6.19.3": true
-=======
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
+
   }
 }

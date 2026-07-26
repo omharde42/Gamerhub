@@ -20,6 +20,7 @@ const getJwtModule = (): JwtModule => {
 };
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { generalLimiter } from './middleware/rateLimiter';
+import { csrfProtection } from './middleware/csrf';
 import prisma from './config/database';
 import { chatService } from './services/chat.service';
 
@@ -243,6 +244,20 @@ app.use(
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    strictTransportSecurity: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    permissionsPolicy: {
+      features: {
+        camera: ["'self'"],
+        microphone: ["'self'"],
+        fullscreen: ["'self'"],
+        geolocation: [],
+        payment: [],
+      },
+    },
   })
 );
 
@@ -277,6 +292,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
 app.use(generalLimiter);
+
+// CSRF Protection (double-submit cookie pattern for browser-based requests)
+app.use(csrfProtection);
 
 // Health check
 app.get('/api/health', (_req, res) => {

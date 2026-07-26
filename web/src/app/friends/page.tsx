@@ -102,11 +102,7 @@ export default function FriendsPage() {
   ).slice(0, 4) || [];
 
   return (
-<<<<<<< HEAD
     <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
-=======
-    <div className="w-full space-y-6">
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
       <motion.div className="flex items-center justify-between" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Friends Network</h1>

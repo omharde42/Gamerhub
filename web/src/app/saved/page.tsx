@@ -75,19 +75,6 @@ export default function SavedPostsPage() {
   const validPosts = posts || [];
 
   return (
-<<<<<<< HEAD
-    <div className="space-y-4 overflow-x-hidden">
-      <div className="flex items-center gap-3">
-        <Link href="/feed">
-          <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Bookmark className="h-5 w-5 text-primary" />
-            Saved Posts
-          </h1>
-          <p className="text-xs text-muted-foreground">{savedIds.length} saved posts</p>
-=======
     <div className="space-y-6 max-w-4xl mx-auto px-4 py-6">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/40">
@@ -106,7 +93,6 @@ export default function SavedPostsPage() {
               {savedIds.length} bookmarked {savedIds.length === 1 ? 'post' : 'posts'}
             </p>
           </div>
->>>>>>> 95322cbf7078554dcba510daa6311046a2aca44d
         </div>
 
         {savedIds.length > 0 && (

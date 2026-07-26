@@ -272,7 +272,7 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onFocus={handleTextareaFocus}
-        className={`w-full resize-none border-0 bg-muted/20 rounded-2xl p-4 text-base focus-visible:ring-1 focus-visible:ring-primary/20 ${
+        className={`w-full resize-none rounded-2xl p-4 text-base focus-visible:ring-1 focus-visible:ring-primary/20 ${
           isFullScreen ? 'min-h-[160px]' : 'min-h-[100px]'
         }`}
         autoFocus={isFullScreen}

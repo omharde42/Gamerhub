@@ -283,12 +283,12 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                                 setPreviewOpen(true);
                               }}
                               onError={(e) => {
-                                const target = e.target as HTMLElement;
+                                const target = e.currentTarget;
                                 target.style.display = 'none';
-                                const parent = target.parentElement;
-                                if (parent) {
-                                  parent.innerHTML = '<div class="flex items-center justify-center p-8 bg-muted/60 text-muted-foreground text-xs font-medium border border-border/40 rounded-lg">\uD83D\uDDBC\uFE0F Image unavailable</div>';
-                                }
+                                const fallback = document.createElement('div');
+                                fallback.className = 'flex items-center justify-center p-8 bg-muted/60 text-muted-foreground text-xs font-medium border border-border/40 rounded-lg';
+                                fallback.textContent = '\uD83D\uDDBC\uFE0F Image unavailable';
+                                target.parentElement?.appendChild(fallback);
                               }}
                             />
                           )}
