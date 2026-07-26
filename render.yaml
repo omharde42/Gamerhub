@@ -6,7 +6,7 @@ services:
     plan: free
     region: singapore # You can change this to your nearest region
     rootDir: server
-    buildCommand: npm install --production=false --legacy-peer-deps && npx prisma generate && npm run build
+    buildCommand: npm install --production=false --legacy-peer-deps && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
