@@ -383,14 +383,21 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
   // Full Screen Mobile Page view
   if (isFullScreen) {
     return (
-      <div className="fixed inset-0 z-50 bg-background flex flex-col h-dvh w-full overflow-hidden">
-        {/* Full Screen Top Header */}
-        <div className="shrink-0 h-14 border-b border-border/40 px-4 flex items-center justify-between bg-card/40 backdrop-blur-md">
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed inset-0 z-50 bg-background flex flex-col h-dvh w-full overflow-hidden text-foreground"
+      >
+        {/* Full Screen Sticky Header */}
+        <div className="shrink-0 h-14 border-b border-border/40 px-4 flex items-center justify-between bg-card/60 backdrop-blur-md sticky top-0 z-10 pt-[env(safe-area-inset-top,0px)]">
           <button
             onClick={onClose}
-            className="p-2 text-muted-foreground hover:text-foreground rounded-xl transition-colors"
+            className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground p-1 rounded-xl transition-colors"
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5" />
+            <span>Cancel</span>
           </button>
           <h2 className="font-bold text-base text-foreground">Create Post</h2>
           <Button
@@ -398,7 +405,7 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
             size="sm"
             disabled={(!content.trim() && !media.length && !showPoll) || createPost.isPending || uploading}
             onClick={() => createPost.mutate()}
-            className="h-9 px-5 font-bold rounded-xl gap-1.5"
+            className="h-9 px-5 font-bold rounded-xl gap-1.5 shadow-md shadow-primary/20"
             animate
           >
             {createPost.isPending || uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -407,6 +414,7 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
         </div>
 
         {/* Scrollable Content Body */}
+<<<<<<< HEAD
         <div 
           ref={contentBodyRef}
           className="flex-1 overflow-y-auto p-4 space-y-4"
@@ -420,11 +428,189 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
           className="shrink-0 border-t border-border/40 p-3 bg-card/60 backdrop-blur-md flex items-center justify-around gap-2 transition-all duration-200"
           style={{ paddingBottom: isKeyboardOpen ? `${keyboardHeight}px` : undefined }}
         >
+=======
+        <div className="flex-1 overflow-y-auto p-4 space-y-5 pb-safe">
+          {/* User Profile & Rank Badge Header */}
+          <div className="flex items-center gap-3">
+            <Avatar className="h-11 w-11 ring-2 ring-primary/20 shrink-0">
+              <AvatarImage src={user?.profile?.avatar || ''} />
+              <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                {getInitials(user?.profile?.username || 'U')}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm font-bold text-foreground truncate">
+                  {user?.profile?.displayName || user?.profile?.username}
+                </p>
+                <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-primary/20 px-2 py-0.5">
+                  <Sparkles className="h-2.5 w-2.5 mr-1" />
+                  {user?.profile?.rank || 'Pro Gamer'}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <select
+                  value={privacy}
+                  onChange={(e: any) => setPrivacy(e.target.value)}
+                  className="text-xs bg-muted/60 border border-border/40 text-muted-foreground rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer"
+                >
+                  <option value="PUBLIC">🌐 Public (Everyone)</option>
+                  <option value="FRIENDS">👥 Friends Only</option>
+                  <option value="COMMUNITY">🎮 Community Only</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Expanded Text Area (Min height 250px on mobile) */}
+          <Textarea
+            placeholder="What's happening in your gaming world? Share your clips, achievements, screenshots, or thoughts..."
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full resize-none border-0 bg-muted/20 rounded-2xl p-4 text-base focus-visible:ring-1 focus-visible:ring-primary/20 min-h-[250px] placeholder:text-muted-foreground/50 leading-relaxed"
+            autoFocus
+          />
+
+          {uploading && (
+            <div className="space-y-1.5 px-1 py-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Uploading media to network...</span>
+                <span className="font-semibold text-primary">{uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-1.5 bg-primary/10" />
+            </div>
+          )}
+
+          {/* Media Previews (Photo & Video with Play Icon) */}
+          {media.length > 0 && (
+            <motion.div className="space-y-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Media Attachments</p>
+              <div className="flex gap-3 flex-wrap">
+                {media.map((url, i) => {
+                  const isVideoFile = url.match(/\.(mp4|webm|ogg|mov)$/i) || url.includes('/video/upload/') || url.startsWith('data:video/') || url.startsWith('blob:');
+                  const thumb = localThumbnails[url] || (url.includes('/video/upload/') ? url.replace(/\/video\/upload\/(v\d+\/)?/, '/video/upload/c_limit,w_150,h_150/').replace(/\.[^/.]+$/, '.jpg') : null);
+                  return (
+                    <div key={i} className="relative group">
+                      {isVideoFile ? (
+                        <div className="h-28 w-28 rounded-2xl overflow-hidden relative border border-border/60 bg-black flex items-center justify-center shadow-md">
+                          {thumb ? (
+                            <img src={thumb} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <video src={url} className="h-full w-full object-cover" />
+                          )}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <Video className="h-7 w-7 text-white/90 drop-shadow-md" />
+                          </div>
+                        </div>
+                      ) : (
+                        <img src={url} alt="" className="h-28 w-28 rounded-2xl object-cover border border-border/60 shadow-md" />
+                      )}
+                      <button
+                        onClick={() => setMedia(media.filter((_, j) => j !== i))}
+                        className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-destructive text-white flex items-center justify-center shadow-lg transition-all"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Poll UI */}
+          {showPoll && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-3 bg-card/60 rounded-2xl p-4 border border-border/50 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <BarChart3 className="h-4 w-4 text-purple-400" /> Create a Community Poll
+                </p>
+                <button onClick={() => setShowPoll(false)} className="text-muted-foreground hover:text-destructive p-1 rounded-lg">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <Input
+                placeholder="Ask a question..."
+                value={pollQuestion}
+                onChange={(e) => setPollQuestion(e.target.value)}
+                className="text-sm font-semibold border-0 bg-muted/40 rounded-xl"
+              />
+              {pollOptions.map((opt, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    placeholder={`Option ${i + 1}`}
+                    value={opt}
+                    onChange={(e) => {
+                      const newOpts = [...pollOptions];
+                      newOpts[i] = e.target.value;
+                      setPollOptions(newOpts);
+                    }}
+                    className="text-sm flex-1 border-0 bg-muted/40 rounded-xl"
+                  />
+                  {pollOptions.length > 2 && (
+                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-xl" onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {pollOptions.length < 5 && (
+                <Button variant="ghost" size="sm" className="text-xs text-primary font-semibold" onClick={addPollOption}>+ Add option</Button>
+              )}
+            </motion.div>
+          )}
+
+          {/* Hashtag Chips */}
+          {tags.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap pt-1">
+              {tags.map((tag, i) => (
+                <Badge key={i} variant="secondary" className="gap-1 text-xs px-3 py-1 rounded-xl bg-primary/10 text-primary border-primary/20">
+                  #{tag}
+                  <button onClick={() => setTags(tags.filter((_, j) => j !== i))} className="text-xs ml-0.5 hover:text-destructive">&times;</button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {/* Live Post Feed Preview Box */}
+          {(content.trim() || media.length > 0 || showPoll) && (
+            <div className="space-y-2 pt-3 border-t border-border/30">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-primary" /> Live Feed Preview
+              </p>
+              <Card variant="glass" className="p-4 rounded-2xl bg-card/40 border-border/40">
+                <div className="flex gap-3">
+                  <Avatar className="h-9 w-9 shrink-0">
+                    <AvatarImage src={user?.profile?.avatar || ''} />
+                    <AvatarFallback>{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-foreground">{user?.profile?.displayName || user?.profile?.username}</span>
+                      <span className="text-[10px] text-muted-foreground">Just now</span>
+                    </div>
+                    {content && <p className="text-xs text-foreground/90 whitespace-pre-wrap">{content}</p>}
+                    {media.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {media.map((url, idx) => (
+                          <img key={idx} src={url} alt="" className="rounded-xl h-24 w-full object-cover" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+        </div>
+
+        {/* Fixed Action Toolbar at Bottom */}
+        <div className="shrink-0 border-t border-border/40 p-3 bg-card/80 backdrop-blur-md flex items-center justify-around gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
           <input type="file" accept="image/*,video/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
           <Button
             variant="outline"
             size="sm"
-            className="h-10 text-xs rounded-xl gap-1.5 flex-1"
+            className="h-10 text-xs rounded-2xl gap-1.5 flex-1 border-border/50 hover:border-primary/40"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
           >
@@ -433,24 +619,24 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
           <Button
             variant="outline"
             size="sm"
-            className={`h-10 text-xs rounded-xl gap-1.5 flex-1 ${showPoll ? 'border-primary text-primary bg-primary/10' : ''}`}
+            className={`h-10 text-xs rounded-2xl gap-1.5 flex-1 border-border/50 ${showPoll ? 'border-primary text-primary bg-primary/10' : ''}`}
             onClick={() => setShowPoll(!showPoll)}
             disabled={uploading}
           >
             <BarChart3 className="h-4 w-4 text-purple-400" /> Poll
           </Button>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-1">
             <Input
               placeholder="#tag"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
-              className="h-10 w-20 text-xs rounded-xl border-border/40"
+              className="h-10 w-full text-xs rounded-2xl border-border/50 bg-muted/30"
               onKeyDown={(e) => e.key === 'Enter' && addTag()}
               disabled={uploading}
             />
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
