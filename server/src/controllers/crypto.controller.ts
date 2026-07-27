@@ -30,7 +30,7 @@ export class CryptoController {
       await prisma.profile.update({
         where: { userId: req.user!.userId },
         data: {
-          bioSummary: keyBundleStr,
+          aiSummary: keyBundleStr,
         },
       });
     });
@@ -39,7 +39,7 @@ export class CryptoController {
     await prisma.profile.update({
       where: { userId: req.user!.userId },
       data: {
-        bioSummary: keyBundleStr,
+        aiSummary: keyBundleStr,
       },
     });
 
@@ -53,15 +53,15 @@ export class CryptoController {
     const { userId } = req.params;
     const profile = await prisma.profile.findUnique({
       where: { userId },
-      select: { bioSummary: true, username: true },
+      select: { aiSummary: true, username: true },
     });
 
-    if (!profile || !profile.bioSummary) {
+    if (!profile || !profile.aiSummary) {
       return sendError(res, 404, 'User public key not found or not initialized for E2EE');
     }
 
     try {
-      const keys = JSON.parse(profile.bioSummary);
+      const keys = JSON.parse(profile.aiSummary);
       sendSuccess(res, keys);
     } catch {
       sendError(res, 404, 'User public key bundle invalid');

@@ -100,18 +100,21 @@ export function Navbar() {
     queryKey: ['notifications-unread'],
     queryFn: () => api.get('/notifications/unread-count').then(r => r.data.data),
     refetchInterval: 30000,
+    enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
   });
 
   const { data: recentNotifs } = useQuery({
     queryKey: ['notifications-recent'],
     queryFn: () => api.get('/notifications').then(r => r.data.data?.slice(0, 5)),
     refetchInterval: 30000,
+    enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
   });
 
   const { data: chatUnreadData } = useQuery({
     queryKey: ['chat-unread'],
     queryFn: () => api.get('/chat/unread-counts').then(r => r.data.data || {}),
     refetchInterval: 15000,
+    enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
   });
 
   const unreadCount = notifData?.count || 0;

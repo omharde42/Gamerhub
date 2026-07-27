@@ -1,4 +1,5 @@
 import prisma from '../config/database';
+import { PostType } from '@prisma/client';
 import { NotFoundError, ForbiddenError } from '../utils/errors';
 
 export class PostService {
@@ -6,8 +7,7 @@ export class PostService {
     data: { content: string; type?: string; media?: string[]; tags?: string[]; poll?: { question: string; options: string[] } },
     userId: string
   ) {
-    type PostType = 'POST' | 'ARTICLE' | 'CLIP' | 'POLL';
-    const postType: PostType = (data.type as PostType) || (data.poll ? 'POLL' : data.media?.length ? 'CLIP' : 'POST');
+    const postType: PostType = (data.type as PostType) || (data.poll ? 'POLL' : data.media?.length ? 'VIDEO' : 'POST');
     const post = await prisma.post.create({
       data: {
         content: data.content,

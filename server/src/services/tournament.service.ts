@@ -1,15 +1,30 @@
 import prisma from '../config/database';
+import { TournamentType, TournamentStatus } from '@prisma/client';
 import { NotFoundError, ForbiddenError, ConflictError, ValidationError } from '../utils/errors';
 export class TournamentService {
-  async create(data: { title: string; description?: string; game: string; type: string; maxTeams: number; prizePool?: number; entryFee?: number; startDate: string; rules?: string }, organizerId: string) {
-    return prisma.tournament.create({ data: { ...data, organizerId } });
+  async create(data: { title: string; description?: string; game: string; type: TournamentType; maxTeams: number; prizePool?: number; entryFee?: number; startDate: string; rules?: string }, organizerId: string) {
+    const { startDate, ...rest } = data;
+    return prisma.tournament.create({
+      data: {
+        title: rest.title,
+        description: rest.description,
+        game: rest.game,
+        type: rest.type,
+        maxTeams: rest.maxTeams,
+        prizePool: rest.prizePool,
+        entryFee: rest.entryFee,
+        startDate: new Date(startDate),
+        rules: rest.rules,
+        organizerId,
+      },
+    });
   }
   async getById(id: string) {
     const tournament = await prisma.tournament.findUnique({ where: { id }, include: { organizer: true, teams: { include: { team: { include: { members: { include: { user: { select: { id: true, profile: true } } } } } }, members: { include: { user: { select: { id: true, profile: true } } } } } }, matches: true, participants: { include: { user: { select: { id: true, profile: true } } } } } });
     if (!tournament) throw new NotFoundError('Tournament'); return tournament;
   }
-  async list(params: { page?: number; limit?: number; status?: string; game?: string }) {
-    const { page = 1, limit = 20, status, game } = params; const where: Record<string, unknown> = {};
+  async list(params: { page?: number; limit?: number; status?: TournamentStatus; game?: string }) {
+    const { page = 1, limit = 20, status, game } = params; const where: { status?: TournamentStatus; game?: string } = {};
     if (status) where.status = status; if (game) where.game = game;
     const [tournaments, total] = await Promise.all([prisma.tournament.findMany({ where, skip: (page - 1) * limit, take: limit, include: { organizer: { select: { id: true, name: true, avatar: true } }, _count: { select: { teams: true } } }, orderBy: { startDate: 'asc' } }), prisma.tournament.count({ where })]);
     return { data: tournaments, meta: { page, limit, total, totalPages: Math.ceil(total / limit), hasNext: page * limit < total, hasPrev: page > 1 } };
@@ -18,7 +33,7 @@ export class TournamentService {
     if (!teamId) throw new ValidationError({ teamId: ['Team ID is required'] });
     const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
     if (!tournament) throw new NotFoundError('Tournament');
-    if (tournament.status !== 'REGISTRATION_OPEN') throw new ForbiddenError('Registration is not open');
+    if (tournament.status !== 'OPEN') throw new ForbiddenError('Registration is not open');
     const team = await prisma.team.findUnique({ where: { id: teamId } });
     if (!team) throw new NotFoundError('Team');
     const existing = await prisma.tournamentTeam.findUnique({ where: { tournamentId_teamId: { tournamentId, teamId } } });

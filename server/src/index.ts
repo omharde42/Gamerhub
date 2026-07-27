@@ -249,15 +249,6 @@ app.use(
       includeSubDomains: true,
       preload: true,
     },
-    permissionsPolicy: {
-      features: {
-        camera: ["'self'"],
-        microphone: ["'self'"],
-        fullscreen: ["'self'"],
-        geolocation: [],
-        payment: [],
-      },
-    },
   })
 );
 

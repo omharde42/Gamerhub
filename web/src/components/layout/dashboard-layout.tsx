@@ -49,7 +49,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     }
 
     // Guard 2: Redirect to feed if authenticated and trying to access landing/auth page
-    if (isAuthenticated && isAuthOrLanding && pathname !== '/auth/callback') {
+    if (isAuthenticated && user && isAuthOrLanding && pathname !== '/auth/callback') {
       router.push('/feed');
       return;
     }

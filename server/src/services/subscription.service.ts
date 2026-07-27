@@ -9,9 +9,9 @@ if (config.stripe.secretKey) {
 }
 
 const PRICE_IDS: Record<string, string> = {
+  PREMIUM: 'price_premium',
   PRO: 'price_pro',
-  ELITE: 'price_elite',
-  TEAM_PRO: 'price_team_pro',
+  ENTERPRISE: 'price_enterprise',
 };
 
 export class SubscriptionService {
@@ -44,7 +44,7 @@ export class SubscriptionService {
       await prisma.subscription.upsert({
         where: { userId },
         update: {
-          tier: tier as 'PRO' | 'ELITE' | 'TEAM_PRO',
+          tier: tier as 'PREMIUM' | 'PRO' | 'ENTERPRISE',
           stripeId: session.id,
           status: 'ACTIVE',
           currentPeriodStart: new Date(session.current_period_start * 1000),
@@ -52,7 +52,7 @@ export class SubscriptionService {
         },
         create: {
           userId,
-          tier: tier as 'PRO' | 'ELITE' | 'TEAM_PRO',
+          tier: tier as 'PREMIUM' | 'PRO' | 'ENTERPRISE',
           stripeId: session.id,
           status: 'ACTIVE',
           currentPeriodStart: new Date(session.current_period_start * 1000),

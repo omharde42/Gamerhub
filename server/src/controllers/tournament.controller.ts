@@ -3,6 +3,7 @@ import { AuthRequest } from '../types';
 import { tournamentService } from '../services/tournament.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
+import { TournamentStatus } from '@prisma/client';
 
 export class TournamentController {
   create = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -20,7 +21,7 @@ export class TournamentController {
     const result = await tournamentService.list({
       page: page ? parseInt(page as string) : undefined,
       limit: limit ? parseInt(limit as string) : undefined,
-      status: status as string,
+      status: status ? (status as TournamentStatus) : undefined,
       game: game as string,
     });
     sendSuccess(res, result.data, undefined, 200, result.meta);

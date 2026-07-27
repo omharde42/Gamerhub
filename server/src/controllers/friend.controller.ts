@@ -43,7 +43,7 @@ export class FriendController {
     if (request.receiverId !== req.user!.userId) throw new ForbiddenError('Not authorized to reject this request');
     await prisma.friendRequest.update({
       where: { id: req.params.id },
-      data: { status: 'REJECTED' },
+      data: { status: 'DECLINED' },
     });
     sendSuccess(res, null, 'Request rejected');
   });

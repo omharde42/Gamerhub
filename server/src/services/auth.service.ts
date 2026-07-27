@@ -129,13 +129,17 @@ export class AuthService {
     try {
       const jwtSecret = process.env.SUPABASE_JWT_SECRET || 'dev-jwt-secret-change-in-production';
       const jwt = await import('jsonwebtoken');
-      decoded = jwt.verify(supabaseToken, jwtSecret);
+      decoded = jwt.verify(supabaseToken, jwtSecret) as unknown as { email: string; sub: string; user_metadata?: Record<string, unknown> };
     } catch (err: any) {
       const jwt = await import('jsonwebtoken');
-      decoded = jwt.decode(supabaseToken);
+      decoded = jwt.decode(supabaseToken) as unknown as { email: string; sub: string; user_metadata?: Record<string, unknown> } | null;
       if (!decoded || typeof decoded !== 'object') {
         throw new UnauthorizedError('Invalid or expired Supabase authentication token');
       }
+    }
+
+    if (!decoded) {
+      throw new UnauthorizedError('Invalid or expired Supabase authentication token');
     }
 
     const { email, sub: providerId, user_metadata } = decoded;
@@ -185,13 +189,16 @@ export class AuthService {
         },
       });
 
+      const metaName = typeof user_metadata?.full_name === 'string' ? user_metadata.full_name : typeof user_metadata?.name === 'string' ? user_metadata.name : null;
+      const avatarUrl = typeof user_metadata?.avatar_url === 'string' ? user_metadata.avatar_url : typeof user_metadata?.picture === 'string' ? user_metadata.picture : null;
+
       if (user) {
         // Link the existing user to the new social account
         await prisma.account.create({
           data: {
             provider,
             providerId,
-            providerUsername: user_metadata?.full_name || user_metadata?.name || null,
+            providerUsername: metaName,
             userId: user.id,
           },
         });
@@ -209,8 +216,6 @@ export class AuthService {
           existingUser = await prisma.profile.findUnique({ where: { username } });
         }
 
-        const avatarUrl = user_metadata?.avatar_url || user_metadata?.picture || null;
-
         user = await prisma.user.create({
           data: {
             email,
@@ -218,7 +223,7 @@ export class AuthService {
             profile: {
               create: {
                 username,
-                displayName: user_metadata?.full_name || user_metadata?.name || username,
+                displayName: metaName || username,
                 avatar: avatarUrl,
               },
             },
@@ -229,7 +234,7 @@ export class AuthService {
               create: {
                 provider,
                 providerId,
-                providerUsername: user_metadata?.full_name || user_metadata?.name || null,
+                providerUsername: metaName,
               },
             },
           },
@@ -373,7 +378,7 @@ export class AuthService {
   async steamLogin(steamId: string, personaName: string, avatarUrl: string) {
     if (!steamId) throw new ValidationError({ steamId: ['Steam ID is required'] });
 
-    type UserWithRelations = Awaited<ReturnType<typeof prisma.user.findUnique<{ include: { profile: true; subscription: true } }>>>;
+    type UserWithRelations = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique<{ where: { id: string }; include: { profile: true; subscription: true } }>>>>;
 
     let account = await prisma.account.findUnique({
       where: {
@@ -470,7 +475,6 @@ export class AuthService {
         provider: true,
         providerId: true,
         providerUsername: true,
-        createdAt: true,
       },
     });
     return accounts;

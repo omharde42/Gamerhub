@@ -3,6 +3,7 @@ import { AuthRequest } from '../types';
 import { jobService } from '../services/job.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
+import { JobType, JobStatus } from '@prisma/client';
 
 export class JobController {
   create = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -15,9 +16,9 @@ export class JobController {
     const result = await jobService.list({
       page: page ? parseInt(page as string) : undefined,
       limit: limit ? parseInt(limit as string) : undefined,
-      type: type as string,
+      type: type ? (type as JobType) : undefined,
       game: game as string,
-      status: status as string,
+      status: status ? (status as JobStatus) : undefined,
     });
     sendSuccess(res, result.data, undefined, 200, result.meta);
   });

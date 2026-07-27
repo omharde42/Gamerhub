@@ -49,27 +49,44 @@ function generateLocalProfileAnalysis(profile: {
   return analysis;
 }
 
-function generateLocalMatchAnalysis(stats: { recentPerformance?: { kills: number; deaths: number; accuracy?: number; assists: number; game?: string } } | null): string {
-  if (!stats || !stats.recentPerformance) return 'Play more matches to receive performance analysis. Connect your game accounts for detailed stats.';
-  const mp = stats.recentPerformance;
-  const kd = mp.kills / Math.max(mp.deaths, 1);
-  let analysis = `Match Performance Rating: ${Math.round(Math.min(kd * 25 + (mp.accuracy || 0) * 0.3, 100))}/100\n\n`;
-  analysis += `Game: ${mp.game || 'Competitive'}\n`;
+export interface MatchPerformanceData {
+  game?: string;
+  result?: string;
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  damage?: number;
+  accuracy?: number;
+  matches?: number;
+  wins?: number;
+  losses?: number;
+  winRate?: number;
+  avgKd?: number;
+  avgAccuracy?: number;
+}
+
+function generateLocalMatchAnalysis(matchData: MatchPerformanceData | null): string {
+  if (!matchData) return 'Play more matches to receive performance analysis. Connect your game accounts for detailed stats.';
+  const game = matchData.game || 'Competitive';
+  const kd = matchData.avgKd ?? (matchData.kills ? matchData.kills / Math.max(matchData.deaths || 1, 1) : 1);
+  const accuracy = matchData.avgAccuracy ?? matchData.accuracy ?? 0;
+  let analysis = `Match Performance Rating: ${Math.round(Math.min(kd * 25 + accuracy * 0.3, 100))}/100\n\n`;
+  analysis += `Game: ${game}\n`;
   analysis += `Recent K/D: ${kd.toFixed(2)}\n`;
-  analysis += `Accuracy: ${mp.accuracy || 0}%\n\n`;
+  analysis += `Accuracy: ${accuracy}%\n\n`;
   analysis += 'Strengths:\n';
   if (kd > 1.2) analysis += '- Good mechanical skill in aim duels\n';
-  if ((mp.accuracy || 0) > 50) analysis += '- Above average accuracy\n';
-  if (mp.assists > mp.deaths) analysis += '- Strong team player with good assist numbers\n';
+  if (accuracy > 50) analysis += '- Above average accuracy\n';
+  if ((matchData.assists || 0) > (matchData.deaths || 0)) analysis += '- Strong team player with good assist numbers\n';
   analysis += '\nAreas to Improve:\n';
   if (kd < 1) analysis += '- Work on crosshair placement and spray control\n- Practice peeking angles and jiggle peeking\n';
-  if ((mp.accuracy || 0) < 40) analysis += '- Focus on crosshair placement at head level\n- Reduce unnecessary movement while shooting\n';
+  if (accuracy < 40) analysis += '- Focus on crosshair placement at head level\n- Reduce unnecessary movement while shooting\n';
   analysis += '\nTip: Review your VODs to identify positioning mistakes and rotate earlier based on team callouts.';
   return analysis;
 }
 
 function generateLocalTrainingPlan(profile: { mainGames?: string[]; rank?: string | null }): string {
-  const games = profile.mainGames?.length > 0 ? profile.mainGames[0] : 'your game';
+  const games = (profile.mainGames?.length ?? 0) > 0 ? profile.mainGames![0] : 'your game';
   const rank = profile.rank || 'your current rank';
   return `📅 7-Day Training Plan for ${games} (${rank})
 
@@ -122,7 +139,7 @@ export class AIService {
     const user = await prisma.user.findUnique({ where: { id: params.userId }, include: { profile: true } });
     if (!user?.profile) return [];
     const profile = user.profile; const limit = params.limit || 10;
-    const candidates = await prisma.profile.findMany({ where: { userId: { not: params.userId }, mainGames: profile.mainGames.length > 0 ? { hasSome: profile.mainGames } : undefined }, include: { user: { select: { id: true } } }, take: 50 });
+    const candidates = await prisma.profile.findMany({ where: { userId: { not: params.userId }, mainGames: (profile.mainGames?.length ?? 0) > 0 ? { hasSome: profile.mainGames } : undefined }, include: { user: { select: { id: true } } }, take: 50 });
     if (candidates.length === 0) return [];
     const ranked = candidates.map((candidate) => {
       let score = 0; const reasons: string[] = [];
@@ -156,18 +173,11 @@ export class AIService {
     } catch (error) { logAIError('profile analysis', error); return generateLocalProfileAnalysis(profile); }
   }
 
-  async analyzeMatchPerformance(matchData: {
-    game?: string;
-    result?: string;
-    kills?: number;
-    deaths?: number;
-    assists?: number;
-    damage?: number;
-    accuracy?: number;
-  } | null) {
+  async analyzeMatchPerformance(matchData: MatchPerformanceData | null) {
+    if (!matchData) return generateLocalMatchAnalysis(null);
     if (!openai) return generateLocalMatchAnalysis(matchData);
     try {
-      const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are an expert esports coach. Analyze match performance and provide actionable feedback.' }, { role: 'user', content: `Analyze this match performance:\nGame: ${matchData.game}\nResult: ${matchData.result}\nKills: ${matchData.kills}\nDeaths: ${matchData.deaths}\nAssists: ${matchData.assists}\nDamage: ${matchData.damage}\nAccuracy: ${matchData.accuracy}%\nProvide: 1. Performance rating (0-100) 2. Main strengths 3. Areas for improvement 4. Specific tips` }], max_tokens: 500 });
+      const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are an expert esports coach. Analyze match performance and provide actionable feedback.' }, { role: 'user', content: `Analyze this match performance:\nGame: ${matchData.game || 'Competitive'}\nResult: ${matchData.result || 'N/A'}\nKills: ${matchData.kills ?? 'N/A'}\nDeaths: ${matchData.deaths ?? 'N/A'}\nAssists: ${matchData.assists ?? 'N/A'}\nDamage: ${matchData.damage ?? 'N/A'}\nAccuracy: ${matchData.accuracy ?? matchData.avgAccuracy ?? 'N/A'}%\nWin Rate: ${matchData.winRate ?? 'N/A'}%\nK/D: ${matchData.avgKd ?? 'N/A'}\nProvide: 1. Performance rating (0-100) 2. Main strengths 3. Areas for improvement 4. Specific tips` }], max_tokens: 500 });
       return completion.choices[0]?.message?.content || generateLocalMatchAnalysis(matchData);
     } catch (error) { logAIError('match analysis', error); return generateLocalMatchAnalysis(matchData); }
   }
@@ -204,7 +214,7 @@ export class AIService {
     role?: string | null;
     winRate?: number | null;
     kd?: number | null;
-  }): Promise<string> {
+  } | null): Promise<string> {
     const fallbackResponses: Record<string, string> = {
       aim: "Focus on 30-min daily aim trainer routines. Try KovaaK's or Aim Lab with scenarios like Tile Frenzy, Microshot, and Pasu Track. Also do 10-min deathmatch before ranked matches.",
       strategy: "Map control wins games. Focus on: 1) Crosshair placement at head level 2) Trade kills with teammates 3) Use utility before peeking 4) Play around your team's strengths. Review your VODs to spot rotation mistakes.",

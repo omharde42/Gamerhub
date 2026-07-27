@@ -118,8 +118,8 @@ api.interceptors.response.use(
         // authStore may not be available during SSR
       }
 
-      // Only redirect in the browser
-      if (typeof window !== 'undefined') {
+      // Only redirect in the browser if not already on an auth page
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
         window.location.href = '/auth/login';
       }
 

@@ -110,6 +110,7 @@ export class AuthController {
       } catch {}
     }
 
+    clientUrl = clientUrl.replace(/\/+$/, '');
     const redirectUri = `${clientUrl}/auth/callback`;
 
     const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
