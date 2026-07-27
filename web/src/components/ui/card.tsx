@@ -3,19 +3,21 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'glass' | 'game' | 'premium';
+  variant?: 'default' | 'glass' | 'bento' | 'game' | 'premium' | 'cyber';
   hover?: boolean;
   glow?: boolean;
 }
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(({ className, variant = 'default', hover = true, glow = false, ...props }, ref) => {
   const classes = cn(
-    'rounded-2xl border border-border/60 bg-card text-card-foreground shadow-sm transition-all duration-300',
+    'rounded-2xl border border-border/60 bg-card/70 text-card-foreground shadow-sm transition-all duration-300',
     hover && 'hover:-translate-y-1 hover:shadow-xl hover:border-border/80',
-    variant === 'glass' && 'bg-card/40 backdrop-blur-xl border border-border/40 shadow-lg shadow-black/10',
+    variant === 'glass' && 'bg-card/40 backdrop-blur-xl border border-white/10 shadow-lg shadow-black/20',
+    variant === 'bento' && 'bg-card/50 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-xl hover:border-primary/40 hover:shadow-primary/10',
     variant === 'game' && 'bg-card/80 backdrop-blur-md border border-indigo-500/10 shadow-md hover:border-indigo-500/30',
-    variant === 'premium' && 'bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20 shadow-lg shadow-primary/5 hover:border-primary/40',
-    glow && 'shadow-[0_0_20px_rgba(99,102,241,0.15)] border-primary/30',
+    variant === 'premium' && 'bg-gradient-to-br from-card via-card to-primary/10 border border-primary/30 shadow-lg shadow-primary/10 hover:border-primary/50',
+    variant === 'cyber' && 'cyber-card',
+    glow && 'shadow-[0_0_25px_rgba(99,102,241,0.2)] border-primary/40',
     className
   );
   return hover ? (

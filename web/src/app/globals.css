@@ -4,34 +4,38 @@
 
 @layer base {
   :root {
-    /* DEFAULT THEME: Midnight Slate (Dark Mode) */
-    --background: 222 47% 4%;
+    /* DEFAULT HYBRID GAMING THEME: Midnight Slate + Cyber Aurora */
+    --background: 224 32% 6%; /* #0B0E14 */
     --foreground: 210 40% 98%;
-    --card: 222 47% 6%;
+    --card: 222 30% 9%; /* Translucent glass card base */
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 6%;
+    --popover: 222 30% 9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 235 86% 65%; /* Clean Discord-style Blurple */
+    --primary: 238 84% 67%; /* Blurple Esports Primary */
     --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 10%;
+    --secondary: 217 33% 12%;
     --secondary-foreground: 210 40% 96%;
-    --muted: 217 33% 10%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 235 50% 12%;
-    --accent-foreground: 235 86% 75%;
-    --destructive: 0 84% 60%;
+    --muted: 217 25% 12%;
+    --muted-foreground: 215 20% 68%;
+    --accent: 238 60% 16%;
+    --accent-foreground: 238 86% 75%;
+    --destructive: 350 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --success: 142 70% 45%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --border: 217 33% 12%;
-    --input: 217 33% 12%;
-    --ring: 235 86% 65%;
-    --radius: 0.75rem;
+    --border: 217 30% 16%;
+    --input: 217 30% 16%;
+    --ring: 238 84% 67%;
+    --radius: 1rem;
 
-    --game-bg-dot: 0 0% 0%;
-    --game-bg-grid: 0 0% 95%;
+    /* Cyberpunk Vibrant Accent Variables */
+    --neon-cyan: 180 100% 50%;
+    --neon-purple: 270 100% 60%;
+    --neon-pink: 330 100% 55%;
+    --neon-green: 140 100% 50%;
+    --neon-yellow: 50 100% 50%;
   }
 
   .light {
@@ -42,14 +46,14 @@
     --card-foreground: 222 47% 6%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 6%;
-    --primary: 235 86% 60%;
+    --primary: 238 84% 60%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 94%;
     --secondary-foreground: 222 47% 6%;
     --muted: 210 40% 94%;
     --muted-foreground: 215 20% 45%;
-    --accent: 235 86% 96%;
-    --accent-foreground: 235 86% 60%;
+    --accent: 238 84% 96%;
+    --accent-foreground: 238 84% 60%;
     --destructive: 350 80% 55%;
     --destructive-foreground: 0 0% 100%;
     --success: 142 76% 36%;
@@ -58,7 +62,7 @@
     --warning-foreground: 0 0% 100%;
     --border: 210 40% 88%;
     --input: 210 40% 88%;
-    --ring: 235 86% 60%;
+    --ring: 238 84% 60%;
   }
 
   .gray {
@@ -69,14 +73,14 @@
     --card-foreground: 240 10% 94%;
     --popover: 240 10% 11%;
     --popover-foreground: 240 10% 94%;
-    --primary: 235 86% 65%;
+    --primary: 238 84% 67%;
     --primary-foreground: 0 0% 100%;
     --secondary: 240 10% 16%;
     --secondary-foreground: 240 10% 94%;
     --muted: 240 10% 16%;
     --muted-foreground: 240 5% 62%;
     --accent: 240 10% 18%;
-    --accent-foreground: 235 86% 75%;
+    --accent-foreground: 238 84% 75%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --success: 142 70% 45%;
@@ -85,7 +89,7 @@
     --warning-foreground: 0 0% 100%;
     --border: 240 10% 16%;
     --input: 240 10% 16%;
-    --ring: 235 86% 65%;
+    --ring: 238 84% 67%;
   }
 
   * {
@@ -107,94 +111,69 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    /* Aurora Gradient Mesh background */
     background-image: 
-      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(236, 72, 153, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%);
     background-attachment: fixed;
   }
 
-  ::selection { @apply bg-primary/20; }
+  ::selection { @apply bg-primary/30 text-white; }
 }
 
 @layer utilities {
-  /* Restrained card backgrounds */
+  /* 1. Glassmorphism Utilities */
   .glass {
-    @apply bg-card border border-border shadow-md;
+    @apply bg-card/60 backdrop-blur-xl border border-white/10 shadow-xl shadow-black/20;
   }
   .glass-strong {
-    @apply bg-card/95 backdrop-blur-md border border-border shadow-lg;
+    @apply bg-card/85 backdrop-blur-2xl border border-white/15 shadow-2xl shadow-black/30;
   }
   .glass-card {
-    @apply bg-card border border-border/80 shadow-sm rounded-xl;
+    @apply bg-card/50 backdrop-blur-md border border-border/60 shadow-md rounded-2xl transition-all duration-300;
   }
 
-  /* Grid details */
-  .bg-grid {
-    background-image:
-      linear-gradient(hsl(var(--foreground)/0.03) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--foreground)/0.03) 1px, transparent 1px);
-    background-size: 32px 32px;
+  /* 2. Bento UI Modular Card Grid */
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
   }
-  .bg-dots {
-    background-image: radial-gradient(hsl(var(--foreground)/0.04) 1px, transparent 1px);
-    background-size: 20px 20px;
-  }
-  .bg-grid-neon {
-    background-image:
-      linear-gradient(hsl(var(--neon-cyan)/0.05) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--neon-purple)/0.05) 1px, transparent 1px);
-    background-size: 50px 50px;
+  .bento-card {
+    @apply bg-card/50 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl transition-all duration-300 hover:border-primary/40 hover:shadow-primary/10 hover:-translate-y-1;
   }
 
-  /* Neon text */
-  .text-neon { color: hsl(var(--neon-cyan)); }
-  .text-neon-pink { color: hsl(var(--neon-pink)); }
-  .text-neon-purple { color: hsl(var(--neon-purple)); }
-  .text-neon-green { color: hsl(var(--neon-green)); }
-  .text-neon-yellow { color: hsl(var(--neon-yellow)); }
-
-  /* Mask for gradient text */
-  .text-gradient {
-    background: linear-gradient(135deg, hsl(var(--neon-purple)), hsl(var(--neon-cyan)), hsl(var(--neon-pink)));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  /* 3. Subtle Neumorphism for Buttons & Interactive Controls */
+  .neumorphic-btn {
+    box-shadow: 
+      inset 0 1px 1px rgba(255, 255, 255, 0.15),
+      0 4px 12px rgba(0, 0, 0, 0.35);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .text-gradient-cyan {
-    background: linear-gradient(135deg, hsl(var(--neon-cyan)), hsl(var(--neon-blue)));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .neumorphic-btn:hover {
+    box-shadow: 
+      inset 0 1px 2px rgba(255, 255, 255, 0.25),
+      0 6px 16px rgba(0, 0, 0, 0.45);
   }
-  .text-gradient-gold {
-    background: linear-gradient(135deg, #FFD700, #FFA500);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .neumorphic-btn:active {
+    box-shadow: 
+      inset 0 2px 4px rgba(0, 0, 0, 0.6),
+      0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+  .neumorphic-inset {
+    box-shadow: 
+      inset 0 2px 6px rgba(0, 0, 0, 0.5),
+      0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
-  /* Futuristic border glow animation */
-  .border-glow-animate {
-    position: relative;
+  /* 4. Cyberpunk Gaming Accents */
+  .cyber-glow {
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 10px rgba(0, 240, 255, 0.1);
   }
-  .border-glow-animate::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, hsl(var(--neon-cyan)), hsl(var(--neon-purple)), hsl(var(--neon-pink)), hsl(var(--neon-cyan)));
-    background-size: 300% 300%;
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    animation: border-rotate 3s linear infinite;
-    pointer-events: none;
-  }
-
-  /* Cyber card */
   .cyber-card {
-    @apply bg-card border border-primary/20 rounded-xl shadow-[0_0_15px_hsl(var(--primary)/0.05)];
+    @apply bg-card/60 backdrop-blur-xl border border-cyan-500/30 rounded-2xl shadow-[0_0_20px_rgba(0,240,255,0.1)];
     position: relative;
     overflow: hidden;
   }
@@ -205,36 +184,36 @@
     left: -100%;
     width: 100%;
     height: 2px;
-    background: linear-gradient(90deg, transparent, hsl(var(--neon-cyan)), transparent);
-    animation: cyber-scan 3s ease-in-out infinite;
+    background: linear-gradient(90deg, transparent, #00F0FF, transparent);
+    animation: cyber-scan 3.5s ease-in-out infinite;
   }
 
-  /* Linked-in style cards (keep for compatibility) */
-  .linkedin-card { @apply bg-card border border-border rounded-lg; }
-  .linkedin-btn-primary { @apply bg-primary text-primary-foreground font-semibold rounded-full px-4 py-1.5 text-sm hover:opacity-90 transition-all; }
-  .linkedin-btn-outline { @apply border border-primary text-primary font-semibold rounded-full px-4 py-1.5 text-sm hover:bg-primary/5 transition-all; }
-
-  /* Mobile safe area support */
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* 5. Aurora Gradients */
+  .aurora-bg {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15), rgba(236, 72, 153, 0.1));
   }
-  .safe-area-top {
-    padding-top: env(safe-area-inset-top, 0px);
+  .aurora-border {
+    border-image: linear-gradient(135deg, #6366F1, #A855F7, #EC4899) 1;
+  }
+  .text-aurora {
+    background: linear-gradient(135deg, #818CF8, #C084FC, #F472B6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Material Design Form Inputs */
+  .material-input {
+    @apply bg-background/50 border border-border/80 rounded-xl px-4 py-2.5 text-sm transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none;
+  }
+
+  /* Fluent Motion */
+  .fluent-transition {
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 
-/* Animations */
-@keyframes slide-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes cyber-scan {
+  0% { left: -100%; }
+  50%, 100% { left: 100%; }
 }
-
-.animate-card-enter {
-  animation: slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.animate-card-enter:nth-child(1) { animation-delay: 0ms; }
-.animate-card-enter:nth-child(2) { animation-delay: 20ms; }
-.animate-card-enter:nth-child(3) { animation-delay: 40ms; }
-.animate-card-enter:nth-child(4) { animation-delay: 60ms; }
-.animate-card-enter:nth-child(5) { animation-delay: 80ms; }
