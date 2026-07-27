@@ -141,97 +141,97 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Validate file size
-      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB (matches server)
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error('File too large. Maximum size is 50MB.');
+    if (!file) return;
+
+    const isVideo = file.type.startsWith('video/');
+    const isAllowedImage = /image\/(jpeg|jpg|png|gif|webp)/i.test(file.type) || /\.(jpeg|jpg|png|gif|webp)$/i.test(file.name);
+
+    if (!isVideo && !isAllowedImage) {
+      toast.error('Unsupported file type. Allowed: JPG, PNG, GIF, WEBP.');
+      if (e.target) e.target.value = '';
+      return;
+    }
+
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+    const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+    if (!isVideo && file.size > MAX_IMAGE_SIZE) {
+      toast.error('Image exceeds the maximum size (10 MB).');
+      if (e.target) e.target.value = '';
+      return;
+    }
+    if (isVideo && file.size > MAX_VIDEO_SIZE) {
+      toast.error('Video exceeds maximum size of 50 MB.');
+      if (e.target) e.target.value = '';
+      return;
+    }
+
+    // 1. Instant local preview
+    const localUrl = URL.createObjectURL(file);
+    blobUrlsRef.current.add(localUrl);
+
+    // Immediately show local preview in UI
+    setMedia(prev => [...prev, localUrl]);
+
+    if (isVideo) {
+      const meta = await getVideoMetadata(file);
+      if (meta.duration === 0) {
+        toast.error('Could not read video file. Try a different file.');
+        setMedia(prev => prev.filter(m => m !== localUrl));
+        URL.revokeObjectURL(localUrl);
+        blobUrlsRef.current.delete(localUrl);
         if (e.target) e.target.value = '';
         return;
       }
+      setVideoMeta(prev => ({ ...prev, [localUrl]: meta }));
+      const localThumb = await generateVideoThumbnail(file);
+      if (localThumb) setLocalThumbnails(prev => ({ ...prev, [localUrl]: localThumb }));
+    }
 
-      // If video, validate metadata and show local preview
-      if (file.type.startsWith('video/')) {
-        const meta = await getVideoMetadata(file);
-        
-        if (meta.duration === 0) {
-          toast.error('Could not read video file. Try a different file.');
-          if (e.target) e.target.value = '';
-          return;
-        }
+    setUploading(true);
+    setUploadProgress(0);
+    const toastId = toast.loading(isVideo ? 'Uploading video...' : 'Uploading image...');
 
-        // Create local blob URL for preview
-        const localUrl = URL.createObjectURL(file);
-        blobUrlsRef.current.add(localUrl);
-        setVideoMeta(prev => ({ ...prev, [localUrl]: meta }));
-        
-        // Generate thumbnail
-        const localThumb = await generateVideoThumbnail(file);
-        
-        setUploading(true);
-        setUploadProgress(0);
-        const toastId = toast.loading('Uploading video to network...');
-        
-        try {
-          const fd = new FormData();
-          fd.append('media', file);
-          const { data } = await api.post('/posts/upload', fd, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            onUploadProgress: (progressEvent) => {
-              if (progressEvent.total) {
-                const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                setUploadProgress(percent);
-              }
-            }
-          });
-          const url = data.data.urls[0];
-          setMedia([...media, url]);
-          if (localThumb) {
-            setLocalThumbnails(prev => ({ ...prev, [url]: localThumb }));
+    try {
+      const fd = new FormData();
+      fd.append('media', file);
+      const { data } = await api.post('/posts/upload', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percent);
           }
-          toast.success('Video uploaded successfully!', { id: toastId });
-          
-          // Clean up local blob URL after successful upload
-          URL.revokeObjectURL(localUrl);
-          blobUrlsRef.current.delete(localUrl);
-          setVideoMeta(prev => {
-            const next = { ...prev };
-            delete next[localUrl];
-            return next;
-          });
-        } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Failed to upload video', { id: toastId });
-        } finally {
-          setUploading(false);
-          setUploadProgress(0);
         }
-      } else {
-        // Image upload (existing flow)
-        setUploading(true);
-        setUploadProgress(0);
-        const toastId = toast.loading('Uploading image to network...');
-        try {
-          const fd = new FormData();
-          fd.append('media', file);
-          const { data } = await api.post('/posts/upload', fd, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            onUploadProgress: (progressEvent) => {
-              if (progressEvent.total) {
-                const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                setUploadProgress(percent);
-              }
-            }
-          });
-          const url = data.data.urls[0];
-          setMedia([...media, url]);
-          toast.success('Image uploaded successfully!', { id: toastId });
-        } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Failed to upload image', { id: toastId });
-        } finally {
-          setUploading(false);
-          setUploadProgress(0);
-        }
+      });
+
+      const serverUrl = data?.data?.urls?.[0];
+      if (!serverUrl) {
+        throw new Error('Upload succeeded but server did not return a valid URL.');
       }
+
+      // Replace local preview URL with the server public URL
+      setMedia(prev => prev.map(m => (m === localUrl ? serverUrl : m)));
+
+      if (localThumbnails[localUrl]) {
+        setLocalThumbnails(prev => {
+          const next: Record<string, string> = { ...prev, [serverUrl]: prev[localUrl] };
+          delete next[localUrl];
+          return next;
+        });
+      }
+
+      toast.success(isVideo ? 'Video uploaded successfully!' : 'Image uploaded successfully!', { id: toastId });
+    } catch (err: any) {
+      // Remove failed local preview item on error
+      setMedia(prev => prev.filter(m => m !== localUrl));
+      const msg = err.response?.data?.message || err.message || 'Unable to upload image. Please try again.';
+      toast.error(msg, { id: toastId });
+    } finally {
+      URL.revokeObjectURL(localUrl);
+      blobUrlsRef.current.delete(localUrl);
+      setUploading(false);
+      setUploadProgress(0);
+      if (e.target) e.target.value = '';
     }
   };
 

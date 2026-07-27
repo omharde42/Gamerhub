@@ -32,15 +32,24 @@ export function getMediaUrl(url: string | null | undefined): string {
   if (!url) return '';
   if (url.startsWith('data:') || url.startsWith('blob:')) return url;
   
-  if (url.startsWith('/uploads') || url.startsWith('uploads/')) {
-    const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+  // Clean double/malformed protocols
+  let cleaned = url.replace(/^(https?,\s*)+/i, '');
+
+  // Extract relative /uploads/... path if present in absolute or relative URL
+  if (cleaned.includes('/uploads/')) {
+    const relativePath = cleaned.substring(cleaned.indexOf('/uploads/'));
     const baseUrl = API_URL.replace(/\/api\/?$/, '');
-    return `${baseUrl}${cleanUrl}`;
+    return `${baseUrl}${relativePath}`;
   }
 
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
-    return url.replace('http://', 'https://');
+  if (cleaned.startsWith('uploads/')) {
+    const baseUrl = API_URL.replace(/\/api\/?$/, '');
+    return `${baseUrl}/${cleaned}`;
   }
 
-  return url;
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && cleaned.startsWith('http://')) {
+    return cleaned.replace('http://', 'https://');
+  }
+
+  return cleaned;
 }

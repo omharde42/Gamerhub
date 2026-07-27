@@ -117,7 +117,7 @@ export class ProfileController {
 
     // 2. Local Disk Storage Fallback if Cloudinary is unconfigured or fails
     if (!avatarUrl) {
-      const uploadsDir = path.join(__dirname, '../../public/uploads/avatars');
+      const uploadsDir = path.resolve(process.cwd(), 'public/uploads/avatars');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
@@ -126,7 +126,8 @@ export class ProfileController {
       const filePath = path.join(uploadsDir, filename);
       fs.writeFileSync(filePath, req.file.buffer);
 
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+      const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
+      const protocol = rawProto.split(',')[0].trim();
       const host = req.get('host') || 'localhost:4000';
       avatarUrl = `${protocol}://${host}/uploads/avatars/${filename}`;
     }
@@ -174,7 +175,7 @@ export class ProfileController {
     }
 
     if (!bannerUrl) {
-      const uploadsDir = path.join(__dirname, '../../public/uploads/banners');
+      const uploadsDir = path.resolve(process.cwd(), 'public/uploads/banners');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
@@ -183,7 +184,8 @@ export class ProfileController {
       const filePath = path.join(uploadsDir, filename);
       fs.writeFileSync(filePath, req.file.buffer);
 
-      const protocol = req.protocol || 'http';
+      const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
+      const protocol = rawProto.split(',')[0].trim();
       const host = req.get('host') || 'localhost:4000';
       bannerUrl = `${protocol}://${host}/uploads/banners/${filename}`;
     }
