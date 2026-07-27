@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
-  Search, Send, Paperclip, Image as ImageIcon, MoreVertical, Plus, Loader2,
+  Search, Send, Paperclip, Image as ImageIcon, Camera, MoreVertical, Plus, Loader2,
   MessageSquare, UserPlus, Phone, Video, Mic, Headphones, Settings,
   Hash, Users, ChevronDown, ChevronRight, ChevronLeft, Heart, Smile, Reply,
   Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
@@ -41,7 +41,11 @@ function DiscordMessagesPage() {
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [chatUploading, setChatUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [attachedMedia, setAttachedMedia] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [shareOpen, setShareOpen] = useState<string | null>(null);
@@ -440,7 +444,7 @@ function DiscordMessagesPage() {
       }
     }
 
-    const media = filePreview ? [filePreview] : undefined;
+    const media = attachedMedia.length > 0 ? attachedMedia : filePreview ? [filePreview] : undefined;
     if (socket) {
       socket.emit('message:send', { chatId: selectedChat, content: payloadContent, media });
     } else {
@@ -448,15 +452,48 @@ function DiscordMessagesPage() {
     }
     setMessage('');
     setFilePreview(null);
+    setAttachedMedia([]);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) { toast.error('File too large (max 10MB)'); return; }
-      const reader = new FileReader();
-      reader.onload = (ev) => setFilePreview(ev.target?.result as string);
-      reader.readAsDataURL(file);
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileList = Array.from(files);
+    for (const file of fileList) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`File ${file.name} is too large (max 10MB)`);
+        continue;
+      }
+
+      setChatUploading(true);
+      setUploadProgress(10);
+      try {
+        const formData = new FormData();
+        formData.append('media', file);
+        const { data } = await api.post('/chat/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (ev) => {
+            if (ev.total) {
+              setUploadProgress(Math.round((ev.loaded * 100) / ev.total));
+            }
+          }
+        });
+
+        const urls = data?.data?.urls;
+        if (urls && urls.length > 0) {
+          setAttachedMedia(prev => [...prev, ...urls]);
+          toast.success('Image attached');
+        } else {
+          toast.error('Upload succeeded but server did not return image URL');
+        }
+      } catch (err: any) {
+        console.error('Chat image upload error:', err);
+        toast.error(err.response?.data?.message || 'Failed to upload image. Please try again.');
+      } finally {
+        setChatUploading(false);
+        setUploadProgress(0);
+      }
     }
   };
 
@@ -879,15 +916,36 @@ function DiscordMessagesPage() {
               }}
             >
               <div className="p-3 md:p-4">
-              {filePreview && (
+              {(attachedMedia.length > 0 || filePreview || chatUploading) && (
                 <motion.div
-                  className="flex items-center gap-2 mb-3 p-2 bg-muted/50 rounded-xl border border-border/30"
+                  className="flex items-center gap-2 mb-3 p-2 bg-card/60 rounded-xl border border-border/30 overflow-x-auto"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <img src={filePreview} alt="" className="h-10 w-10 rounded-lg object-cover shadow-sm" />
-                  <span className="text-xs text-muted-foreground flex-1">Image ready to send</span>
-                  <button onClick={() => setFilePreview(null)} className="hover:text-destructive p-1 rounded-lg hover:bg-destructive/10 transition-colors"><X className="h-4 w-4" /></button>
+                  {chatUploading && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-primary font-semibold shrink-0">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Uploading image... {uploadProgress}%</span>
+                    </div>
+                  )}
+                  {attachedMedia.map((url, i) => (
+                    <div key={i} className="relative group shrink-0">
+                      <img src={getMediaUrl(url)} alt="" className="h-14 w-14 rounded-lg object-cover border border-border/40 shadow-sm" />
+                      <button
+                        onClick={() => setAttachedMedia(attachedMedia.filter((_, j) => j !== i))}
+                        className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center text-xs shadow-md hover:scale-110 transition-transform"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {filePreview && !attachedMedia.length && (
+                    <div className="relative group shrink-0 flex items-center gap-2">
+                      <img src={filePreview} alt="" className="h-14 w-14 rounded-lg object-cover border border-border/40 shadow-sm" />
+                      <span className="text-xs text-muted-foreground">Image ready to send</span>
+                      <button onClick={() => setFilePreview(null)} className="hover:text-destructive p-1 rounded-lg hover:bg-destructive/10 transition-colors"><X className="h-4 w-4" /></button>
+                    </div>
+                  )}
                 </motion.div>
               )}
               <div className="flex items-center gap-2 bg-card/65 rounded-2xl px-3 py-1.5 border border-border/40 transition-all duration-300 focus-within:border-primary/40 focus-within:shadow-md focus-within:shadow-primary/5 focus-within:ring-1 focus-within:ring-primary/10 min-h-[46px]">
@@ -962,8 +1020,10 @@ function DiscordMessagesPage() {
                 ) : (
                   // Standard Chat Input Bar
                   <>
-                    <input type="file" accept="image/*,video/*" hidden ref={fileInputRef} onChange={handleFileSelect} />
-                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => fileInputRef.current?.click()}><Plus className="h-5 w-5 text-primary" /></button>
+                    <input type="file" accept="image/*,video/*" multiple hidden ref={fileInputRef} onChange={handleFileSelect} />
+                    <input type="file" accept="image/*" capture="environment" hidden ref={cameraInputRef} onChange={handleFileSelect} />
+                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => fileInputRef.current?.click()} title="Attach file or photo"><Paperclip className="h-5 w-5 text-primary" /></button>
+                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => cameraInputRef.current?.click()} title="Take photo with camera"><Camera className="h-5 w-5" /></button>
                     <Input
                       ref={inputRef}
                       placeholder={`Message ${(() => { const c = chats?.find((c: any) => c.id === selectedChat); const o = c ? getOtherParticipant(c) : null; return o?.profile?.username || 'User'; })()}`}
@@ -975,9 +1035,16 @@ function DiscordMessagesPage() {
                       variant="ghost"
                     />
                     <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={startVoiceRecording} title="Record voice message"><Mic className="h-5 w-5" /></button>
-                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5" /></button>
-                    <Button variant="gradient" size="icon" className="h-8 w-8 rounded-xl shadow-md shadow-primary/20 shrink-0" disabled={!message.trim() && !filePreview} onClick={sendMessage} animate>
-                      <Send className="h-4 w-4" />
+                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => fileInputRef.current?.click()} title="Image gallery"><ImageIcon className="h-5 w-5" /></button>
+                    <Button
+                      variant="gradient"
+                      size="icon"
+                      className="h-8 w-8 rounded-xl shadow-md shadow-primary/20 shrink-0"
+                      disabled={(!message.trim() && !filePreview && !attachedMedia.length) || chatUploading}
+                      onClick={sendMessage}
+                      animate
+                    >
+                      {chatUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </Button>
                   </>
                 )}
