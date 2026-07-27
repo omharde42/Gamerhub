@@ -63,7 +63,11 @@ export class PostController {
 
   create = asyncHandler(async (req: AuthRequest, res: Response) => {
     const post = await postService.create(req.body, req.user!.userId);
-    io.emit('post:new', post);
+    try {
+      if (io) io.emit('post:new', post);
+    } catch (socketErr) {
+      console.warn('Socket notification error on post creation:', socketErr);
+    }
     sendSuccess(res, post, undefined, 201);
   });
 

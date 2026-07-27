@@ -54,14 +54,23 @@ export class PostService {
       }
     });
 
-    if (data.tags) {
-      for (const tag of data.tags) {
-        const hashtag = await prisma.hashtag.upsert({
-          where: { name: tag.toLowerCase() },
-          update: { count: { increment: 1 } },
-          create: { name: tag.toLowerCase(), count: 1 }
-        });
-        await prisma.postHashtag.create({ data: { postId: post.id, hashtagId: hashtag.id } });
+    if (data.tags && Array.isArray(data.tags)) {
+      const uniqueTags = Array.from(new Set(data.tags.map(t => typeof t === 'string' ? t.trim().toLowerCase().replace(/^#/, '') : '').filter(Boolean)));
+      for (const tag of uniqueTags) {
+        try {
+          const hashtag = await prisma.hashtag.upsert({
+            where: { name: tag },
+            update: { count: { increment: 1 } },
+            create: { name: tag, count: 1 }
+          });
+          await prisma.postHashtag.upsert({
+            where: { postId_hashtagId: { postId: post.id, hashtagId: hashtag.id } },
+            create: { postId: post.id, hashtagId: hashtag.id },
+            update: {}
+          });
+        } catch (tagErr) {
+          console.warn('Hashtag processing warning:', tagErr);
+        }
       }
     }
     return post;

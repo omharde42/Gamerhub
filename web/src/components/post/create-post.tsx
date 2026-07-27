@@ -16,6 +16,8 @@ import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { useKeyboard, scrollInputIntoView } from '@/hooks/useKeyboard';
 
+import { ImagePreview } from '@/components/ui/image-preview';
+
 interface CreatePostProps {
   isFullScreen?: boolean;
   onClose?: () => void;
@@ -31,6 +33,8 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
   const [privacy, setPrivacy] = useState<'PUBLIC' | 'FRIENDS' | 'COMMUNITY'>('PUBLIC');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -326,7 +330,15 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
                     )}
                   </div>
                 ) : (
-                  <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-border shadow-sm group/img">
+                  <div
+                    className="relative w-24 h-24 rounded-xl overflow-hidden border border-border shadow-sm group/img cursor-pointer"
+                    onClick={() => {
+                      const imageOnlyList = media.filter(u => !u.match(/\.(mp4|webm|ogg|mov)$/i) && !u.includes('/video/upload/'));
+                      const imgIndex = imageOnlyList.indexOf(url);
+                      setSelectedImageIndex(imgIndex >= 0 ? imgIndex : 0);
+                      setPreviewOpen(true);
+                    }}
+                  >
                     <img src={url} alt="" className="h-full w-full object-cover group-hover/img:scale-105 transition-transform duration-300" />
                   </div>
                 )}
@@ -500,7 +512,17 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
                           </div>
                         </div>
                       ) : (
-                        <img src={url} alt="" className="h-28 w-28 rounded-2xl object-cover border border-border/60 shadow-md" />
+                        <div
+                          className="relative h-28 w-28 rounded-2xl overflow-hidden border border-border/60 shadow-md cursor-pointer group/img"
+                          onClick={() => {
+                            const imageOnlyList = media.filter(u => !u.match(/\.(mp4|webm|ogg|mov)$/i) && !u.includes('/video/upload/'));
+                            const imgIndex = imageOnlyList.indexOf(url);
+                            setSelectedImageIndex(imgIndex >= 0 ? imgIndex : 0);
+                            setPreviewOpen(true);
+                          }}
+                        >
+                          <img src={url} alt="" className="h-full w-full object-cover group-hover/img:scale-105 transition-transform duration-300" />
+                        </div>
                       )}
                       <button
                         onClick={() => setMedia(media.filter((_, j) => j !== i))}
