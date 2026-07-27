@@ -39,19 +39,25 @@ export class PostController {
 
       // 2. Disk Storage Fallback if Cloudinary is unconfigured or fails
       if (!mediaUrl) {
-        const uploadsDir = path.resolve(process.cwd(), 'public/uploads/posts');
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-        const ext = path.extname(file.originalname) || '.jpg';
-        const filename = `post_${req.user?.userId || 'user'}_${Date.now()}_${idx}${ext}`;
-        const filePath = path.join(uploadsDir, filename);
-        fs.writeFileSync(filePath, file.buffer);
+        try {
+          const uploadsDir = path.resolve(process.cwd(), 'public/uploads/posts');
+          if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+          }
+          const ext = path.extname(file.originalname) || '.jpg';
+          const filename = `post_${req.user?.userId || 'user'}_${Date.now()}_${idx}${ext}`;
+          const filePath = path.join(uploadsDir, filename);
+          fs.writeFileSync(filePath, file.buffer);
 
-        const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
-        const protocol = rawProto.split(',')[0].trim();
-        const host = req.get('host') || 'localhost:4000';
-        mediaUrl = `${protocol}://${host}/uploads/posts/${filename}`;
+          const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
+          const protocol = rawProto.split(',')[0].trim();
+          const host = req.get('host') || 'localhost:4000';
+          mediaUrl = `${protocol}://${host}/uploads/posts/${filename}`;
+        } catch (diskErr) {
+          console.warn('Disk storage upload warning, using base64 fallback:', diskErr);
+          const b64 = Buffer.from(file.buffer).toString('base64');
+          mediaUrl = `data:${file.mimetype};base64,${b64}`;
+        }
       }
 
       return mediaUrl;

@@ -117,19 +117,25 @@ export class ProfileController {
 
     // 2. Local Disk Storage Fallback if Cloudinary is unconfigured or fails
     if (!avatarUrl) {
-      const uploadsDir = path.resolve(process.cwd(), 'public/uploads/avatars');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-      const ext = path.extname(req.file.originalname) || '.jpg';
-      const filename = `avatar_${req.user!.userId}_${Date.now()}${ext}`;
-      const filePath = path.join(uploadsDir, filename);
-      fs.writeFileSync(filePath, req.file.buffer);
+      try {
+        const uploadsDir = path.resolve(process.cwd(), 'public/uploads/avatars');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        const ext = path.extname(req.file.originalname) || '.jpg';
+        const filename = `avatar_${req.user!.userId}_${Date.now()}${ext}`;
+        const filePath = path.join(uploadsDir, filename);
+        fs.writeFileSync(filePath, req.file.buffer);
 
-      const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
-      const protocol = rawProto.split(',')[0].trim();
-      const host = req.get('host') || 'localhost:4000';
-      avatarUrl = `${protocol}://${host}/uploads/avatars/${filename}`;
+        const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
+        const protocol = rawProto.split(',')[0].trim();
+        const host = req.get('host') || 'localhost:4000';
+        avatarUrl = `${protocol}://${host}/uploads/avatars/${filename}`;
+      } catch (diskErr) {
+        console.warn('Avatar disk write failed, using base64 fallback:', diskErr);
+        const b64 = Buffer.from(req.file.buffer).toString('base64');
+        avatarUrl = `data:${req.file.mimetype};base64,${b64}`;
+      }
     }
 
     const profile = await prisma.profile.update({
@@ -175,19 +181,25 @@ export class ProfileController {
     }
 
     if (!bannerUrl) {
-      const uploadsDir = path.resolve(process.cwd(), 'public/uploads/banners');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-      const ext = path.extname(req.file.originalname) || '.jpg';
-      const filename = `banner_${req.user!.userId}_${Date.now()}${ext}`;
-      const filePath = path.join(uploadsDir, filename);
-      fs.writeFileSync(filePath, req.file.buffer);
+      try {
+        const uploadsDir = path.resolve(process.cwd(), 'public/uploads/banners');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        const ext = path.extname(req.file.originalname) || '.jpg';
+        const filename = `banner_${req.user!.userId}_${Date.now()}${ext}`;
+        const filePath = path.join(uploadsDir, filename);
+        fs.writeFileSync(filePath, req.file.buffer);
 
-      const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
-      const protocol = rawProto.split(',')[0].trim();
-      const host = req.get('host') || 'localhost:4000';
-      bannerUrl = `${protocol}://${host}/uploads/banners/${filename}`;
+        const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
+        const protocol = rawProto.split(',')[0].trim();
+        const host = req.get('host') || 'localhost:4000';
+        bannerUrl = `${protocol}://${host}/uploads/banners/${filename}`;
+      } catch (diskErr) {
+        console.warn('Banner disk write failed, using base64 fallback:', diskErr);
+        const b64 = Buffer.from(req.file.buffer).toString('base64');
+        bannerUrl = `data:${req.file.mimetype};base64,${b64}`;
+      }
     }
 
     const profile = await prisma.profile.update({
