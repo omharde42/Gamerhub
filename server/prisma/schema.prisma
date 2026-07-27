@@ -949,6 +949,7 @@ enum PostType {
   VIDEO
   NEWS
   POLL
+  CLIP
 }
 
 enum TeamStatus {
@@ -963,6 +964,9 @@ enum TeamRole {
   CO_LEADER
   CAPTAIN
   MEMBER
+  MANAGER
+  COACH
+  TRIAL
 }
 
 enum TournamentType {
@@ -979,6 +983,7 @@ enum TournamentStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  REGISTRATION_OPEN
 }
 
 enum MatchStatus {
@@ -993,6 +998,7 @@ enum OrgMemberRole {
   ADMIN
   MODERATOR
   MEMBER
+  SCOUT
 }
 
 enum JobType {
@@ -1010,6 +1016,7 @@ enum JobStatus {
   CLOSED
   FILLED
   ON_HOLD
+  DRAFT
 }
 
 enum NotificationType {
@@ -1021,6 +1028,12 @@ enum NotificationType {
   TEAM_INVITE
   TOURNAMENT
   SYSTEM
+  TEAM_APPLICATION
+  TOURNAMENT_START
+  TOURNAMENT_RESULT
+  JOB_APPLICATION
+  ACHIEVEMENT
+  MATCH_FOUND
 }
 
 enum ReportReason {
@@ -1030,6 +1043,8 @@ enum ReportReason {
   TOXIC_BEHAVIOR
   INAPPROPRIATE_CONTENT
   OTHER
+  TOXICITY
+  IMPERSONATION
 }
 
 enum SubscriptionTier {
@@ -1037,6 +1052,8 @@ enum SubscriptionTier {
   PREMIUM
   PRO
   ENTERPRISE
+  ELITE
+  TEAM_PRO
 }
 
 enum ChannelType {
@@ -1056,6 +1073,7 @@ enum FriendRequestStatus {
   PENDING
   ACCEPTED
   DECLINED
+  REJECTED
   BLOCKED
 }
 
