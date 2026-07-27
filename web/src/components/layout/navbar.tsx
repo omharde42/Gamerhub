@@ -218,30 +218,18 @@ export function Navbar() {
           </AnimatePresence>
         </div>
 
-        {/* Mobile Right Corner: Message icon shortcut */}
+        {/* Mobile Right Corner: Menu & Actions */}
         <div className="flex md:hidden items-center ml-auto">
-          {user && (
-            <Link href="/messages" className="p-2 hover:bg-muted/80 rounded-xl transition-all relative">
-              <MessageSquare className="h-5 w-5 text-foreground" />
-              {totalChatUnread > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-[18px] min-w-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center animate-scale-in shadow-lg shadow-destructive/30">
-                  {totalChatUnread > 9 ? '9+' : totalChatUnread}
-                </span>
-              )}
-            </Link>
-          )}
+          <button
+            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
 
         <div className="hidden md:block flex-1" />
-
-        {/* Hamburger menu for mobile */}
-        <button
-          className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
 
         {/* Mobile menu dropdown */}
         {mobileMenuOpen && (

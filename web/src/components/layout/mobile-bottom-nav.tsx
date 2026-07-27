@@ -4,6 +4,9 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Newspaper, MessageSquare, Users, Bell
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
+import { useAuthStore } from '@/store/authStore';
 
 const mobileNavItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Home' },
@@ -15,6 +18,24 @@ const mobileNavItems = [
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { user } = useAuthStore();
+
+  const { data: chatUnreadData } = useQuery({
+    queryKey: ['chat-unread'],
+    queryFn: () => api.get('/chat/unread-counts').then(r => r.data.data || {}),
+    refetchInterval: 15000,
+    enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
+  });
+
+  const { data: notifData } = useQuery({
+    queryKey: ['notifications-unread'],
+    queryFn: () => api.get('/notifications/unread-count').then(r => r.data.data),
+    refetchInterval: 30000,
+    enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
+  });
+
+  const totalChatUnread = Object.values(chatUnreadData || {}).reduce((sum: number, c: any) => sum + (c as number), 0);
+  const unreadNotifCount = notifData?.count || 0;
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
@@ -28,6 +49,8 @@ export function MobileBottomNav() {
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
+            const isChat = item.href === '/messages';
+            const isAlerts = item.href === '/notifications';
             return (
               <Link
                 key={item.href}
@@ -38,9 +61,21 @@ export function MobileBottomNav() {
                     : 'text-muted-foreground/70 hover:text-foreground'
                 }`}
               >
-                <Icon className={`h-5 w-5 transition-all duration-200 ${
-                  active ? 'drop-shadow-[0_0_6px_hsl(var(--primary)/0.4)]' : ''
-                }`} />
+                <div className="relative">
+                  <Icon className={`h-5 w-5 transition-all duration-200 ${
+                    active ? 'drop-shadow-[0_0_6px_hsl(var(--primary)/0.4)]' : ''
+                  }`} />
+                  {isChat && totalChatUnread > 0 && (
+                    <span className="absolute -top-1 -right-2 h-3.5 min-w-[14px] px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center shadow-sm">
+                      {totalChatUnread > 9 ? '9+' : totalChatUnread}
+                    </span>
+                  )}
+                  {isAlerts && unreadNotifCount > 0 && (
+                    <span className="absolute -top-1 -right-2 h-3.5 min-w-[14px] px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center shadow-sm">
+                      {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                    </span>
+                  )}
+                </div>
                 <span className="truncate max-w-[56px]">{item.label}</span>
                 {active && (
                   <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />
