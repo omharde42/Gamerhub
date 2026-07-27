@@ -53,4 +53,9 @@ export const config = {
   encryption: {
     key: requiredEnv('ENCRYPTION_KEY', process.env.NODE_ENV === 'production' ? undefined : 'dev-encryption-key-32bytes!!'),
   },
+  discord: {
+    clientId: process.env.DISCORD_CLIENT_ID || '',
+    clientSecret: process.env.DISCORD_CLIENT_SECRET || '',
+    redirectUri: process.env.DISCORD_REDIRECT_URI || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?provider=discord`,
+  },
 };

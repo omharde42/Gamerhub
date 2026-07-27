@@ -19,6 +19,14 @@ model User {
   twoFactorSecret String?
   banned          Boolean  @default(false)
   banReason       String?
+  discordId           String?   @unique
+  discordUsername     String?
+  discordDisplayName  String?
+  discordAvatar       String?
+  discordEmail        String?
+  discordAccessToken  String?
+  discordRefreshToken String?
+  discordConnectedAt  DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   profile         Profile?

@@ -468,6 +468,17 @@ export class AuthService {
   }
 
   async getLinkedAccounts(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        discordId: true,
+        discordUsername: true,
+        discordDisplayName: true,
+        discordAvatar: true,
+        discordConnectedAt: true,
+      },
+    });
+
     const accounts = await prisma.account.findMany({
       where: { userId },
       select: {
@@ -477,7 +488,232 @@ export class AuthService {
         providerUsername: true,
       },
     });
-    return accounts;
+
+    return {
+      accounts,
+      discord: user?.discordId ? {
+        connected: true,
+        id: user.discordId,
+        username: user.discordUsername,
+        displayName: user.discordDisplayName,
+        avatar: user.discordAvatar,
+        connectedAt: user.discordConnectedAt,
+      } : {
+        connected: false,
+      },
+    };
+  }
+
+  async linkDiscordAccount(userId: string, profile: {
+    id: string;
+    username: string;
+    globalName?: string;
+    avatar?: string;
+    email?: string;
+    accessToken?: string;
+    refreshToken?: string;
+  }) {
+    const existing = await prisma.user.findFirst({
+      where: {
+        discordId: profile.id,
+        NOT: { id: userId },
+      },
+    });
+
+    if (existing) {
+      throw new ValidationError({ discord: ['This Discord account is already linked to another GamerZ Hub user.'] });
+    }
+
+    const avatarUrl = profile.avatar
+      ? (profile.avatar.startsWith('http') ? profile.avatar : `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`)
+      : `https://cdn.discordapp.com/embed/avatars/${parseInt(profile.id || '0') % 5}.png`;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        discordId: profile.id,
+        discordUsername: profile.username,
+        discordDisplayName: profile.globalName || profile.username,
+        discordAvatar: avatarUrl,
+        discordEmail: profile.email || null,
+        discordAccessToken: profile.accessToken || null,
+        discordRefreshToken: profile.refreshToken || null,
+        discordConnectedAt: new Date(),
+      },
+      include: {
+        profile: true,
+      },
+    });
+
+    await prisma.account.upsert({
+      where: { provider_providerId: { provider: 'DISCORD', providerId: profile.id } },
+      create: {
+        userId,
+        provider: 'DISCORD',
+        providerId: profile.id,
+        providerUsername: profile.username,
+      },
+      update: {
+        userId,
+        providerUsername: profile.username,
+      },
+    });
+
+    return updatedUser;
+  }
+
+  async unlinkDiscordAccount(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundError('User');
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        discordId: null,
+        discordUsername: null,
+        discordDisplayName: null,
+        discordAvatar: null,
+        discordEmail: null,
+        discordAccessToken: null,
+        discordRefreshToken: null,
+        discordConnectedAt: null,
+      },
+    });
+
+    await prisma.account.deleteMany({
+      where: {
+        userId,
+        provider: 'DISCORD',
+      },
+    });
+    return { success: true };
+  }
+
+  async discordLogin(profile: {
+    id: string;
+    username: string;
+    globalName?: string;
+    avatar?: string;
+    email?: string;
+    accessToken?: string;
+    refreshToken?: string;
+  }) {
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { discordId: profile.id },
+          ...(profile.email ? [{ email: profile.email.toLowerCase() }] : []),
+        ],
+      },
+      include: {
+        profile: true,
+        subscription: true,
+      },
+    });
+
+    const avatarUrl = profile.avatar
+      ? (profile.avatar.startsWith('http') ? profile.avatar : `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`)
+      : `https://cdn.discordapp.com/embed/avatars/${parseInt(profile.id || '0') % 5}.png`;
+
+    if (!user) {
+      const email = profile.email
+        ? profile.email.toLowerCase()
+        : `discord_${profile.id}@gamerhub.local`;
+      
+      let baseUsername = profile.username.replace(/[^a-zA-Z0-9_]/g, '') || `Gamer_${profile.id.slice(-4)}`;
+      let username = baseUsername;
+      let count = 1;
+
+      while (await prisma.profile.findUnique({ where: { username } })) {
+        username = `${baseUsername}_${count++}`;
+      }
+
+      user = await prisma.user.create({
+        data: {
+          email,
+          discordId: profile.id,
+          discordUsername: profile.username,
+          discordDisplayName: profile.globalName || profile.username,
+          discordAvatar: avatarUrl,
+          discordEmail: profile.email || null,
+          discordAccessToken: profile.accessToken || null,
+          discordRefreshToken: profile.refreshToken || null,
+          discordConnectedAt: new Date(),
+          profile: {
+            create: {
+              username,
+              displayName: profile.globalName || profile.username,
+              avatar: avatarUrl,
+            },
+          },
+          accounts: {
+            create: {
+              provider: 'DISCORD',
+              providerId: profile.id,
+              providerUsername: profile.username,
+            },
+          },
+        },
+        include: {
+          profile: true,
+          subscription: true,
+        },
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          discordId: profile.id,
+          discordUsername: profile.username,
+          discordDisplayName: profile.globalName || profile.username,
+          discordAvatar: avatarUrl,
+          discordEmail: profile.email || user.discordEmail,
+          discordAccessToken: profile.accessToken || user.discordAccessToken,
+          discordRefreshToken: profile.refreshToken || user.discordRefreshToken,
+          discordConnectedAt: user.discordConnectedAt || new Date(),
+        },
+        include: {
+          profile: true,
+          subscription: true,
+        },
+      });
+
+      await prisma.account.upsert({
+        where: { provider_providerId: { provider: 'DISCORD', providerId: profile.id } },
+        create: {
+          userId: user.id,
+          provider: 'DISCORD',
+          providerId: profile.id,
+          providerUsername: profile.username,
+        },
+        update: {
+          providerUsername: profile.username,
+        },
+      });
+    }
+
+    if (user.banned) {
+      throw new UnauthorizedError(`Account banned: ${user.banReason || 'No reason provided'}`);
+    }
+
+    const payload = { userId: user.id, email: user.email, role: user.role };
+    const accessToken = generateToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    await prisma.session.create({
+      data: {
+        refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+      requiresTwoFactor: false,
+    };
   }
 
   async linkSocialAccount(userId: string, provider: 'GOOGLE' | 'DISCORD' | 'STEAM', providerId: string, providerUsername?: string) {

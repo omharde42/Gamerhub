@@ -47,6 +47,10 @@ export default function LoginPage() {
   const handleSocialLogin = async (provider: string) => {
     setSocialLoading(true);
     try {
+      if (provider === 'discord') {
+        window.location.href = `${API_URL}/auth/discord?action=login`;
+        return;
+      }
       if (provider === 'google') {
         window.location.href = `${API_URL}/auth/google`;
         return;

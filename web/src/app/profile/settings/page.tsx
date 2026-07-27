@@ -108,10 +108,24 @@ export default function SettingsPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to update profile')
   });
 
-  const { data: linkedAccounts, refetch: refetchAccounts } = useQuery({
+  const { data: linkedData, refetch: refetchAccounts } = useQuery({
     queryKey: ['linked-accounts'],
-    queryFn: () => api.get('/auth/accounts').then((r) => r.data.data).catch(() => []),
+    queryFn: () => api.get('/auth/accounts').then((r) => r.data.data).catch(() => null),
     enabled: !!user,
+  });
+
+  const linkedAccounts = linkedData?.accounts || (Array.isArray(linkedData) ? linkedData : []);
+  const discordData = linkedData?.discord;
+
+  const disconnectDiscord = useMutation({
+    mutationFn: () => api.post('/auth/discord/disconnect'),
+    onSuccess: () => {
+      refetchAccounts();
+      toast.success('Discord account unlinked successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to disconnect Discord');
+    },
   });
 
   const unlinkAccount = useMutation({
@@ -126,6 +140,10 @@ export default function SettingsPage() {
   });
 
   const handleLinkSocial = async (provider: string) => {
+    if (provider === 'discord') {
+      window.location.href = `${API_URL}/auth/discord?action=link&userId=${user?.id}`;
+      return;
+    }
     if (provider === 'steam') {
       window.location.href = `${API_URL}/auth/steam`;
       return;
@@ -562,25 +580,62 @@ export default function SettingsPage() {
                   ),
                 },
               ].map((item) => {
+                const isDiscord = item.provider === 'DISCORD';
+                const isDiscordConnected = isDiscord && discordData?.connected;
                 const linkedAcc = (linkedAccounts || []).find((a: any) => a.provider === item.provider);
+                const isConnected = isDiscordConnected || !!linkedAcc;
+
                 return (
                   <div key={item.provider} className="flex items-center justify-between p-4 rounded-xl border border-border bg-background/40">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-muted/40 shrink-0">{item.icon}</div>
+                      {isDiscordConnected && discordData.avatar ? (
+                        <Avatar className="h-10 w-10 border border-[#5865F2]/40 shadow-sm shrink-0">
+                          <AvatarImage src={discordData.avatar} alt={discordData.username} />
+                          <AvatarFallback className="bg-[#5865F2] text-white font-bold text-xs">{getInitials(discordData.username)}</AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="p-2 rounded-lg bg-muted/40 shrink-0">{item.icon}</div>
+                      )}
                       <div>
-                        <p className="font-semibold text-sm">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {linkedAcc ? `Connected as ${linkedAcc.providerUsername || linkedAcc.providerId}` : 'Not connected'}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-sm">{item.name}</p>
+                          {isConnected && (
+                            <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/10 text-[10px]">
+                              🟢 Connected
+                            </Badge>
+                          )}
+                        </div>
+                        {isDiscordConnected ? (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            <p className="font-medium text-foreground">Username: @{discordData.username}</p>
+                            {discordData.connectedAt && (
+                              <p className="text-[10px] text-muted-foreground/70">Connected on {new Date(discordData.connectedAt).toLocaleDateString()}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            {linkedAcc ? `Connected as ${linkedAcc.providerUsername || linkedAcc.providerId}` : 'Not connected'}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    {linkedAcc ? (
+                    {isDiscordConnected ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-destructive hover:bg-destructive/10 rounded-xl"
+                        onClick={() => disconnectDiscord.mutate()}
+                        disabled={disconnectDiscord.isPending}
+                      >
+                        {disconnectDiscord.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                        Disconnect
+                      </Button>
+                    ) : linkedAcc ? (
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-success border-success/30 bg-success/10">Connected</Badge>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs text-destructive hover:bg-destructive/10"
+                          className="text-xs text-destructive hover:bg-destructive/10 rounded-xl"
                           onClick={() => unlinkAccount.mutate(item.provider)}
                           disabled={unlinkAccount.isPending}
                         >
@@ -591,10 +646,10 @@ export default function SettingsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-xs gap-1.5 rounded-xl"
+                        className={`text-xs gap-1.5 rounded-xl ${isDiscord ? 'border-[#5865F2]/40 text-[#5865F2] hover:bg-[#5865F2]/10' : ''}`}
                         onClick={() => handleLinkSocial(item.provider.toLowerCase())}
                       >
-                        Link {item.name}
+                        Connect {item.name}
                       </Button>
                     )}
                   </div>
