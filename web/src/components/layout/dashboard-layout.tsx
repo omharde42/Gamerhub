@@ -69,15 +69,21 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [hasHydrated, user, isAuthenticated, isAuthOrLanding, pathname, router]);
 
-  // Render a subtle loading state until rehydration is complete to prevent layout flashes
-  if (!hasHydrated) {
+  const isRedirectingAuthenticatedUser = isAuthenticated && !!user && isAuthOrLanding && pathname !== '/auth/callback';
+  const isRedirectingUnauthenticatedUser = !isAuthenticated && !isAuthOrLanding;
+
+  // Render a subtle Splash Screen until rehydration and route redirection are resolved to eliminate layout flashes
+  if (!hasHydrated || isRedirectingAuthenticatedUser || isRedirectingUnauthenticatedUser) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl overflow-hidden border border-primary/20 shadow-sm">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4 text-center animate-fade-in">
+          <div className="w-16 h-16 rounded-2xl overflow-hidden border border-primary/20 shadow-xl relative shrink-0">
             <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
           </div>
-          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
+            <span>Initializing GamerZ Hub...</span>
+          </div>
         </div>
       </div>
     );

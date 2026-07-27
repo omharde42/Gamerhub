@@ -102,14 +102,18 @@ import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 
 export default function EnterPage() {
-  const { isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       router.push('/feed');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user, router]);
+
+  if (isAuthenticated && user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">

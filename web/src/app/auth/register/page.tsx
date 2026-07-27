@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { user, isAuthenticated, login } = useAuthStore();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +24,10 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState(false);
+
+  if (isAuthenticated && user) {
+    return null;
+  }
 
   const passwordChecks = {
     length: password.length >= 6,
