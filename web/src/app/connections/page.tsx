@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, UserPlus, UserCheck, UserX, Loader2, Gamepad2, ArrowLeft } from 'lucide-react';
+import { Users, UserPlus, UserCheck, UserX, Loader2, Gamepad2, ArrowLeft, MessageSquare } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -115,20 +115,27 @@ export default function ConnectionsPage() {
                         {profile.rank && <Badge variant="outline" className="text-[10px]">{profile.rank}</Badge>}
                       </div>
                     </div>
-                    {tab === 'following' && (
-                      <Button variant="outline" size="sm" className="shrink-0 gap-1"
-                        onClick={() => unfollowMutation.mutate(personId)}
-                        disabled={unfollowMutation.isPending}>
-                        <UserX className="h-4 w-4" /> Unfollow
-                      </Button>
-                    )}
-                    {tab === 'followers' && (
-                      <Link href={`/profile/${profile.username}`}>
-                        <Button variant="outline" size="sm" className="shrink-0">
-                          View Profile
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Link href={`/messages?userId=${personId}`}>
+                        <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-primary">
+                          <MessageSquare className="h-4 w-4" /> Message
                         </Button>
                       </Link>
-                    )}
+                      {tab === 'following' && (
+                        <Button variant="outline" size="sm" className="gap-1"
+                          onClick={() => unfollowMutation.mutate(personId)}
+                          disabled={unfollowMutation.isPending}>
+                          <UserX className="h-4 w-4" /> Unfollow
+                        </Button>
+                      )}
+                      {tab === 'followers' && (
+                        <Link href={`/profile/${profile.username}`}>
+                          <Button variant="outline" size="sm">
+                            View Profile
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 ) : null;
               })}

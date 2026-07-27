@@ -12,7 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MapPin, Globe, Trophy, Target, TrendingUp, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Calendar, Award, Swords, X, Plus, Hash, Search, Loader2, Heart, Reply, MoreVertical, Smile, Paperclip, Image as ImageIcon, UserCheck, UserPlus, Phone, Link as LinkIcon, Sparkles, Settings, Camera } from 'lucide-react';
+import { MapPin, Globe, Trophy, Target, TrendingUp, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Calendar, Award, Swords, X, Plus, Hash, Search, Loader2, Heart, Reply, MoreVertical, Smile, Paperclip, Image as ImageIcon, UserCheck, UserPlus, Phone, Link as LinkIcon, Sparkles, Settings, Camera, MessageSquare } from 'lucide-react';
 import { formatDate, formatNumber, getInitials, getRankColor, formatRelativeTime } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useSocket } from '@/hooks/useSocket';
@@ -348,6 +348,11 @@ export default function ProfilePage() {
                   {following ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                   {following ? 'Following' : 'Follow'}
                 </Button>
+                <Link href={`/messages?userId=${profile.userId}`} className="w-full sm:w-auto">
+                  <Button variant="outline" size="sm" className="gap-1.5 min-w-[100px] w-full sm:w-auto h-11">
+                    <MessageSquare className="h-4 w-4 text-primary" /> Message
+                  </Button>
+                </Link>
               </motion.div>
             ) : (
               <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>

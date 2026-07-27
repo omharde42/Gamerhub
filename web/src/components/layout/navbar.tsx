@@ -27,7 +27,6 @@ const navIcons = [
   { href: '/studio', icon: Film, label: 'Studio' },
   { href: '/friends', icon: Users, label: 'Network' },
   { href: '/servers', icon: Globe, label: 'Servers' },
-  { href: '/messages', icon: MessageSquare, label: 'Messaging' },
 ];
 
 const moreNavItems = (username: string) => [
