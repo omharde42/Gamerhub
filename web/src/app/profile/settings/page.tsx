@@ -18,7 +18,7 @@ import toast from 'react-hot-toast';
 import { GAMES, ROLES, PLAY_STYLES, COMMUNICATION_STYLES, REGIONS, LANGUAGES, API_URL } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { Shield, Bell, User, Gamepad2, X, Loader2, CheckCircle2, Circle, Sparkles, Trophy } from 'lucide-react';
+import { Shield, Bell, User, Gamepad2, X, Loader2, CheckCircle2, Circle, Sparkles, Trophy, Camera } from 'lucide-react';
 import { motion } from 'framer-motion';
  
 export default function SettingsPage() {
@@ -192,19 +192,38 @@ export default function SettingsPage() {
     updateProfile.mutate();
   };
 
-  const uploadAvatar = useMutation({
-    mutationFn: (file: File) => {
-      const fd = new FormData();
-      fd.append('avatar', file);
-      return api.post('/profiles/avatar', fd);
-    },
-    onSuccess: async (data) => {
-      const avatarUrl = data.data.data.avatar;
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarProgress, setAvatarProgress] = useState(0);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarUploading(true);
+    setAvatarProgress(5);
+    try {
+      const { uploadMediaFile } = await import('@/lib/upload');
+      const avatarUrl = await uploadMediaFile(file, {
+        endpoint: '/profiles/avatar',
+        fieldName: 'avatar',
+        onProgress: (p) => setAvatarProgress(p),
+      });
+
       setUser({ ...user, profile: { ...user?.profile, avatar: avatarUrl } } as any);
-      toast.success('Avatar updated!');
-    },
-    onError: () => toast.error('Failed to upload avatar')
-  });
+      const username = user?.profile?.username || (user as any)?.username;
+      if (username) {
+        queryClient.invalidateQueries({ queryKey: ['profile', username] });
+        queryClient.invalidateQueries({ queryKey: ['profile'] });
+      }
+      toast.success('Avatar updated successfully!');
+    } catch (err: any) {
+      console.error('Avatar upload failed:', err);
+      toast.error(err.message || 'Failed to upload avatar. Please try again.');
+    } finally {
+      setAvatarUploading(false);
+      setAvatarProgress(0);
+    }
+  };
 
   const addGame = () => {
     if (newGame && !profile.mainGames.includes(newGame)) {
@@ -290,22 +309,40 @@ export default function SettingsPage() {
           <Card variant="glass">
             <CardContent className="p-6 space-y-6">
               <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20 border-2 border-primary/20 shadow-md">
-                  <AvatarImage src={user?.profile?.avatar || ''} />
-                  <AvatarFallback className="text-2xl bg-gradient-to-br from-gaming-purple to-gaming-pink text-white">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
-                </Avatar>
+                <div className="relative group">
+                  <Avatar className="h-20 w-20 border-2 border-primary/40 shadow-lg">
+                    <AvatarImage src={user?.profile?.avatar || ''} />
+                    <AvatarFallback className="text-2xl bg-gradient-to-br from-gaming-purple to-gaming-pink text-white">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                  </Avatar>
+                  {avatarUploading && (
+                    <div className="absolute inset-0 bg-black/70 rounded-full flex flex-col items-center justify-center text-white backdrop-blur-sm">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary mb-1" />
+                      <span className="text-[10px] font-bold font-mono">{avatarProgress}%</span>
+                    </div>
+                  )}
+                </div>
                 <div>
-                  <Button variant="outline" size="sm" className="relative h-9 px-4 rounded-xl cursor-pointer">
+                  <Button variant="outline" size="sm" className="relative h-9 px-4 rounded-xl cursor-pointer" disabled={avatarUploading}>
                     <input 
                       type="file" 
                       accept="image/*" 
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
-                      onChange={(e) => e.target.files?.[0] && uploadAvatar.mutate(e.target.files[0])} 
-                      disabled={uploadAvatar.isPending}
+                      onChange={handleAvatarChange} 
+                      disabled={avatarUploading}
                     />
-                    {uploadAvatar.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-                    Change Avatar
+                    {avatarUploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                        <span>Uploading... {avatarProgress}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-4 w-4 mr-1.5 text-primary" />
+                        <span>Change Avatar</span>
+                      </>
+                    )}
                   </Button>
+                  <p className="text-[11px] text-muted-foreground mt-1">Supports JPG, PNG, WEBP (Max 10MB)</p>
                 </div>
               </div>
 

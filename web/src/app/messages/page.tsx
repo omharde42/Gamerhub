@@ -461,40 +461,27 @@ function DiscordMessagesPage() {
 
     const fileList = Array.from(files);
     for (const file of fileList) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`File ${file.name} is too large (max 10MB)`);
-        continue;
-      }
-
       setChatUploading(true);
-      setUploadProgress(10);
+      setUploadProgress(5);
       try {
-        const formData = new FormData();
-        formData.append('media', file);
-        const { data } = await api.post('/chat/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (ev) => {
-            if (ev.total) {
-              setUploadProgress(Math.round((ev.loaded * 100) / ev.total));
-            }
-          }
+        const { uploadMediaFile } = await import('@/lib/upload');
+        const mediaUrl = await uploadMediaFile(file, {
+          endpoint: '/chat/upload',
+          fieldName: 'media',
+          onProgress: (p) => setUploadProgress(p),
         });
 
-        const urls = data?.data?.urls;
-        if (urls && urls.length > 0) {
-          setAttachedMedia(prev => [...prev, ...urls]);
-          toast.success('Image attached');
-        } else {
-          toast.error('Upload succeeded but server did not return image URL');
-        }
+        setAttachedMedia(prev => [...prev, mediaUrl]);
+        toast.success('Image attached successfully');
       } catch (err: any) {
         console.error('Chat image upload error:', err);
-        toast.error(err.response?.data?.message || 'Failed to upload image. Please try again.');
+        toast.error(err.message || 'Failed to upload image. Please try again.');
       } finally {
         setChatUploading(false);
         setUploadProgress(0);
       }
     }
+    if (e.target) e.target.value = '';
   };
 
   const getOtherParticipant = (chat: any) => chat.participants?.find((p: any) => p.user?.id !== user?.id)?.user;

@@ -1,12 +1,9 @@
 import { Response } from 'express';
-import path from 'path';
-import fs from 'fs';
 import { AuthRequest } from '../types';
 import { chatService } from '../services/chat.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
-import { config } from '../config';
-import { v2 as cloudinary } from 'cloudinary';
+import { mediaStorageService } from '../utils/storage';
 
 export class ChatController {
   uploadMedia = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -15,48 +12,14 @@ export class ChatController {
       return sendError(res, 400, 'No files uploaded. Please select an image or video.');
     }
 
-    const uploadPromises = files.map(async (file, idx) => {
-      let mediaUrl = '';
-
-      if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
-        try {
-          const b64 = Buffer.from(file.buffer).toString('base64');
-          const dataURI = `data:${file.mimetype};base64,${b64}`;
-          const result = await cloudinary.uploader.upload(dataURI, {
-            folder: 'gamerhub/chat',
-            resource_type: 'auto',
-          });
-          if (result && result.secure_url) {
-            mediaUrl = result.secure_url;
-          }
-        } catch (cloudErr) {
-          console.warn('Cloudinary chat media upload warning:', cloudErr);
-        }
-      }
-
-      if (!mediaUrl) {
-        try {
-          const uploadsDir = path.resolve(process.cwd(), 'public/uploads/chat');
-          if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir, { recursive: true });
-          }
-          const ext = path.extname(file.originalname) || '.jpg';
-          const filename = `chat_${req.user?.userId || 'user'}_${Date.now()}_${idx}${ext}`;
-          const filePath = path.join(uploadsDir, filename);
-          fs.writeFileSync(filePath, file.buffer);
-
-          const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
-          const protocol = rawProto.split(',')[0].trim();
-          const host = req.get('host') || 'localhost:4000';
-          mediaUrl = `${protocol}://${host}/uploads/chat/${filename}`;
-        } catch (diskErr) {
-          console.warn('Chat disk upload warning, using base64 fallback:', diskErr);
-          const b64 = Buffer.from(file.buffer).toString('base64');
-          mediaUrl = `data:${file.mimetype};base64,${b64}`;
-        }
-      }
-
-      return mediaUrl;
+    const uploadPromises = files.map(async (file) => {
+      const result = await mediaStorageService.uploadMedia(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+        'chat'
+      );
+      return result.url;
     });
 
     const urls = await Promise.all(uploadPromises);

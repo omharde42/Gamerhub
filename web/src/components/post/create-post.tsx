@@ -204,22 +204,12 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
     const toastId = toast.loading(isVideo ? 'Uploading video...' : 'Uploading image...');
 
     try {
-      const fd = new FormData();
-      fd.append('media', file);
-      const { data } = await api.post('/posts/upload', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            setUploadProgress(percent);
-          }
-        }
+      const { uploadMediaFile } = await import('@/lib/upload');
+      const serverUrl = await uploadMediaFile(file, {
+        endpoint: '/posts/upload',
+        fieldName: 'media',
+        onProgress: (p) => setUploadProgress(p),
       });
-
-      const serverUrl = data?.data?.urls?.[0];
-      if (!serverUrl) {
-        throw new Error('Upload succeeded but server did not return a valid URL.');
-      }
 
       // Replace local preview URL with the server public URL
       setMedia(prev => prev.map(m => (m === localUrl ? serverUrl : m)));
@@ -234,9 +224,8 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
 
       toast.success(isVideo ? 'Video uploaded successfully!' : 'Image uploaded successfully!', { id: toastId });
     } catch (err: any) {
-      // Remove failed local preview item on error
-      setMedia(prev => prev.filter(m => m !== localUrl));
-      const msg = err.response?.data?.message || err.message || 'Unable to upload image. Please try again.';
+      // Keep local preview URL but show Retry banner
+      const msg = err.message || 'Unable to upload image. Please check your connection and tap retry.';
       toast.error(msg, { id: toastId });
     } finally {
       URL.revokeObjectURL(localUrl);

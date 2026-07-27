@@ -9,6 +9,7 @@ import { aiService } from '../services/ai.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 import { NotFoundError, ValidationError } from '../utils/errors';
+import { mediaStorageService } from '../utils/storage';
 
 export class ProfileController {
   getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -90,53 +91,17 @@ export class ProfileController {
       return sendError(res, 400, 'Unsupported file format. Please upload a JPG, JPEG, PNG, or WebP image.');
     }
 
-    if (req.file.size > 5 * 1024 * 1024) {
-      return sendError(res, 400, 'Image is too large. Maximum size is 5MB.');
+    if (req.file.size > 10 * 1024 * 1024) {
+      return sendError(res, 400, 'Image is too large. Maximum size is 10MB.');
     }
 
-    let avatarUrl = '';
-
-    // 1. Try Cloudinary upload if configured
-    if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
-      try {
-        const b64 = Buffer.from(req.file.buffer).toString('base64');
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-        const result = await cloudinary.uploader.upload(dataURI, {
-          folder: 'gamerhub/avatars',
-          width: 512,
-          height: 512,
-          crop: 'fill',
-        });
-        if (result && result.secure_url) {
-          avatarUrl = result.secure_url;
-        }
-      } catch (cloudErr) {
-        console.warn('Cloudinary avatar upload warning:', cloudErr);
-      }
-    }
-
-    // 2. Local Disk Storage Fallback if Cloudinary is unconfigured or fails
-    if (!avatarUrl) {
-      try {
-        const uploadsDir = path.resolve(process.cwd(), 'public/uploads/avatars');
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-        const ext = path.extname(req.file.originalname) || '.jpg';
-        const filename = `avatar_${req.user!.userId}_${Date.now()}${ext}`;
-        const filePath = path.join(uploadsDir, filename);
-        fs.writeFileSync(filePath, req.file.buffer);
-
-        const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
-        const protocol = rawProto.split(',')[0].trim();
-        const host = req.get('host') || 'localhost:4000';
-        avatarUrl = `${protocol}://${host}/uploads/avatars/${filename}`;
-      } catch (diskErr) {
-        console.warn('Avatar disk write failed, using base64 fallback:', diskErr);
-        const b64 = Buffer.from(req.file.buffer).toString('base64');
-        avatarUrl = `data:${req.file.mimetype};base64,${b64}`;
-      }
-    }
+    const result = await mediaStorageService.uploadMedia(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      'avatars'
+    );
+    const avatarUrl = result.url;
 
     const profile = await prisma.profile.update({
       where: { userId: req.user!.userId },
@@ -160,47 +125,13 @@ export class ProfileController {
       return sendError(res, 400, 'Image is too large. Maximum size is 10MB.');
     }
 
-    let bannerUrl = '';
-
-    if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
-      try {
-        const b64 = Buffer.from(req.file.buffer).toString('base64');
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-        const result = await cloudinary.uploader.upload(dataURI, {
-          folder: 'gamerhub/banners',
-          width: 1200,
-          height: 400,
-          crop: 'fill',
-        });
-        if (result && result.secure_url) {
-          bannerUrl = result.secure_url;
-        }
-      } catch (cloudErr) {
-        console.warn('Cloudinary banner upload warning:', cloudErr);
-      }
-    }
-
-    if (!bannerUrl) {
-      try {
-        const uploadsDir = path.resolve(process.cwd(), 'public/uploads/banners');
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-        const ext = path.extname(req.file.originalname) || '.jpg';
-        const filename = `banner_${req.user!.userId}_${Date.now()}${ext}`;
-        const filePath = path.join(uploadsDir, filename);
-        fs.writeFileSync(filePath, req.file.buffer);
-
-        const rawProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
-        const protocol = rawProto.split(',')[0].trim();
-        const host = req.get('host') || 'localhost:4000';
-        bannerUrl = `${protocol}://${host}/uploads/banners/${filename}`;
-      } catch (diskErr) {
-        console.warn('Banner disk write failed, using base64 fallback:', diskErr);
-        const b64 = Buffer.from(req.file.buffer).toString('base64');
-        bannerUrl = `data:${req.file.mimetype};base64,${b64}`;
-      }
-    }
+    const result = await mediaStorageService.uploadMedia(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      'banners'
+    );
+    const bannerUrl = result.url;
 
     const profile = await prisma.profile.update({
       where: { userId: req.user!.userId },
