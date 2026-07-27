@@ -27,6 +27,12 @@ model User {
   discordAccessToken  String?
   discordRefreshToken String?
   discordConnectedAt  DateTime?
+  steamId             String?   @unique
+  steamUsername       String?
+  steamAvatar         String?
+  steamProfileUrl     String?
+  steamLevel          Int?
+  steamConnectedAt    DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   profile         Profile?

@@ -48,6 +48,7 @@ import newsRoutes from './routes/news.routes';
 import gameRequestRoutes from './routes/game-request.routes';
 import appRoutes from './routes/app.routes';
 import cryptoRoutes from './routes/crypto.routes';
+import steamRoutes from './routes/steam.routes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -316,6 +317,7 @@ app.use('/api/presence', presenceRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/game-requests', gameRequestRoutes);
 app.use('/api/crypto', cryptoRoutes);
+app.use('/api/steam', steamRoutes);
 
 // Error handling
 app.use(notFoundHandler);

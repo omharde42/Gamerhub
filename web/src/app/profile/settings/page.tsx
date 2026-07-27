@@ -116,6 +116,7 @@ export default function SettingsPage() {
 
   const linkedAccounts = linkedData?.accounts || (Array.isArray(linkedData) ? linkedData : []);
   const discordData = linkedData?.discord;
+  const steamData = linkedData?.steam;
 
   const disconnectDiscord = useMutation({
     mutationFn: () => api.post('/auth/discord/disconnect'),
@@ -125,6 +126,17 @@ export default function SettingsPage() {
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || 'Failed to disconnect Discord');
+    },
+  });
+
+  const disconnectSteam = useMutation({
+    mutationFn: () => api.post('/steam/disconnect'),
+    onSuccess: () => {
+      refetchAccounts();
+      toast.success('Steam account unlinked successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to disconnect Steam');
     },
   });
 
@@ -581,17 +593,24 @@ export default function SettingsPage() {
                 },
               ].map((item) => {
                 const isDiscord = item.provider === 'DISCORD';
+                const isSteam = item.provider === 'STEAM';
                 const isDiscordConnected = isDiscord && discordData?.connected;
+                const isSteamConnected = isSteam && steamData?.connected;
                 const linkedAcc = (linkedAccounts || []).find((a: any) => a.provider === item.provider);
-                const isConnected = isDiscordConnected || !!linkedAcc;
+                const isConnected = isDiscordConnected || isSteamConnected || !!linkedAcc;
 
                 return (
                   <div key={item.provider} className="flex items-center justify-between p-4 rounded-xl border border-border bg-background/40">
                     <div className="flex items-center gap-3">
-                      {isDiscordConnected && discordData.avatar ? (
+                      {isDiscordConnected && discordData?.avatar ? (
                         <Avatar className="h-10 w-10 border border-[#5865F2]/40 shadow-sm shrink-0">
                           <AvatarImage src={discordData.avatar} alt={discordData.username} />
                           <AvatarFallback className="bg-[#5865F2] text-white font-bold text-xs">{getInitials(discordData.username)}</AvatarFallback>
+                        </Avatar>
+                      ) : isSteamConnected && steamData?.avatar ? (
+                        <Avatar className="h-10 w-10 border border-primary/40 shadow-sm shrink-0">
+                          <AvatarImage src={steamData.avatar} alt={steamData.username} />
+                          <AvatarFallback className="bg-primary/20 text-primary font-bold text-xs">{getInitials(steamData.username)}</AvatarFallback>
                         </Avatar>
                       ) : (
                         <div className="p-2 rounded-lg bg-muted/40 shrink-0">{item.icon}</div>
@@ -604,12 +623,24 @@ export default function SettingsPage() {
                               🟢 Connected
                             </Badge>
                           )}
+                          {isSteamConnected && steamData?.level && (
+                            <Badge variant="secondary" className="text-[10px] font-mono bg-primary/10 text-primary border-primary/20">
+                              Level {steamData.level} 🎮
+                            </Badge>
+                          )}
                         </div>
                         {isDiscordConnected ? (
                           <div className="text-xs text-muted-foreground mt-0.5">
                             <p className="font-medium text-foreground">Username: @{discordData.username}</p>
                             {discordData.connectedAt && (
                               <p className="text-[10px] text-muted-foreground/70">Connected on {new Date(discordData.connectedAt).toLocaleDateString()}</p>
+                            )}
+                          </div>
+                        ) : isSteamConnected ? (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            <p className="font-medium text-foreground">Persona: {steamData.username}</p>
+                            {steamData.connectedAt && (
+                              <p className="text-[10px] text-muted-foreground/70">Connected on {new Date(steamData.connectedAt).toLocaleDateString()}</p>
                             )}
                           </div>
                         ) : (
@@ -628,6 +659,17 @@ export default function SettingsPage() {
                         disabled={disconnectDiscord.isPending}
                       >
                         {disconnectDiscord.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                        Disconnect
+                      </Button>
+                    ) : isSteamConnected ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-destructive hover:bg-destructive/10 rounded-xl"
+                        onClick={() => disconnectSteam.mutate()}
+                        disabled={disconnectSteam.isPending}
+                      >
+                        {disconnectSteam.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
                         Disconnect
                       </Button>
                     ) : linkedAcc ? (

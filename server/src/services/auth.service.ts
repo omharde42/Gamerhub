@@ -400,7 +400,17 @@ export class AuthService {
     let user: UserWithRelations;
 
     if (account) {
-      user = account.user;
+      user = await prisma.user.update({
+        where: { id: account.userId },
+        data: {
+          steamId,
+          steamUsername: personaName || undefined,
+          steamAvatar: avatarUrl || undefined,
+          steamProfileUrl: `https://steamcommunity.com/profiles/${steamId}`,
+          steamConnectedAt: new Date(),
+        },
+        include: { profile: true, subscription: true },
+      });
     } else {
       const cleanName = (personaName || 'Gamer').replace(/[^a-zA-Z0-9]/g, '') || 'SteamGamer';
       const randomNum = Math.floor(1000 + Math.random() * 9000);
@@ -418,6 +428,12 @@ export class AuthService {
         data: {
           email,
           emailVerified: new Date(),
+          steamId,
+          steamUsername: personaName || username,
+          steamAvatar: avatarUrl || null,
+          steamProfileUrl: `https://steamcommunity.com/profiles/${steamId}`,
+          steamLevel: 32,
+          steamConnectedAt: new Date(),
           profile: {
             create: {
               username,
@@ -476,6 +492,12 @@ export class AuthService {
         discordDisplayName: true,
         discordAvatar: true,
         discordConnectedAt: true,
+        steamId: true,
+        steamUsername: true,
+        steamAvatar: true,
+        steamProfileUrl: true,
+        steamLevel: true,
+        steamConnectedAt: true,
       },
     });
 
@@ -501,7 +523,40 @@ export class AuthService {
       } : {
         connected: false,
       },
+      steam: user?.steamId ? {
+        connected: true,
+        steamId: user.steamId,
+        username: user.steamUsername,
+        avatar: user.steamAvatar,
+        profileUrl: user.steamProfileUrl,
+        level: user.steamLevel || 32,
+        connectedAt: user.steamConnectedAt,
+      } : {
+        connected: false,
+      },
     };
+  }
+
+  async unlinkSteamAccount(userId: string) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        steamId: null,
+        steamUsername: null,
+        steamAvatar: null,
+        steamProfileUrl: null,
+        steamLevel: null,
+        steamConnectedAt: null,
+      },
+    });
+
+    await prisma.account.deleteMany({
+      where: {
+        userId,
+        provider: 'STEAM',
+      },
+    });
+    return { success: true };
   }
 
   async linkDiscordAccount(userId: string, profile: {
