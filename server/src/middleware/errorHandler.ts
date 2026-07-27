@@ -38,7 +38,9 @@ export const errorHandler = (err: Error, _req: Request, res: Response, _next: Ne
     return;
   }
   if (err instanceof Prisma.PrismaClientValidationError) {
-    res.status(400).json({ success: false, message: 'Invalid input' });
+    console.error('Prisma Validation Error:', err.message);
+    const lastLine = err.message.split('\n').filter(Boolean).pop() || 'Invalid database input';
+    res.status(400).json({ success: false, message: `Database validation error: ${lastLine}` });
     return;
   }
   console.error('Unhandled error:', err);

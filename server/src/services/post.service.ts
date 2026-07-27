@@ -4,13 +4,28 @@ import { NotFoundError, ForbiddenError } from '../utils/errors';
 
 export class PostService {
   async create(
-    data: { content: string; type?: string; media?: string[]; tags?: string[]; poll?: { question: string; options: string[] } },
+    data: { content?: string; type?: string; media?: string[]; tags?: string[]; poll?: { question: string; options: string[] } },
     userId: string
   ) {
-    const postType: PostType = (data.type as PostType) || (data.poll ? 'POLL' : data.media?.length ? 'VIDEO' : 'POST');
+    const validPostTypes: PostType[] = ['POST', 'ARTICLE', 'VIDEO', 'NEWS', 'POLL'];
+    let postType: PostType = 'POST';
+
+    if (data.type && validPostTypes.includes(data.type as PostType)) {
+      postType = data.type as PostType;
+    } else if (data.type === 'CLIP') {
+      postType = 'VIDEO';
+    } else if (data.poll) {
+      postType = 'POLL';
+    } else if (data.media && data.media.length > 0) {
+      const hasVideo = data.media.some(m => m.match(/\.(mp4|webm|ogg|mov)$/i) || m.includes('/video/'));
+      postType = hasVideo ? 'VIDEO' : 'POST';
+    }
+
+    const postContent = (data.content || '').trim();
+
     const post = await prisma.post.create({
       data: {
-        content: data.content,
+        content: postContent,
         type: postType,
         media: data.media || [],
         tags: data.tags || [],

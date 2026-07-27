@@ -36,22 +36,30 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createPost = useMutation({
-    mutationFn: () => api.post('/posts', {
-      content, tags,
-      media: media.length > 0 ? media : undefined,
-      type: media.length > 0 ? 'CLIP' : 'POST',
-      poll: showPoll && pollQuestion && pollOptions.filter(Boolean).length >= 2 ? {
-        question: pollQuestion,
-        options: pollOptions.filter(Boolean),
-      } : undefined,
-    }),
+    mutationFn: () => {
+      const hasVideo = media.some(m => m.match(/\.(mp4|webm|ogg|mov)$/i) || m.includes('/video/'));
+      const postType = showPoll ? 'POLL' : hasVideo ? 'VIDEO' : 'POST';
+      return api.post('/posts', {
+        content: content.trim(),
+        tags,
+        media: media.length > 0 ? media : undefined,
+        type: postType,
+        poll: showPoll && pollQuestion && pollOptions.filter(Boolean).length >= 2 ? {
+          question: pollQuestion,
+          options: pollOptions.filter(Boolean),
+        } : undefined,
+      });
+    },
     onSuccess: () => {
       setContent(''); setTags([]); setMedia([]); setShowPoll(false); setPollQuestion(''); setPollOptions(['', '']);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       toast.success('Posted to the community!');
       onClose?.();
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to post'),
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || err.message || 'Failed to create post. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const addTag = () => {
