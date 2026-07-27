@@ -123,28 +123,27 @@ export function Sidebar() {
           )}
         </div>
  
-        <div className="glass rounded-xl p-1.5 space-y-0.5 border-border/60 bg-card/45 shadow-sm">
+        <div className="bg-[#111827] rounded-2xl p-2 space-y-1 border border-white/[0.08] shadow-xl">
           {getNavItems(user?.profile?.username || '').map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
             return (
               <Link key={item.href} href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative justify-center lg:justify-start',
+                  'flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 relative justify-center lg:justify-start group',
                   isActive
-                    ? 'text-primary bg-primary/5 border border-primary/10 shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent'
+                    ? 'text-white bg-[#7C3AED]/20 border-l-4 border-[#7C3AED] shadow-[0_0_20px_rgba(124,58,237,0.3)] font-bold'
+                    : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.06] border-l-4 border-transparent'
                 )}>
-                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-full animate-scale-in" />}
-                <div className="relative">
-                  <Icon className={cn('h-5 w-5 shrink-0 transition-all duration-200', isActive && 'text-primary')} />
+                <div className="relative shrink-0">
+                  <Icon className={cn('h-4 w-4 transition-all duration-200 group-hover:scale-110', isActive ? 'text-[#7C3AED]' : 'text-[#94A3B8] group-hover:text-white')} />
                   {item.href === '/messages' && totalChatUnread > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center animate-scale-in shadow-sm shadow-destructive/30">
+                    <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] px-1 rounded-full bg-[#FF3D71] text-white text-[9px] font-extrabold flex items-center justify-center shadow-md">
                       {totalChatUnread > 9 ? '9+' : totalChatUnread}
                     </span>
                   )}
                 </div>
-                <span className="hidden lg:block">{item.label}</span>
+                <span className="hidden lg:block font-inter">{item.label}</span>
               </Link>
             );
           })}

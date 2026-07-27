@@ -4,216 +4,170 @@
 
 @layer base {
   :root {
-    /* DEFAULT HYBRID GAMING THEME: Midnight Slate + Cyber Aurora */
-    --background: 224 32% 6%; /* #0B0E14 */
-    --foreground: 210 40% 98%;
-    --card: 222 30% 9%; /* Translucent glass card base */
-    --card-foreground: 210 40% 98%;
-    --popover: 222 30% 9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 238 84% 67%; /* Blurple Esports Primary */
+    /* AAA GAMING DESIGN SYSTEM - PRECISE PALETTE */
+    --background: 231 47% 4%; /* #05070E */
+    --background-secondary: 218 37% 8%; /* #0B1220 */
+    --foreground: 0 0% 100%; /* #FFFFFF */
+    
+    --card: 217 33% 11%; /* #111827 */
+    --card-foreground: 0 0% 100%;
+    --popover: 217 33% 11%;
+    --popover-foreground: 0 0% 100%;
+    
+    --primary: 263 84% 58%; /* #7C3AED - Electric Purple */
     --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 12%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 217 25% 12%;
-    --muted-foreground: 215 20% 68%;
-    --accent: 238 60% 16%;
-    --accent-foreground: 238 86% 75%;
-    --destructive: 350 84% 60%;
+    
+    --secondary: 25 100% 50%; /* #FF6B00 - Vibrant Cyber Orange */
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 218 37% 12%;
+    --muted-foreground: 215 16% 65%; /* #94A3B8 */
+    
+    --accent: 263 60% 18%;
+    --accent-foreground: 263 84% 75%;
+    
+    --destructive: 345 100% 62%; /* #FF3D71 */
     --destructive-foreground: 0 0% 100%;
-    --success: 142 70% 45%;
+    
+    --success: 151 100% 45%; /* #00E676 */
     --success-foreground: 0 0% 100%;
+    
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --border: 217 30% 16%;
-    --input: 217 30% 16%;
-    --ring: 238 84% 67%;
-    --radius: 1rem;
+    
+    --border: 0 0% 100%; /* Opacity controlled via utility rgba(255,255,255,0.08) */
+    --input: 218 37% 14%;
+    --ring: 263 84% 58%;
+    --radius: 1.25rem;
 
-    /* Cyberpunk Vibrant Accent Variables */
-    --neon-cyan: 180 100% 50%;
-    --neon-purple: 270 100% 60%;
-    --neon-pink: 330 100% 55%;
-    --neon-green: 140 100% 50%;
-    --neon-yellow: 50 100% 50%;
-  }
-
-  .light {
-    /* LIGHT THEME: Clean Esports (Riot/Notion inspired) */
-    --background: 210 40% 98%;
-    --foreground: 222 47% 6%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 6%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 6%;
-    --primary: 238 84% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 94%;
-    --secondary-foreground: 222 47% 6%;
-    --muted: 210 40% 94%;
-    --muted-foreground: 215 20% 45%;
-    --accent: 238 84% 96%;
-    --accent-foreground: 238 84% 60%;
-    --destructive: 350 80% 55%;
-    --destructive-foreground: 0 0% 100%;
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 45%;
-    --warning-foreground: 0 0% 100%;
-    --border: 210 40% 88%;
-    --input: 210 40% 88%;
-    --ring: 238 84% 60%;
-  }
-
-  .gray {
-    /* GRAY THEME: Carbon Steam (Steam/Riot Client inspired) */
-    --background: 240 10% 7%;
-    --foreground: 240 10% 94%;
-    --card: 240 10% 11%;
-    --card-foreground: 240 10% 94%;
-    --popover: 240 10% 11%;
-    --popover-foreground: 240 10% 94%;
-    --primary: 238 84% 67%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 10% 16%;
-    --secondary-foreground: 240 10% 94%;
-    --muted: 240 10% 16%;
-    --muted-foreground: 240 5% 62%;
-    --accent: 240 10% 18%;
-    --accent-foreground: 238 84% 75%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --success: 142 70% 45%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --border: 240 10% 16%;
-    --input: 240 10% 16%;
-    --ring: 238 84% 67%;
+    /* Custom Accent Hex values */
+    --color-bg-main: #05070E;
+    --color-bg-secondary: #0B1220;
+    --color-card: #111827;
+    --color-primary: #7C3AED;
+    --color-secondary: #FF6B00;
+    --color-success: #00E676;
+    --color-error: #FF3D71;
   }
 
   * {
-    @apply border-border;
+    border-color: rgba(255, 255, 255, 0.08);
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--border)) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
   }
 
-  *::-webkit-scrollbar { width: 5px; height: 5px; }
+  *::-webkit-scrollbar { width: 6px; height: 6px; }
   *::-webkit-scrollbar-track { background: transparent; }
-  *::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
-  *::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)/0.4); }
+  *::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 6px; }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.5); }
 
   html, body {
     max-width: 100vw;
     overflow-x: hidden;
+    background-color: #05070E;
+    color: #FFFFFF;
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
-    /* Aurora Gradient Mesh background */
+    @apply antialiased;
+    font-family: var(--font-inter), sans-serif;
+    background-color: #05070E;
+    /* Subtle 5% Aurora background glow mesh */
     background-image: 
-      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
-      radial-gradient(at 50% 100%, rgba(236, 72, 153, 0.08) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.07) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(255, 107, 0, 0.05) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(0, 230, 118, 0.03) 0px, transparent 50%);
     background-attachment: fixed;
   }
 
-  ::selection { @apply bg-primary/30 text-white; }
+  ::selection {
+    background: rgba(124, 58, 237, 0.3);
+    color: #FFFFFF;
+  }
+
+  h1, h2, h3, .font-heading {
+    font-family: var(--font-orbitron), var(--font-rajdhani), var(--font-space), sans-serif;
+    letter-spacing: -0.01em;
+  }
 }
 
 @layer utilities {
-  /* 1. Glassmorphism Utilities */
-  .glass {
-    @apply bg-card/60 backdrop-blur-xl border border-white/10 shadow-xl shadow-black/20;
+  /* AAA Gaming Typography Classes */
+  .font-orbitron { font-family: var(--font-orbitron), sans-serif; }
+  .font-rajdhani { font-family: var(--font-rajdhani), sans-serif; }
+  .font-space { font-family: var(--font-space), sans-serif; }
+  .font-jakarta { font-family: var(--font-jakarta), sans-serif; }
+  .font-inter { font-family: var(--font-inter), sans-serif; }
+
+  /* 70% Dark Gaming Card System */
+  .gaming-card {
+    background-color: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.25rem;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .glass-strong {
-    @apply bg-card/85 backdrop-blur-2xl border border-white/15 shadow-2xl shadow-black/30;
-  }
-  .glass-card {
-    @apply bg-card/50 backdrop-blur-md border border-border/60 shadow-md rounded-2xl transition-all duration-300;
+  .gaming-card:hover {
+    border-color: rgba(124, 58, 237, 0.4);
+    box-shadow: 0 20px 40px -15px rgba(124, 58, 237, 0.15);
+    transform: translateY(-3px);
   }
 
-  /* 2. Bento UI Modular Card Grid */
-  .bento-grid {
+  /* 10% Glassmorphism overlays */
+  .glass-overlay {
+    background: rgba(17, 24, 39, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* 5% Aurora Gradient Headers & Hero Sections */
+  .aurora-hero {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(255, 107, 0, 0.15), rgba(11, 18, 32, 0.9));
+    border: 1px solid rgba(124, 58, 237, 0.3);
+  }
+
+  /* AAA Button Gradients (Purple -> Orange & Purple -> Pink) */
+  .btn-gradient-primary {
+    background: linear-gradient(135deg, #7C3AED 0%, #FF6B00 100%);
+    color: #FFFFFF;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn-gradient-primary:hover {
+    box-shadow: 0 6px 25px rgba(255, 107, 0, 0.45);
+    transform: translateY(-2px);
+  }
+  
+  .btn-gradient-secondary {
+    background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+    color: #FFFFFF;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn-gradient-secondary:hover {
+    box-shadow: 0 6px 25px rgba(236, 72, 153, 0.45);
+    transform: translateY(-2px);
+  }
+
+  /* Bento Layout Grid */
+  .bento-layout {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.25rem;
   }
-  .bento-card {
-    @apply bg-card/50 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl transition-all duration-300 hover:border-primary/40 hover:shadow-primary/10 hover:-translate-y-1;
-  }
 
-  /* 3. Subtle Neumorphism for Buttons & Interactive Controls */
-  .neumorphic-btn {
-    box-shadow: 
-      inset 0 1px 1px rgba(255, 255, 255, 0.15),
-      0 4px 12px rgba(0, 0, 0, 0.35);
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .neumorphic-btn:hover {
-    box-shadow: 
-      inset 0 1px 2px rgba(255, 255, 255, 0.25),
-      0 6px 16px rgba(0, 0, 0, 0.45);
-  }
-  .neumorphic-btn:active {
-    box-shadow: 
-      inset 0 2px 4px rgba(0, 0, 0, 0.6),
-      0 1px 2px rgba(0, 0, 0, 0.2);
-  }
-  .neumorphic-inset {
-    box-shadow: 
-      inset 0 2px 6px rgba(0, 0, 0, 0.5),
-      0 1px 0 rgba(255, 255, 255, 0.05);
-  }
-
-  /* 4. Cyberpunk Gaming Accents */
-  .cyber-glow {
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 10px rgba(0, 240, 255, 0.1);
-  }
-  .cyber-card {
-    @apply bg-card/60 backdrop-blur-xl border border-cyan-500/30 rounded-2xl shadow-[0_0_20px_rgba(0,240,255,0.1)];
-    position: relative;
-    overflow: hidden;
-  }
-  .cyber-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #00F0FF, transparent);
-    animation: cyber-scan 3.5s ease-in-out infinite;
-  }
-
-  /* 5. Aurora Gradients */
-  .aurora-bg {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15), rgba(236, 72, 153, 0.1));
-  }
-  .aurora-border {
-    border-image: linear-gradient(135deg, #6366F1, #A855F7, #EC4899) 1;
-  }
-  .text-aurora {
-    background: linear-gradient(135deg, #818CF8, #C084FC, #F472B6);
+  /* Text Gradient Accents */
+  .text-gradient-purple-orange {
+    background: linear-gradient(135deg, #7C3AED, #FF6B00);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-
-  /* Material Design Form Inputs */
-  .material-input {
-    @apply bg-background/50 border border-border/80 rounded-xl px-4 py-2.5 text-sm transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none;
+  .text-gradient-cyan-purple {
+    background: linear-gradient(135deg, #00E676, #7C3AED);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
-
-  /* Fluent Motion */
-  .fluent-transition {
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-}
-
-@keyframes cyber-scan {
-  0% { left: -100%; }
-  50%, 100% { left: 100%; }
 }
