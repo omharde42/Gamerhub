@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, Trash2, Sparkles, BarChart3, CheckCircle2 } from 'lucide-react';
-import { formatRelativeTime, formatNumber, getInitials, getMediaUrl, cn } from '@/lib/utils';
+import { formatRelativeTime, formatNumber, getInitials, getMediaUrl, getOptimizedMediaUrl, cn } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -240,8 +240,9 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                       />
                     ) : (
                       <img 
-                        src={getMediaUrl(imgUrl)} 
+                        src={getOptimizedMediaUrl(imgUrl, 1080)} 
                         alt="Post media" 
+                        loading="lazy"
                         className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.02] transition-transform duration-300 rounded-xl" 
                         onClick={() => {
                           setSelectedImageIndex(imgIdx);
@@ -275,11 +276,11 @@ export function PostCard({ post, onDelete }: PostCardProps) {
         <div className="flex items-center justify-between border-t border-white/[0.08] pt-3.5">
           <div className="flex items-center gap-1">
             <LikeButton post={post} />
-            <Button variant="ghost" size="sm" className={`gap-1.5 h-8 text-xs text-[#94A3B8] hover:text-white hover:bg-[#7C3AED]/10 rounded-xl ${showComments ? 'text-[#7C3AED] bg-[#7C3AED]/15 font-bold' : ''}`} onClick={() => setShowComments(!showComments)}>
+            <Button variant="ghost" size="sm" aria-label="Comment on post" title="Comment" className={`gap-1.5 h-8 text-xs text-[#94A3B8] hover:text-white hover:bg-[#7C3AED]/10 rounded-xl ${showComments ? 'text-[#7C3AED] bg-[#7C3AED]/15 font-bold' : ''}`} onClick={() => setShowComments(!showComments)}>
               <MessageCircle className="h-4 w-4" />
               <span className="font-mono">{formatNumber(post._count?.comments || 0)}</span>
             </Button>
-            <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs text-[#94A3B8] hover:text-white hover:bg-white/[0.06] rounded-xl"
+            <Button variant="ghost" size="sm" aria-label="Share post link" title="Share" className="gap-1.5 h-8 text-xs text-[#94A3B8] hover:text-white hover:bg-white/[0.06] rounded-xl"
               onClick={() => {
                 const url = `${window.location.origin}/feed?post=${post.id}`;
                 navigator.clipboard.writeText(url);
@@ -288,7 +289,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
               <Share2 className="h-4 w-4" />
             </Button>
           </div>
-          <Button variant="ghost" size="sm"
+          <Button variant="ghost" size="sm" aria-label={saved ? "Unsave post" : "Save post"} title={saved ? "Unsave" : "Save"}
             className={`gap-1.5 h-8 text-xs transition-all duration-200 rounded-xl ${saved ? 'text-[#7C3AED] hover:text-[#7C3AED]' : 'text-[#94A3B8] hover:text-white'}`}
             onClick={() => { toggleSave(post.id); toast.success(saved ? 'Post unsaved' : 'Post saved'); }}>
             <Bookmark className={`h-4 w-4 transition-all duration-200 ${saved ? 'fill-[#7C3AED] drop-shadow-[0_0_6px_rgba(124,58,237,0.5)]' : ''}`} />

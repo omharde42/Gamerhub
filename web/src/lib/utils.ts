@@ -53,3 +53,17 @@ export function getMediaUrl(url: string | null | undefined): string {
 
   return cleaned;
 }
+
+export function getOptimizedMediaUrl(url: string | null | undefined, width?: number): string {
+  const mediaUrl = getMediaUrl(url);
+  if (!mediaUrl) return '';
+  
+  // Dynamic Cloudinary Image CDN Auto-Resizing & Format Optimization
+  if (mediaUrl.includes('res.cloudinary.com') && mediaUrl.includes('/upload/')) {
+    const params = ['f_auto', 'q_auto:good'];
+    if (width) params.push(`w_${width}`, 'c_limit');
+    const paramString = params.join(',');
+    return mediaUrl.replace('/upload/', `/upload/${paramString}/`);
+  }
+  return mediaUrl;
+}

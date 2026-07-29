@@ -60,7 +60,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="hidden md:block md:w-16 lg:w-64 shrink-0 transition-all duration-300">
+    <nav aria-label="Control Panel Navigation" className="w-16 lg:w-64 shrink-0 transition-all duration-300">
       <div className="sticky top-20 space-y-2">
         <div className="glass rounded-xl overflow-hidden border-border/60 shadow-sm bg-card">
           {user ? (
@@ -190,6 +190,6 @@ export function Sidebar() {
           </DropdownMenu>
         </div>
       </div>
-    </aside>
+    </nav>
   );
 }

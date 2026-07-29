@@ -91,18 +91,26 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      <div className={isMessages ? "hidden md:block" : "block"}>
+      <header role="banner" className={isMessages ? "hidden md:block" : "block"}>
         <Navbar />
-      </div>
+      </header>
       <div className={`w-full ${!isLanding ? (isMessages ? 'pt-0 md:pt-16 pb-0' : 'pt-16 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0') : ''}`}>
         <div className={`w-full mx-auto flex gap-3 lg:gap-4 ${isMessages ? 'px-0 md:px-6 py-0 md:py-4' : 'px-3 md:px-6 py-3 md:py-4'}`}>
-          {!hideSidebar && !isServerPage && !isMessages && <Sidebar />}
-          <main className="flex-1 min-w-0 max-w-full">
+          {!hideSidebar && !isServerPage && !isMessages && (
+            <aside aria-label="Control Panel" className="hidden md:block shrink-0">
+              <Sidebar />
+            </aside>
+          )}
+          <main id="main-content" role="main" className="flex-1 min-w-0 max-w-full">
             {children}
           </main>
         </div>
       </div>
-      {!hideBottomNav && <MobileBottomNav />}
+      {!hideBottomNav && (
+        <nav aria-label="Mobile Navigation" className="block md:hidden">
+          <MobileBottomNav />
+        </nav>
+      )}
       <UpdateChecker />
     </div>
   );

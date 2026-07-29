@@ -47,8 +47,12 @@ export class MediaStorageService {
               resource_type: isVideo ? 'video' : 'auto',
               transformation: isImage
                 ? folder === 'avatars'
-                  ? [{ width: 400, height: 400, crop: 'fill', gravity: 'face', quality: 'auto', fetch_format: 'auto' }]
-                  : [{ width: 1920, limit: true, quality: 'auto', fetch_format: 'auto' }]
+                  ? [{ width: 300, height: 300, crop: 'fill', gravity: 'face', quality: 'auto:good', fetch_format: 'auto' }]
+                  : folder === 'banners'
+                  ? [{ width: 1200, height: 400, crop: 'fill', quality: 'auto:good', fetch_format: 'auto' }]
+                  : folder === 'chat'
+                  ? [{ width: 800, limit: true, quality: 'auto:good', fetch_format: 'auto' }]
+                  : [{ width: 1280, limit: true, quality: 'auto:good', fetch_format: 'auto' }]
                 : undefined,
             },
             (error, result) => {

@@ -68,10 +68,20 @@ export default function FeedPage() {
     const { io } = require('socket.io-client');
     const socket = io(SOCKET_URL, { auth: { token } });
     socketRef.current = socket;
-    socket.on('post:new', (post: any) => {
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    
+    let throttleTimeout: NodeJS.Timeout | null = null;
+    socket.on('post:new', () => {
+      if (!throttleTimeout) {
+        throttleTimeout = setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['feed'] });
+          throttleTimeout = null;
+        }, 2000);
+      }
     });
-    return () => { socket.disconnect(); };
+    return () => {
+      if (throttleTimeout) clearTimeout(throttleTimeout);
+      socket.disconnect();
+    };
   }, [queryClient]);
 
   // Stable intersection observer for infinite scroll - avoids re-creating on every render
@@ -171,7 +181,7 @@ export default function FeedPage() {
           {/* Trending Topics */}
           <Card variant="glass" className="border-border/60">
             <CardHeader className="pb-2">
-              <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Zap className="h-4 w-4 text-indigo-500" /> Trending Topics</h3>
+              <h2 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Zap className="h-4 w-4 text-indigo-500" /> Trending Topics</h2>
             </CardHeader>
             <CardContent className="space-y-1 pt-0">
               {isLoading ? (
@@ -209,7 +219,7 @@ export default function FeedPage() {
 
           <Card variant="glass" className="border-border/60">
             <CardHeader className="pb-2">
-              <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Newspaper className="h-4 w-4 text-primary" /> Gaming News</h3>
+              <h2 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Newspaper className="h-4 w-4 text-primary" /> Gaming News</h2>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
               {isLoading ? (
@@ -264,7 +274,7 @@ export default function FeedPage() {
 
           <Card variant="glass" className="border-border/60">
             <CardHeader className="pb-2">
-              <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Users className="h-4 w-4 text-primary" /> Suggested Players</h3>
+              <h2 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Users className="h-4 w-4 text-primary" /> Suggested Players</h2>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
               {isLoading ? (
