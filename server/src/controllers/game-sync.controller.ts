@@ -31,6 +31,12 @@ export class GameSyncController {
       result = await gameSyncService.syncFaceit(userId, identifier || 's1mple');
     } else if (platUpper === 'DISCORD') {
       result = await gameSyncService.syncDiscord(userId, identifier || 'GamerZ#0001');
+    } else if (platUpper === 'CLASH_ROYALE') {
+      result = await gameSyncService.syncSupercell(userId, identifier || '#2PP820CG', 'CLASH_ROYALE');
+    } else if (platUpper === 'CLASH_OF_CLANS') {
+      result = await gameSyncService.syncSupercell(userId, identifier || '#8L90URG', 'CLASH_OF_CLANS');
+    } else if (platUpper === 'BRAWL_STARS') {
+      result = await gameSyncService.syncSupercell(userId, identifier || '#90UJLY2', 'BRAWL_STARS');
     } else {
       return sendError(res, 400, `Unsupported platform: ${platform}`);
     }
