@@ -15,9 +15,10 @@ import {
   Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
   Sparkles, Volume2, Pause, Play, Square, Lock, Shield
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useKeyboard, scrollInputIntoView } from '@/hooks/useKeyboard';
-import { CallModal } from '@/components/chat/call-modal';
-import { ImagePreview } from '@/components/ui/image-preview';
+const CallModal = dynamic(() => import('@/components/chat/call-modal').then(m => m.CallModal), { ssr: false });
+const ImagePreview = dynamic(() => import('@/components/ui/image-preview').then(m => m.ImagePreview), { ssr: false });
 import { getInitials, formatRelativeTime, formatLastSeen, cn, getMediaUrl } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -852,10 +853,10 @@ function DiscordMessagesPage() {
                                 exit={{ opacity: 0, y: -4 }}
                                 transition={{ duration: 0.1 }}
                               >
-                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" onClick={() => toast.success('Reacted!')}><Heart className="h-3 w-3 text-red-500 fill-red-500/20" /></button>
-                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><Reply className="h-3 w-3" /></button>
-                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><Smile className="h-3 w-3" /></button>
-                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><MoreVertical className="h-3 w-3" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Like message" onClick={() => toast.success('Reacted!')}><Heart className="h-3 w-3 text-red-500 fill-red-500/20" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Reply to message"><Reply className="h-3 w-3" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Add reaction"><Smile className="h-3 w-3" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="More message options"><MoreVertical className="h-3 w-3" /></button>
                               </motion.div>
                             )}
                           </AnimatePresence>

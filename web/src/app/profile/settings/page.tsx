@@ -423,7 +423,12 @@ export default function SettingsPage() {
                     <SelectTrigger className="h-10"><SelectValue placeholder="Add game" /></SelectTrigger>
                     <SelectContent>
                       {GAMES.filter((game: string) => !profile.mainGames.includes(game)).map((game: string) => (
-                        <SelectItem key={game} value={game}>{game}</SelectItem>
+                        <SelectItem key={game} value={game}>
+                          <span className="flex items-center justify-between w-full gap-2">
+                            <span>{game}</span>
+                            <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Official API ⚡</span>
+                          </span>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
