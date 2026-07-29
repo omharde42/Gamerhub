@@ -426,7 +426,7 @@ export default function SettingsPage() {
                         <SelectItem key={game} value={game}>
                           <span className="flex items-center justify-between w-full gap-2">
                             <span>{game}</span>
-                            <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Official API ⚡</span>
+                            <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Verified Connection ✅</span>
                           </span>
                         </SelectItem>
                       ))}

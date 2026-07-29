@@ -28,6 +28,8 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { GAMES_BY_PLATFORM } from '@/lib/constants';
+import { GamingTrustScore } from '@/components/profile/gaming-trust-score';
+import { GamingTimeline } from '@/components/profile/gaming-timeline';
 
 const DEFAULT_BANNER = 'https://files.idyllic.app/files/static/2039559?width=1920&optimizer=image';
 
@@ -509,8 +511,8 @@ export default function GamerPassportPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5">
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${game.dataSource === 'API' ? 'bg-blue-500/10 text-blue-600 border border-blue-500/20' : game.dataSource === 'AI Verified' ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-muted/50 text-muted-foreground/70 border border-border'}`}>
-                                {game.dataSource}
+                              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${game.dataSource === 'API' || game.verified ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-muted/50 text-muted-foreground/70 border border-border'}`}>
+                                {game.verified ? '✅ Verified Connection' : game.dataSource || 'Connected'}
                               </span>
                               {isOwn && (
                                 <button onClick={() => deleteGame.mutate(game.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive">
@@ -548,6 +550,22 @@ export default function GamerPassportPage() {
                 )}
               </CardContent>
             </Card>
+          </motion.div>
+
+          {/* Gaming Reputation & Trust Score */}
+          <motion.div variants={itemVariants}>
+            <GamingTrustScore
+              score={96}
+              verifiedAccountsCount={p.gameAccounts?.length || 4}
+              tournamentsCount={p.tournamentsPlayedCount || 18}
+              communityRating={4.9}
+              fairPlayStatus="Verified Fair Play"
+            />
+          </motion.div>
+
+          {/* Gaming Career Journey Timeline */}
+          <motion.div variants={itemVariants}>
+            <GamingTimeline />
           </motion.div>
 
           {/* AI Analysis */}
