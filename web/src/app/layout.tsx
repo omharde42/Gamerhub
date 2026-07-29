@@ -4,11 +4,11 @@ import './globals.css';
 import { Providers } from '@/providers';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta' });
-const orbitron = Orbitron({ subsets: ['latin'], variable: '--font-orbitron' });
-const rajdhani = Rajdhani({ weight: ['500', '600', '700'], subsets: ['latin'], variable: '--font-rajdhani' });
-const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
+const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap' });
+const orbitron = Orbitron({ subsets: ['latin'], variable: '--font-orbitron', display: 'swap' });
+const rajdhani = Rajdhani({ weight: ['500', '600', '700'], subsets: ['latin'], variable: '--font-rajdhani', display: 'swap' });
+const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'GamerZ Hub - The Ultimate AAA Gaming Ecosystem',

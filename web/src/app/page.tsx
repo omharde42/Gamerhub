@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Gamepad2, Sparkles, Zap, Trophy, Users, Globe, Star, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -135,10 +136,17 @@ export default function EnterPage() {
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+              transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
             >
               <div className="w-20 h-20 rounded-2xl overflow-hidden border border-primary/20 flex items-center justify-center mx-auto shadow-xl relative shrink-0">
-                <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
+                <Image
+                  src="/logo.jpg"
+                  alt="GamerZ Hub"
+                  width={80}
+                  height={80}
+                  priority
+                  className="w-full h-full object-cover"
+                />
               </div>
             </motion.div>
 
