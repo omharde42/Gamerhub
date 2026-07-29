@@ -319,6 +319,8 @@ app.use('/api/news', newsRoutes);
 app.use('/api/game-requests', gameRequestRoutes);
 app.use('/api/crypto', cryptoRoutes);
 app.use('/api/steam', steamRoutes);
+import gameSyncRoutes from './routes/game-sync.routes';
+app.use('/api/game-sync', gameSyncRoutes);
 app.use('/api/game-stats', gameStatsRoutes);
 
 // Error handling
