@@ -139,7 +139,7 @@ export default function StudioPage() {
                 <EditorTab clip={selectedClip} clips={clips} setClips={handleClipsUpdate} />
               </TabsContent>
               <TabsContent value="export" className="h-full m-0 p-0 data-[state=active]:flex flex-col">
-                <ExportTab clip={selectedClip} />
+                <ExportTab clip={selectedClip} setClips={handleClipsUpdate} setSelectedClipId={setSelectedClipId} setActiveTab={setActiveTab} />
               </TabsContent>
             </div>
           </Tabs>
@@ -971,11 +971,33 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
   );
 }
 
-function ExportTab({ clip }: { clip: Clip | undefined }) {
+function ExportTab({ clip, setClips, setSelectedClipId, setActiveTab }: {
+  clip: Clip | undefined;
+  setClips?: (fn: (prev: Clip[]) => Clip[]) => void;
+  setSelectedClipId?: (id: string) => void;
+  setActiveTab?: (tab: string) => void;
+}) {
   const [quality, setQuality] = useState('1080p');
   const [format, setFormat] = useState('webm');
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const newClip: Clip = {
+      id: Date.now().toString(),
+      blob: file,
+      url,
+      name: file.name.replace(/\.[^/.]+$/, ''),
+      duration: 10,
+      createdAt: Date.now(),
+    };
+    if (setClips) setClips(prev => [newClip, ...prev]);
+    if (setSelectedClipId) setSelectedClipId(newClip.id);
+    toast.success('Video clip imported for export!');
+  };
 
   const handleExport = async () => {
     if (!clip) return toast.error('No clip selected');
@@ -1001,11 +1023,28 @@ function ExportTab({ clip }: { clip: Clip | undefined }) {
 
   if (!clip) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <Download className="h-12 w-12 text-muted-foreground/30 mx-auto" />
-          <h3 className="text-sm font-medium text-muted-foreground">No clip selected</h3>
-          <p className="text-xs text-muted-foreground/60">Select a clip from the media library to export</p>
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+            <Download className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-foreground">Export Game Clip</h3>
+            <p className="text-xs text-muted-foreground mt-1">Select a recorded clip or import a video file to download</p>
+          </div>
+          <div className="flex flex-col gap-2 pt-2">
+            <label className="cursor-pointer">
+              <input type="file" accept="video/*" className="hidden" onChange={handleFileImport} />
+              <Button variant="gradient" className="w-full gap-2 text-xs font-bold">
+                <FileVideo className="h-4 w-4" /> Import Video File
+              </Button>
+            </label>
+            {setActiveTab && (
+              <Button variant="outline" className="w-full gap-2 text-xs" onClick={() => setActiveTab('record')}>
+                <Monitor className="h-4 w-4" /> Record New Clip
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );

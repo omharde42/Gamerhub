@@ -50,18 +50,58 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
 
   const targetUser = callState?.mode === 'incoming' ? callState.fromUser : callState?.toUser;
 
-  // Initialize WebRTC Media & Socket Listeners
+  const ringtoneIntervalRef = useRef<any>(null);
+
+  const startRingtone = () => {
+    stopRingtone();
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const playBeep = () => {
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5 tone
+          osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.3); // E5 tone
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.8);
+        } catch {}
+      };
+      playBeep();
+      ringtoneIntervalRef.current = setInterval(playBeep, 2400);
+    } catch {}
+  };
+
+  const stopRingtone = () => {
+    if (ringtoneIntervalRef.current) {
+      clearInterval(ringtoneIntervalRef.current);
+      ringtoneIntervalRef.current = null;
+    }
+  };
+
+  // Initialize WebRTC Media, Ringtone & Socket Listeners
   useEffect(() => {
     if (!callState || !callState.active) {
+      stopRingtone();
       cleanUpCall();
       return;
     }
 
-    if (callState.mode === 'connected') {
+    if (callState.mode === 'incoming' || callState.mode === 'outgoing') {
+      startRingtone();
+    } else if (callState.mode === 'connected') {
+      stopRingtone();
       startTimer();
     }
 
     return () => {
+      stopRingtone();
       stopTimer();
     };
   }, [callState?.active, callState?.mode]);

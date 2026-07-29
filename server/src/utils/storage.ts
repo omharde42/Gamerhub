@@ -77,7 +77,19 @@ export class MediaStorageService {
       }
     }
 
-    // 2. Secondary Storage: Local Persistent Disk (for local dev)
+    // 2. Secondary Storage: If running on Render ephemeral host without Cloudinary, use Base64 Data URI to prevent image loss on container restart
+    const isRenderHost = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL);
+    if (isRenderHost || fileBuffer.length < 2 * 1024 * 1024) {
+      const b64 = fileBuffer.toString('base64');
+      return {
+        url: `data:${mimeType};base64,${b64}`,
+        storageProvider: 'base64',
+        size: fileBuffer.length,
+        mimeType,
+      };
+    }
+
+    // 3. Local Persistent Disk Storage (for local development only)
     try {
       const uploadsDir = path.resolve(process.cwd(), `public/uploads/${folder}`);
       if (!fs.existsSync(uploadsDir)) {
@@ -102,7 +114,7 @@ export class MediaStorageService {
       console.warn(`Disk write warning (${folder}), using compressed base64 fallback:`, diskErr);
     }
 
-    // 3. Fallback: Base64 Data URI
+    // 4. Fallback: Base64 Data URI
     const b64 = fileBuffer.toString('base64');
     return {
       url: `data:${mimeType};base64,${b64}`,

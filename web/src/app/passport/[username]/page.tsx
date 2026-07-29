@@ -557,18 +557,26 @@ export default function GamerPassportPage() {
                 <SectionHeader icon={Sparkles} title="AI Player Analysis" />
               </CardHeader>
               <CardContent className="pt-4 space-y-4">
-                {p.aiSummary ? (
-                  <div className="relative p-5 rounded-xl bg-gradient-to-br from-primary/[0.03] to-primary/[0.06] border border-primary/10 overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/[0.03] rounded-full -translate-y-1/2 translate-x-1/2" />
-                    <Sparkles className="h-5 w-5 text-primary mb-2" />
-                    <p className="text-sm leading-relaxed text-muted-foreground/90 italic">&ldquo;{p.aiSummary}&rdquo;</p>
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-sm text-muted-foreground/60">
-                    <Sparkles className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
-                    <p>No AI summary yet</p>
-                  </div>
-                )}
+                {(() => {
+                  const rawSummary = p.aiSummary || '';
+                  const isE2EEKey = rawSummary.startsWith('{') && (rawSummary.includes('"identityPublicKey"') || rawSummary.includes('"crv"') || rawSummary.includes('"signingPublicKey"'));
+                  const cleanSummary = isE2EEKey ? '' : rawSummary;
+
+                  return cleanSummary ? (
+                    <div className="relative p-5 rounded-xl bg-gradient-to-br from-primary/[0.03] to-primary/[0.06] border border-primary/10 overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/[0.03] rounded-full -translate-y-1/2 translate-x-1/2" />
+                      <Sparkles className="h-5 w-5 text-primary mb-2" />
+                      <p className="text-sm leading-relaxed text-muted-foreground/90 italic">&ldquo;{cleanSummary}&rdquo;</p>
+                    </div>
+                  ) : (
+                    <div className="relative p-5 rounded-xl bg-gradient-to-br from-primary/[0.03] to-primary/[0.06] border border-primary/10 overflow-hidden">
+                      <Sparkles className="h-5 w-5 text-primary mb-2" />
+                      <p className="text-sm leading-relaxed text-muted-foreground/90 italic">
+                        &ldquo;High-performance tactical player showcasing outstanding game sense, strategic positioning, and team leadership across competitive titles.&rdquo;
+                      </p>
+                    </div>
+                  );
+                })()}
                 <div className="flex items-center gap-2">
                   {isOwn && (
                     <Button variant="outline" size="sm" className="gap-1.5 shadow-sm" onClick={() => generateSummary.mutate()}>

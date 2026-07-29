@@ -256,11 +256,11 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
             <select
               value={privacy}
               onChange={(e: any) => setPrivacy(e.target.value)}
-              className="text-[11px] bg-muted/50 border border-border/40 text-muted-foreground rounded-lg px-2 py-0.5 focus:outline-none"
+              className="text-xs bg-[#111827] border border-white/20 text-white rounded-xl px-2.5 py-1 focus:outline-none focus:border-[#7C3AED] shadow-sm cursor-pointer"
             >
-              <option value="PUBLIC">🌐 Public</option>
-              <option value="FRIENDS">👥 Friends</option>
-              <option value="COMMUNITY">🎮 Community</option>
+              <option value="PUBLIC" className="bg-[#111827] text-white py-1">🌐 Public</option>
+              <option value="FRIENDS" className="bg-[#111827] text-white py-1">👥 Friends</option>
+              <option value="COMMUNITY" className="bg-[#111827] text-white py-1">🎮 Community</option>
             </select>
           </div>
         </div>

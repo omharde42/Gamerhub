@@ -258,12 +258,12 @@ function DiscordMessagesPage() {
       }
       const processed = await Promise.all(
         messages.map(async (msg) => {
-          if (msg.content && msg.content.includes('"isE2EE":true')) {
+          if (msg.content && (msg.content.includes('"cipherText"') || msg.content.includes('"isE2EE"'))) {
             try {
               const text = await E2EEEngine.decryptIfNeeded(msg.content);
               return { ...msg, content: text, isE2EE: true };
             } catch {
-              return { ...msg, isE2EE: true };
+              return { ...msg, content: '🔒 Encrypted message', isE2EE: true };
             }
           }
           return msg;
@@ -666,7 +666,13 @@ function DiscordMessagesPage() {
                         </div>
                       ) : (
                         <>
-                          {chat.messages?.[0] && <p className="text-xs text-muted-foreground truncate mt-0.5">{chat.messages[0].content}</p>}
+                          {chat.messages?.[0] && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              {chat.messages[0].content?.startsWith('{') && (chat.messages[0].content?.includes('"cipherText"') || chat.messages[0].content?.includes('"isE2EE"'))
+                                ? '🔒 Encrypted message'
+                                : chat.messages[0].content}
+                            </p>
+                          )}
                           {!online && other && (
                             <p className="text-[9px] text-muted-foreground/60 mt-0.5">
                               {other.presence === 'IDLE' ? 'Idle' : `Last seen ${formatLastSeen(other.updatedAt)}`}
@@ -818,7 +824,7 @@ function DiscordMessagesPage() {
                           )}
                           {msg.content && (
                             <div className={cn(
-                              "px-4 py-2.5 rounded-2xl text-sm leading-relaxed relative border transition-all duration-300",
+                              "px-4 py-2.5 rounded-2xl text-sm leading-relaxed relative border transition-all duration-300 break-words break-all [overflow-wrap:anywhere] max-w-full overflow-hidden",
                               isOwn
                                 ? 'bg-gradient-to-br from-gaming-purple to-gaming-pink text-white rounded-tr-sm shadow-md shadow-gaming-purple/20 border-gaming-purple/20'
                                 : 'bg-card/75 border-border/40 text-foreground rounded-tl-sm shadow-sm backdrop-blur-sm'

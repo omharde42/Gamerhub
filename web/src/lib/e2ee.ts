@@ -238,14 +238,18 @@ export class E2EEEngine {
 
   public static async decryptIfNeeded(content: string | null | undefined): Promise<string> {
     if (!content) return '';
-    try {
-      if (content.startsWith('{') && content.includes('" isE2EE\:true')) {
- const payload: EncryptedMessagePayload = JSON.parse(content);
- return await this.decryptMessage(payload);
- }
- } catch (err) {
- console.warn('Could not decrypt message payload:', err);
- }
- return content;
- }
+    const trimmed = content.trim();
+    if (trimmed.startsWith('{') && (trimmed.includes('"cipherText"') || trimmed.includes('"isE2EE"'))) {
+      try {
+        const payload: EncryptedMessagePayload = JSON.parse(trimmed);
+        if (payload && payload.cipherText && payload.iv) {
+          return await this.decryptMessage(payload);
+        }
+      } catch (err) {
+        console.warn('Could not decrypt E2EE message payload:', err);
+        return '🔒 Encrypted message';
+      }
+    }
+    return content;
+  }
 }
