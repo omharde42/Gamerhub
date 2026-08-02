@@ -2,12 +2,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { SOCKET_URL } from '@/lib/constants';
+import { useAuthStore } from '@/store/authStore';
 
 export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
 
   const connect = useCallback(() => {
-    const token = localStorage.getItem('accessToken');
+    const token = useAuthStore.getState().accessToken;
     if (!token) return;
     const s = io(SOCKET_URL, {
       auth: { token },
@@ -20,7 +21,7 @@ export function useSocket() {
     s.on('disconnect', () => setSocket(null));
     s.on('connect_error', (err) => {
       if (err.message === 'Authentication required' || err.message === 'Invalid token') {
-        const newToken = localStorage.getItem('accessToken');
+        const newToken = useAuthStore.getState().accessToken;
         if (newToken && newToken !== token) {
           s.auth = { token: newToken };
           s.connect();

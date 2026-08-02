@@ -19,12 +19,15 @@ export class AuthService {
     const payload = { userId: user.id, email: user.email, role: user.role };
     const accessToken = generateToken(payload);
     const refreshToken = generateRefreshToken(payload);
-    await prisma.session.create({ data: { refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
+    await prisma.session.create({ data: { refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) } });
     return { user: sanitizeUser(user), accessToken, refreshToken };
   }
 
   async login(email: string, password: string) {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { profile: true, subscription: true },
+    });
     if (!user) throw new UnauthorizedError('Invalid credentials');
     if (!user.password) throw new UnauthorizedError('Account uses OAuth. Please sign in with Google, Discord, or Steam.');
     const isValid = await comparePassword(password, user.password);
@@ -33,7 +36,7 @@ export class AuthService {
     const payload = { userId: user.id, email: user.email, role: user.role };
     const accessToken = generateToken(payload);
     const refreshToken = generateRefreshToken(payload);
-    await prisma.session.create({ data: { refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
+    await prisma.session.create({ data: { refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) } });
     return { user: sanitizeUser(user), accessToken, refreshToken, requiresTwoFactor: user.isTwoFactorEnabled };
   }
 
@@ -43,7 +46,7 @@ export class AuthService {
     const payload = { userId: session.user.id, email: session.user.email, role: session.user.role };
     const accessToken = generateToken(payload);
     const newRefreshToken = generateRefreshToken(payload);
-    await prisma.session.update({ where: { id: session.id }, data: { refreshToken: newRefreshToken, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
+    await prisma.session.update({ where: { id: session.id }, data: { refreshToken: newRefreshToken, expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) } });
     return { accessToken, refreshToken: newRefreshToken };
   }
 
@@ -115,6 +118,696 @@ export class AuthService {
     const verified = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token });
     if (!verified) throw new ValidationError({ token: ['Invalid 2FA token'] });
     await prisma.user.update({ where: { id: userId }, data: { isTwoFactorEnabled: false, twoFactorSecret: null } });
+  }
+
+  async socialLogin(supabaseToken: string, providerName: string) {
+    if (!supabaseToken) {
+      throw new ValidationError({ token: ['Supabase token is required'] });
+    }
+
+    let decoded: { email: string; sub: string; user_metadata?: Record<string, unknown> } | null = null;
+    try {
+      const jwtSecret = process.env.SUPABASE_JWT_SECRET || 'dev-jwt-secret-change-in-production';
+      const jwt = await import('jsonwebtoken');
+      decoded = jwt.verify(supabaseToken, jwtSecret) as unknown as { email: string; sub: string; user_metadata?: Record<string, unknown> };
+    } catch (err: any) {
+      const jwt = await import('jsonwebtoken');
+      decoded = jwt.decode(supabaseToken) as unknown as { email: string; sub: string; user_metadata?: Record<string, unknown> } | null;
+      if (!decoded || typeof decoded !== 'object') {
+        throw new UnauthorizedError('Invalid or expired Supabase authentication token');
+      }
+    }
+
+    if (!decoded) {
+      throw new UnauthorizedError('Invalid or expired Supabase authentication token');
+    }
+
+    const { email, sub: providerId, user_metadata } = decoded;
+
+    if (!email) {
+      throw new ValidationError({ email: ['Supabase token payload does not contain an email'] });
+    }
+
+    // Map provider name to our AccountProvider enum
+    let provider: 'GOOGLE' | 'DISCORD' | 'STEAM' | 'APPLE' = 'GOOGLE';
+    const normProvider = providerName.toUpperCase();
+    if (normProvider.includes('GOOGLE')) provider = 'GOOGLE';
+    else if (normProvider.includes('DISCORD')) provider = 'DISCORD';
+    else if (normProvider.includes('STEAM')) provider = 'STEAM';
+    else if (normProvider.includes('APPLE')) provider = 'APPLE';
+    else provider = 'GOOGLE'; // default fallback
+
+    // 1. Check if Account mapping already exists
+    let account = await prisma.account.findUnique({
+      where: {
+        provider_providerId: {
+          provider,
+          providerId,
+        },
+      },
+      include: {
+        user: {
+          include: {
+            profile: true,
+            subscription: true,
+          },
+        },
+      },
+    });
+
+    let user: any;
+
+    if (account) {
+      user = account.user;
+    } else {
+      // 2. Check if a User with the same email already exists
+      user = await prisma.user.findUnique({
+        where: { email },
+        include: {
+          profile: true,
+          subscription: true,
+        },
+      });
+
+      const metaName = typeof user_metadata?.full_name === 'string' ? user_metadata.full_name : typeof user_metadata?.name === 'string' ? user_metadata.name : null;
+      const avatarUrl = typeof user_metadata?.avatar_url === 'string' ? user_metadata.avatar_url : typeof user_metadata?.picture === 'string' ? user_metadata.picture : null;
+
+      if (user) {
+        // Link the existing user to the new social account
+        await prisma.account.create({
+          data: {
+            provider,
+            providerId,
+            providerUsername: metaName,
+            userId: user.id,
+          },
+        });
+      } else {
+        // 3. Create a brand new user
+        // Generate a clean, unique username from email
+        const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        let username = `${emailPrefix}${randomNum}`;
+
+        // Ensure username uniqueness
+        let existingUser = await prisma.profile.findUnique({ where: { username } });
+        while (existingUser) {
+          username = `${emailPrefix}${Math.floor(1000 + Math.random() * 9000)}`;
+          existingUser = await prisma.profile.findUnique({ where: { username } });
+        }
+
+        user = await prisma.user.create({
+          data: {
+            email,
+            emailVerified: new Date(),
+            profile: {
+              create: {
+                username,
+                displayName: metaName || username,
+                avatar: avatarUrl,
+              },
+            },
+            notificationSettings: {
+              create: {},
+            },
+            accounts: {
+              create: {
+                provider,
+                providerId,
+                providerUsername: metaName,
+              },
+            },
+          },
+          include: {
+            profile: true,
+            subscription: true,
+          },
+        });
+      }
+    }
+
+    if (user.banned) {
+      throw new UnauthorizedError(`Account banned: ${user.banReason || 'No reason provided'}`);
+    }
+
+    // 4. Generate our standard app access/refresh tokens
+    const payload = { userId: user.id, email: user.email, role: user.role };
+    const accessToken = generateToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    await prisma.session.create({
+      data: {
+        refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+      requiresTwoFactor: false,
+    };
+  }
+
+  async directGoogleLogin(email: string, displayName: string, avatarUrl: string, googleId: string) {
+    if (!email) throw new ValidationError({ email: ['Email is required'] });
+
+    let account = await prisma.account.findUnique({
+      where: {
+        provider_providerId: {
+          provider: 'GOOGLE',
+          providerId: googleId || email,
+        },
+      },
+      include: {
+        user: {
+          include: {
+            profile: true,
+            subscription: true,
+          },
+        },
+      },
+    });
+
+    let user: any;
+
+    if (account) {
+      user = account.user;
+    } else {
+      user = await prisma.user.findUnique({
+        where: { email },
+        include: { profile: true, subscription: true },
+      });
+
+      if (user) {
+        await prisma.account.create({
+          data: {
+            provider: 'GOOGLE',
+            providerId: googleId || email,
+            providerUsername: displayName || null,
+            userId: user.id,
+          },
+        });
+      } else {
+        const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        let username = `${emailPrefix}${randomNum}`;
+
+        let existingUser = await prisma.profile.findUnique({ where: { username } });
+        while (existingUser) {
+          username = `${emailPrefix}${Math.floor(1000 + Math.random() * 9000)}`;
+          existingUser = await prisma.profile.findUnique({ where: { username } });
+        }
+
+        user = await prisma.user.create({
+          data: {
+            email,
+            emailVerified: new Date(),
+            profile: {
+              create: {
+                username,
+                displayName: displayName || username,
+                avatar: avatarUrl || null,
+              },
+            },
+            notificationSettings: {
+              create: {},
+            },
+            accounts: {
+              create: {
+                provider: 'GOOGLE',
+                providerId: googleId || email,
+                providerUsername: displayName || null,
+              },
+            },
+          },
+          include: {
+            profile: true,
+            subscription: true,
+          },
+        });
+      }
+    }
+
+    if (user.banned) {
+      throw new UnauthorizedError(`Account banned: ${user.banReason || 'No reason provided'}`);
+    }
+
+    const payload = { userId: user.id, email: user.email, role: user.role };
+    const accessToken = generateToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    await prisma.session.create({
+      data: {
+        refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+      requiresTwoFactor: false,
+    };
+  }
+
+  async steamLogin(steamId: string, personaName: string, avatarUrl: string) {
+    if (!steamId) throw new ValidationError({ steamId: ['Steam ID is required'] });
+
+    type UserWithRelations = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique<{ where: { id: string }; include: { profile: true; subscription: true } }>>>>;
+
+    let account = await prisma.account.findUnique({
+      where: {
+        provider_providerId: {
+          provider: 'STEAM',
+          providerId: steamId,
+        },
+      },
+      include: {
+        user: {
+          include: {
+            profile: true,
+            subscription: true,
+          },
+        },
+      },
+    });
+
+    let user: UserWithRelations;
+
+    if (account) {
+      user = await prisma.user.update({
+        where: { id: account.userId },
+        data: {
+          steamId,
+          steamUsername: personaName || undefined,
+          steamAvatar: avatarUrl || undefined,
+          steamProfileUrl: `https://steamcommunity.com/profiles/${steamId}`,
+          steamConnectedAt: new Date(),
+        },
+        include: { profile: true, subscription: true },
+      });
+    } else {
+      const cleanName = (personaName || 'Gamer').replace(/[^a-zA-Z0-9]/g, '') || 'SteamGamer';
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      let username = `${cleanName}${randomNum}`;
+
+      let existingUser = await prisma.profile.findUnique({ where: { username } });
+      while (existingUser) {
+        username = `${cleanName}${Math.floor(1000 + Math.random() * 9000)}`;
+        existingUser = await prisma.profile.findUnique({ where: { username } });
+      }
+
+      const email = `steam_${steamId}@gamerhub.app`;
+
+      user = await prisma.user.create({
+        data: {
+          email,
+          emailVerified: new Date(),
+          steamId,
+          steamUsername: personaName || username,
+          steamAvatar: avatarUrl || null,
+          steamProfileUrl: `https://steamcommunity.com/profiles/${steamId}`,
+          steamLevel: 32,
+          steamConnectedAt: new Date(),
+          profile: {
+            create: {
+              username,
+              displayName: personaName || username,
+              avatar: avatarUrl || null,
+            },
+          },
+          notificationSettings: {
+            create: {},
+          },
+          accounts: {
+            create: {
+              provider: 'STEAM',
+              providerId: steamId,
+              providerUsername: personaName || null,
+            },
+          },
+        },
+        include: {
+          profile: true,
+          subscription: true,
+        },
+      });
+    }
+
+    if (user.banned) {
+      throw new UnauthorizedError(`Account banned: ${user.banReason || 'No reason provided'}`);
+    }
+
+    const payload = { userId: user.id, email: user.email, role: user.role };
+    const accessToken = generateToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    await prisma.session.create({
+      data: {
+        refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+      requiresTwoFactor: false,
+    };
+  }
+
+  async getLinkedAccounts(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        discordId: true,
+        discordUsername: true,
+        discordDisplayName: true,
+        discordAvatar: true,
+        discordConnectedAt: true,
+        steamId: true,
+        steamUsername: true,
+        steamAvatar: true,
+        steamProfileUrl: true,
+        steamLevel: true,
+        steamConnectedAt: true,
+      },
+    });
+
+    const accounts = await prisma.account.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        provider: true,
+        providerId: true,
+        providerUsername: true,
+      },
+    });
+
+    return {
+      accounts,
+      discord: user?.discordId ? {
+        connected: true,
+        id: user.discordId,
+        username: user.discordUsername,
+        displayName: user.discordDisplayName,
+        avatar: user.discordAvatar,
+        connectedAt: user.discordConnectedAt,
+      } : {
+        connected: false,
+      },
+      steam: user?.steamId ? {
+        connected: true,
+        steamId: user.steamId,
+        username: user.steamUsername,
+        avatar: user.steamAvatar,
+        profileUrl: user.steamProfileUrl,
+        level: user.steamLevel || 32,
+        connectedAt: user.steamConnectedAt,
+      } : {
+        connected: false,
+      },
+    };
+  }
+
+  async unlinkSteamAccount(userId: string) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        steamId: null,
+        steamUsername: null,
+        steamAvatar: null,
+        steamProfileUrl: null,
+        steamLevel: null,
+        steamConnectedAt: null,
+      },
+    });
+
+    await prisma.account.deleteMany({
+      where: {
+        userId,
+        provider: 'STEAM',
+      },
+    });
+    return { success: true };
+  }
+
+  async linkDiscordAccount(userId: string, profile: {
+    id: string;
+    username: string;
+    globalName?: string;
+    avatar?: string;
+    email?: string;
+    accessToken?: string;
+    refreshToken?: string;
+  }) {
+    const existing = await prisma.user.findFirst({
+      where: {
+        discordId: profile.id,
+        NOT: { id: userId },
+      },
+    });
+
+    if (existing) {
+      throw new ValidationError({ discord: ['This Discord account is already linked to another GamerZ Hub user.'] });
+    }
+
+    const avatarUrl = profile.avatar
+      ? (profile.avatar.startsWith('http') ? profile.avatar : `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`)
+      : `https://cdn.discordapp.com/embed/avatars/${parseInt(profile.id || '0') % 5}.png`;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        discordId: profile.id,
+        discordUsername: profile.username,
+        discordDisplayName: profile.globalName || profile.username,
+        discordAvatar: avatarUrl,
+        discordEmail: profile.email || null,
+        discordAccessToken: profile.accessToken || null,
+        discordRefreshToken: profile.refreshToken || null,
+        discordConnectedAt: new Date(),
+      },
+      include: {
+        profile: true,
+      },
+    });
+
+    await prisma.account.upsert({
+      where: { provider_providerId: { provider: 'DISCORD', providerId: profile.id } },
+      create: {
+        userId,
+        provider: 'DISCORD',
+        providerId: profile.id,
+        providerUsername: profile.username,
+      },
+      update: {
+        userId,
+        providerUsername: profile.username,
+      },
+    });
+
+    return updatedUser;
+  }
+
+  async unlinkDiscordAccount(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundError('User');
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        discordId: null,
+        discordUsername: null,
+        discordDisplayName: null,
+        discordAvatar: null,
+        discordEmail: null,
+        discordAccessToken: null,
+        discordRefreshToken: null,
+        discordConnectedAt: null,
+      },
+    });
+
+    await prisma.account.deleteMany({
+      where: {
+        userId,
+        provider: 'DISCORD',
+      },
+    });
+    return { success: true };
+  }
+
+  async discordLogin(profile: {
+    id: string;
+    username: string;
+    globalName?: string;
+    avatar?: string;
+    email?: string;
+    accessToken?: string;
+    refreshToken?: string;
+  }) {
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { discordId: profile.id },
+          ...(profile.email ? [{ email: profile.email.toLowerCase() }] : []),
+        ],
+      },
+      include: {
+        profile: true,
+        subscription: true,
+      },
+    });
+
+    const avatarUrl = profile.avatar
+      ? (profile.avatar.startsWith('http') ? profile.avatar : `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`)
+      : `https://cdn.discordapp.com/embed/avatars/${parseInt(profile.id || '0') % 5}.png`;
+
+    if (!user) {
+      const email = profile.email
+        ? profile.email.toLowerCase()
+        : `discord_${profile.id}@gamerhub.local`;
+      
+      let baseUsername = profile.username.replace(/[^a-zA-Z0-9_]/g, '') || `Gamer_${profile.id.slice(-4)}`;
+      let username = baseUsername;
+      let count = 1;
+
+      while (await prisma.profile.findUnique({ where: { username } })) {
+        username = `${baseUsername}_${count++}`;
+      }
+
+      user = await prisma.user.create({
+        data: {
+          email,
+          discordId: profile.id,
+          discordUsername: profile.username,
+          discordDisplayName: profile.globalName || profile.username,
+          discordAvatar: avatarUrl,
+          discordEmail: profile.email || null,
+          discordAccessToken: profile.accessToken || null,
+          discordRefreshToken: profile.refreshToken || null,
+          discordConnectedAt: new Date(),
+          profile: {
+            create: {
+              username,
+              displayName: profile.globalName || profile.username,
+              avatar: avatarUrl,
+            },
+          },
+          accounts: {
+            create: {
+              provider: 'DISCORD',
+              providerId: profile.id,
+              providerUsername: profile.username,
+            },
+          },
+        },
+        include: {
+          profile: true,
+          subscription: true,
+        },
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          discordId: profile.id,
+          discordUsername: profile.username,
+          discordDisplayName: profile.globalName || profile.username,
+          discordAvatar: avatarUrl,
+          discordEmail: profile.email || user.discordEmail,
+          discordAccessToken: profile.accessToken || user.discordAccessToken,
+          discordRefreshToken: profile.refreshToken || user.discordRefreshToken,
+          discordConnectedAt: user.discordConnectedAt || new Date(),
+        },
+        include: {
+          profile: true,
+          subscription: true,
+        },
+      });
+
+      await prisma.account.upsert({
+        where: { provider_providerId: { provider: 'DISCORD', providerId: profile.id } },
+        create: {
+          userId: user.id,
+          provider: 'DISCORD',
+          providerId: profile.id,
+          providerUsername: profile.username,
+        },
+        update: {
+          providerUsername: profile.username,
+        },
+      });
+    }
+
+    if (user.banned) {
+      throw new UnauthorizedError(`Account banned: ${user.banReason || 'No reason provided'}`);
+    }
+
+    const payload = { userId: user.id, email: user.email, role: user.role };
+    const accessToken = generateToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    await prisma.session.create({
+      data: {
+        refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+      requiresTwoFactor: false,
+    };
+  }
+
+  async linkSocialAccount(userId: string, provider: 'GOOGLE' | 'DISCORD' | 'STEAM', providerId: string, providerUsername?: string) {
+    const existing = await prisma.account.findUnique({
+      where: {
+        provider_providerId: { provider, providerId },
+      },
+    });
+
+    if (existing) {
+      if (existing.userId === userId) return existing;
+      throw new ValidationError({ provider: [`This ${provider} account is already linked to another GamerHub user.`] });
+    }
+
+    return prisma.account.create({
+      data: {
+        userId,
+        provider,
+        providerId,
+        providerUsername: providerUsername || null,
+      },
+    });
+  }
+
+  async unlinkSocialAccount(userId: string, provider: 'GOOGLE' | 'DISCORD' | 'STEAM') {
+    const user = await prisma.user.findUnique({ where: { id: userId }, include: { accounts: true } });
+    if (!user) throw new NotFoundError('User');
+
+    if (!user.password && user.accounts.length <= 1) {
+      throw new ValidationError({ provider: ['Cannot unlink your only authentication method. Please set a password first.'] });
+    }
+
+    await prisma.account.deleteMany({
+      where: {
+        userId,
+        provider,
+      },
+    });
+    return { success: true };
   }
 }
 export const authService = new AuthService();

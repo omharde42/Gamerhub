@@ -31,11 +31,24 @@ export class ChannelController {
   });
 
   list = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { serverId } = req.params;
+    const member = await prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId: req.user!.userId } },
+    });
+    if (!member) return sendError(res, 403, 'Not a member of this server');
+
     const channels = await prisma.channel.findMany({
-      where: { serverId: req.params.serverId },
+      where: { serverId },
       orderBy: { position: 'asc' },
     });
-    sendSuccess(res, channels);
+
+    // Filter out private channels if user is only a normal MEMBER
+    const filtered = channels.filter((c: any) => {
+      if (!c.isPrivate) return true;
+      return ['OWNER', 'ADMIN', 'MODERATOR'].includes(member.role);
+    });
+
+    sendSuccess(res, filtered);
   });
 
   update = asyncHandler(async (req: AuthRequest, res: Response) => {

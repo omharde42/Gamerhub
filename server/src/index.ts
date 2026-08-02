@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import fs from 'fs';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -6,11 +8,21 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import jwt from 'jsonwebtoken';
 import { config } from './config';
+
+type JwtModule = typeof import('jsonwebtoken');
+let jwtModule: JwtModule | null = null;
+const getJwtModule = (): JwtModule => {
+  if (!jwtModule) {
+    jwtModule = require('jsonwebtoken') as JwtModule;
+  }
+  return jwtModule;
+};
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { generalLimiter } from './middleware/rateLimiter';
+import { csrfProtection } from './middleware/csrf';
 import prisma from './config/database';
+import { chatService } from './services/chat.service';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -33,13 +45,29 @@ import serverRoutes from './routes/server.routes';
 import friendRoutes from './routes/friend.routes';
 import presenceRoutes from './routes/presence.routes';
 import newsRoutes from './routes/news.routes';
+import gameRequestRoutes from './routes/game-request.routes';
+import appRoutes from './routes/app.routes';
+import cryptoRoutes from './routes/crypto.routes';
+import steamRoutes from './routes/steam.routes';
+import gameStatsRoutes from './routes/game-stats.routes';
 
 const app = express();
 const httpServer = createServer(app);
 
+// Dynamic Allowed Frontend URLs
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://web-drab-nu-21.vercel.app",
+  "https://gamerhub-web.onrender.com",
+  process.env.FRONTEND_URL
+].filter((origin): origin is string => Boolean(origin));
+
 // Socket.IO
 const io = new Server(httpServer, {
-  cors: { origin: config.frontendUrl, credentials: true },
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+  },
   pingInterval: 25000,
   pingTimeout: 20000,
 });
@@ -48,7 +76,7 @@ io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) return next(new Error('Authentication required'));
   try {
-    const decoded = jwt.verify(token, config.jwt.secret) as { userId: string };
+    const decoded = getJwtModule().verify(token, config.jwt.secret) as { userId: string };
     (socket as any).userId = decoded.userId;
     next();
   } catch {
@@ -71,11 +99,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('presence:update', (presence: string) => {
+    const now = new Date();
     if (presence === 'INVISIBLE' || presence === 'OFFLINE') {
       onlineUsers.delete(userId);
     } else {
       onlineUsers.add(userId);
     }
+    // Update updatedAt as a last-seen timestamp whenever presence changes
+    prisma.user.update({ where: { id: userId }, data: { updatedAt: now } }).catch(() => {});
     io.emit('user:presence', { userId, presence });
   });
 
@@ -100,47 +131,163 @@ io.on('connection', (socket) => {
     socket.to(`chat:${chatId}`).emit('typing:stop', { userId, chatId });
   });
 
-  socket.on('message:send', async (data: { chatId: string; content?: string; media?: string[]; gif?: string }) => {
+  socket.on('message:send', async (data: { chatId: string; content?: string; media?: string[]; gif?: string; voiceNote?: string }) => {
     try {
-      const message = await prisma.message.create({
-        data: {
-          chatId: data.chatId,
-          senderId: userId,
-          content: data.content || '',
-          media: data.media || [],
-          gif: data.gif,
-        },
-        include: { sender: { select: { id: true, profile: true } } },
-      });
-      await prisma.chat.update({ where: { id: data.chatId }, data: { updatedAt: new Date() } });
+      const message = await chatService.sendMessage(data.chatId, userId, data);
       io.to(`chat:${data.chatId}`).emit('message:new', message);
-    } catch (error) {
-      socket.emit('error', { message: 'Failed to send message' });
+    } catch (error: any) {
+      socket.emit('error', { message: error.message || 'Failed to send message' });
     }
+  });
+
+  // Read receipts: when a user reads messages, notify the chat room
+  socket.on('messages:read', async (data: { chatId: string }) => {
+    try {
+      const result = await chatService.markAsRead(data.chatId, userId);
+      // Notify the other participants with the actual message IDs that were marked
+      if (result.messageIds.length > 0) {
+        io.to(`chat:${data.chatId}`).emit('messages:read', {
+          chatId: data.chatId,
+          readBy: userId,
+          messageIds: result.messageIds,
+        });
+      }
+    } catch (error: any) {
+      console.warn('Failed to mark messages as read:', error.message);
+    }
+  });
+
+  // --- WebRTC Call Signaling Handlers ---
+  socket.on('call:request', (data: { toUserId: string; chatId: string; type: 'audio' | 'video'; callerInfo: any }) => {
+    io.to(`user:${data.toUserId}`).emit('call:incoming', {
+      fromUserId: userId,
+      chatId: data.chatId,
+      type: data.type,
+      callerInfo: data.callerInfo,
+    });
+  });
+
+  socket.on('call:accept', (data: { toUserId: string; chatId: string; type: 'audio' | 'video' }) => {
+    io.to(`user:${data.toUserId}`).emit('call:accepted', {
+      fromUserId: userId,
+      chatId: data.chatId,
+      type: data.type,
+    });
+  });
+
+  socket.on('call:reject', (data: { toUserId: string; chatId: string; reason?: string }) => {
+    io.to(`user:${data.toUserId}`).emit('call:rejected', {
+      fromUserId: userId,
+      chatId: data.chatId,
+      reason: data.reason || 'Call rejected',
+    });
+  });
+
+  socket.on('call:offer', (data: { toUserId: string; sdp: any }) => {
+    io.to(`user:${data.toUserId}`).emit('call:offer', {
+      fromUserId: userId,
+      sdp: data.sdp,
+    });
+  });
+
+  socket.on('call:answer', (data: { toUserId: string; sdp: any }) => {
+    io.to(`user:${data.toUserId}`).emit('call:answer', {
+      fromUserId: userId,
+      sdp: data.sdp,
+    });
+  });
+
+  socket.on('call:ice-candidate', (data: { toUserId: string; candidate: any }) => {
+    io.to(`user:${data.toUserId}`).emit('call:ice-candidate', {
+      fromUserId: userId,
+      candidate: data.candidate,
+    });
+  });
+
+  socket.on('call:end', (data: { toUserId: string; chatId?: string }) => {
+    if (data.toUserId) {
+      io.to(`user:${data.toUserId}`).emit('call:ended', { fromUserId: userId, chatId: data.chatId });
+    }
+  });
+
+  socket.on('call:ice-restart', (data: { toUserId: string; sdp: any }) => {
+    io.to(`user:${data.toUserId}`).emit('call:ice-restart', {
+      fromUserId: userId,
+      sdp: data.sdp,
+    });
   });
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${userId}`);
     onlineUsers.delete(userId);
+    // Record last seen timestamp via updatedAt
+    prisma.user.update({ where: { id: userId }, data: { updatedAt: new Date() } }).catch(() => {});
     io.emit('user:offline', userId);
   });
 });
 
 // Middleware
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 app.use(
   helmet({
-    contentSecurityPolicy: config.nodeEnv === 'production' ? undefined : false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "blob:", "https:"],
+        connectSrc: ["'self'", "ws:", "wss:", "https:"],
+        mediaSrc: ["'self'", "blob:", "https:"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
     crossOriginEmbedderPolicy: false,
-  }),
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    strictTransportSecurity: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
 );
-app.use(cors({ origin: config.frontendUrl, credentials: true }));
-app.use(compression());
-app.use(morgan('dev'));
+
+// Express automatically manages array origins & handles Preflight properly
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
+
+// Ensure public/uploads directories exist
+const uploadsRoot = path.join(__dirname, '../public/uploads');
+if (!fs.existsSync(uploadsRoot)) {
+  fs.mkdirSync(uploadsRoot, { recursive: true });
+}
+const postsDir = path.join(uploadsRoot, 'posts');
+if (!fs.existsSync(postsDir)) {
+  fs.mkdirSync(postsDir, { recursive: true });
+}
+const avatarsDir = path.join(uploadsRoot, 'avatars');
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir, { recursive: true });
+}
+const bannersDir = path.join(uploadsRoot, 'banners');
+if (!fs.existsSync(bannersDir)) {
+  fs.mkdirSync(bannersDir, { recursive: true });
+}
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
 app.use(generalLimiter);
+
+// CSRF Protection (double-submit cookie pattern for browser-based requests)
+app.use(csrfProtection);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -148,6 +295,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Routes
+app.use('/api/app', appRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/posts', postRoutes);
@@ -168,6 +316,12 @@ app.use('/api/servers', serverRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/presence', presenceRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/game-requests', gameRequestRoutes);
+app.use('/api/crypto', cryptoRoutes);
+app.use('/api/steam', steamRoutes);
+import gameSyncRoutes from './routes/game-sync.routes';
+app.use('/api/game-sync', gameSyncRoutes);
+app.use('/api/game-stats', gameStatsRoutes);
 
 // Error handling
 app.use(notFoundHandler);

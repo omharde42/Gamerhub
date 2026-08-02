@@ -3,7 +3,21 @@ import prisma from '../config/database';
 import { AIRecommendation } from '../types';
 import OpenAI from 'openai';
 
-function generateLocalProfileAnalysis(profile: any): string {
+function logAIError(context: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[AIService] ${context} failed:`, message);
+}
+
+function generateLocalProfileAnalysis(profile: {
+  mainGames?: string[];
+  rank?: string | null;
+  kd?: number | null;
+  winRate?: number | null;
+  bio?: string | null;
+  twitch?: string | null;
+  youtube?: string | null;
+  discord?: string | null;
+}): string {
   const games = profile.mainGames?.length || 0;
   const hasRank = !!profile.rank;
   const hasKD = !!profile.kd;
@@ -35,27 +49,44 @@ function generateLocalProfileAnalysis(profile: any): string {
   return analysis;
 }
 
-function generateLocalMatchAnalysis(stats: any): string {
-  if (!stats || !stats.recentPerformance) return 'Play more matches to receive performance analysis. Connect your game accounts for detailed stats.';
-  const mp = stats.recentPerformance;
-  const kd = mp.kills / Math.max(mp.deaths, 1);
-  let analysis = `Match Performance Rating: ${Math.round(Math.min(kd * 25 + (mp.accuracy || 0) * 0.3, 100))}/100\n\n`;
-  analysis += `Game: ${mp.game || 'Competitive'}\n`;
+export interface MatchPerformanceData {
+  game?: string;
+  result?: string;
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  damage?: number;
+  accuracy?: number;
+  matches?: number;
+  wins?: number;
+  losses?: number;
+  winRate?: number;
+  avgKd?: number;
+  avgAccuracy?: number;
+}
+
+function generateLocalMatchAnalysis(matchData: MatchPerformanceData | null): string {
+  if (!matchData) return 'Play more matches to receive performance analysis. Connect your game accounts for detailed stats.';
+  const game = matchData.game || 'Competitive';
+  const kd = matchData.avgKd ?? (matchData.kills ? matchData.kills / Math.max(matchData.deaths || 1, 1) : 1);
+  const accuracy = matchData.avgAccuracy ?? matchData.accuracy ?? 0;
+  let analysis = `Match Performance Rating: ${Math.round(Math.min(kd * 25 + accuracy * 0.3, 100))}/100\n\n`;
+  analysis += `Game: ${game}\n`;
   analysis += `Recent K/D: ${kd.toFixed(2)}\n`;
-  analysis += `Accuracy: ${mp.accuracy || 0}%\n\n`;
+  analysis += `Accuracy: ${accuracy}%\n\n`;
   analysis += 'Strengths:\n';
   if (kd > 1.2) analysis += '- Good mechanical skill in aim duels\n';
-  if ((mp.accuracy || 0) > 50) analysis += '- Above average accuracy\n';
-  if (mp.assists > mp.deaths) analysis += '- Strong team player with good assist numbers\n';
+  if (accuracy > 50) analysis += '- Above average accuracy\n';
+  if ((matchData.assists || 0) > (matchData.deaths || 0)) analysis += '- Strong team player with good assist numbers\n';
   analysis += '\nAreas to Improve:\n';
   if (kd < 1) analysis += '- Work on crosshair placement and spray control\n- Practice peeking angles and jiggle peeking\n';
-  if ((mp.accuracy || 0) < 40) analysis += '- Focus on crosshair placement at head level\n- Reduce unnecessary movement while shooting\n';
+  if (accuracy < 40) analysis += '- Focus on crosshair placement at head level\n- Reduce unnecessary movement while shooting\n';
   analysis += '\nTip: Review your VODs to identify positioning mistakes and rotate earlier based on team callouts.';
   return analysis;
 }
 
-function generateLocalTrainingPlan(profile: any): string {
-  const games = profile.mainGames?.length > 0 ? profile.mainGames[0] : 'your game';
+function generateLocalTrainingPlan(profile: { mainGames?: string[]; rank?: string | null }): string {
+  const games = (profile.mainGames?.length ?? 0) > 0 ? profile.mainGames![0] : 'your game';
   const rank = profile.rank || 'your current rank';
   return `📅 7-Day Training Plan for ${games} (${rank})
 
@@ -108,7 +139,7 @@ export class AIService {
     const user = await prisma.user.findUnique({ where: { id: params.userId }, include: { profile: true } });
     if (!user?.profile) return [];
     const profile = user.profile; const limit = params.limit || 10;
-    const candidates = await prisma.profile.findMany({ where: { userId: { not: params.userId }, mainGames: profile.mainGames.length > 0 ? { hasSome: profile.mainGames } : undefined }, include: { user: { select: { id: true } } }, take: 50 });
+    const candidates = await prisma.profile.findMany({ where: { userId: { not: params.userId }, mainGames: (profile.mainGames?.length ?? 0) > 0 ? { hasSome: profile.mainGames } : undefined }, include: { user: { select: { id: true } } }, take: 50 });
     if (candidates.length === 0) return [];
     const ranked = candidates.map((candidate) => {
       let score = 0; const reasons: string[] = [];
@@ -124,20 +155,31 @@ export class AIService {
     return ranked.sort((a, b) => b.compatibility - a.compatibility).slice(0, limit);
   }
 
-  async analyzeProfileForOptimization(profile: any) {
+  async analyzeProfileForOptimization(profile: {
+    username: string;
+    bio?: string | null;
+    mainGames?: string[];
+    rank?: string | null;
+    role?: string | null;
+    winRate?: number | null;
+    kd?: number | null;
+    playStyle?: string | null;
+    languages?: string[];
+  }) {
     if (!openai) return generateLocalProfileAnalysis(profile);
     try {
       const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a professional esports profile optimizer. Analyze the profile and suggest improvements.' }, { role: 'user', content: `Analyze this gaming profile and suggest improvements:\nUsername: ${profile.username}\nBio: ${profile.bio || 'N/A'}\nMain Games: ${profile.mainGames?.join(', ') || 'N/A'}\nRank: ${profile.rank || 'N/A'}\nRole: ${profile.role || 'N/A'}\nWin Rate: ${profile.winRate}%\nK/D: ${profile.kd}\nPlay Style: ${profile.playStyle || 'N/A'}\nLanguages: ${profile.languages?.join(', ') || 'N/A'}\nProvide: 1. Profile strength score (0-100) 2. Top 3 improvements 3. Suggested bio rewrite` }], max_tokens: 500 });
       return completion.choices[0]?.message?.content || generateLocalProfileAnalysis(profile);
-    } catch (error) { console.error('AI analysis error:', error); return generateLocalProfileAnalysis(profile); }
+    } catch (error) { logAIError('profile analysis', error); return generateLocalProfileAnalysis(profile); }
   }
 
-  async analyzeMatchPerformance(matchData: any) {
+  async analyzeMatchPerformance(matchData: MatchPerformanceData | null) {
+    if (!matchData) return generateLocalMatchAnalysis(null);
     if (!openai) return generateLocalMatchAnalysis(matchData);
     try {
-      const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are an expert esports coach. Analyze match performance and provide actionable feedback.' }, { role: 'user', content: `Analyze this match performance:\nGame: ${matchData.game}\nResult: ${matchData.result}\nKills: ${matchData.kills}\nDeaths: ${matchData.deaths}\nAssists: ${matchData.assists}\nDamage: ${matchData.damage}\nAccuracy: ${matchData.accuracy}%\nProvide: 1. Performance rating (0-100) 2. Main strengths 3. Areas for improvement 4. Specific tips` }], max_tokens: 500 });
+      const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are an expert esports coach. Analyze match performance and provide actionable feedback.' }, { role: 'user', content: `Analyze this match performance:\nGame: ${matchData.game || 'Competitive'}\nResult: ${matchData.result || 'N/A'}\nKills: ${matchData.kills ?? 'N/A'}\nDeaths: ${matchData.deaths ?? 'N/A'}\nAssists: ${matchData.assists ?? 'N/A'}\nDamage: ${matchData.damage ?? 'N/A'}\nAccuracy: ${matchData.accuracy ?? matchData.avgAccuracy ?? 'N/A'}%\nWin Rate: ${matchData.winRate ?? 'N/A'}%\nK/D: ${matchData.avgKd ?? 'N/A'}\nProvide: 1. Performance rating (0-100) 2. Main strengths 3. Areas for improvement 4. Specific tips` }], max_tokens: 500 });
       return completion.choices[0]?.message?.content || generateLocalMatchAnalysis(matchData);
-    } catch (error) { console.error('AI match analysis error:', error); return generateLocalMatchAnalysis(matchData); }
+    } catch (error) { logAIError('match analysis', error); return generateLocalMatchAnalysis(matchData); }
   }
 
   async detectToxicity(content: string): Promise<{ toxic: boolean; score: number; reason: string }> {
@@ -149,18 +191,30 @@ export class AIService {
     try {
       const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a content moderator. Analyze the text for toxicity, harassment, or inappropriate content. Respond with JSON: {"toxic": boolean, "score": 0-1, "reason": "string"}' }, { role: 'user', content }], response_format: { type: 'json_object' }, max_tokens: 200 });
       const result = JSON.parse(completion.choices[0]?.message?.content || '{"toxic": false, "score": 0, "reason": "No content"}'); return result;
-    } catch { return { toxic: false, score: 0, reason: 'Analysis unavailable' }; }
+    } catch (error) { logAIError('toxicity detection', error); return { toxic: false, score: 0, reason: 'Analysis unavailable' }; }
   }
 
-  async generateTrainingPlan(profile: any) {
+  async generateTrainingPlan(profile: {
+    mainGames?: string[];
+    rank?: string | null;
+    winRate?: number | null;
+    kd?: number | null;
+    role?: string | null;
+  }) {
     if (!openai) return generateLocalTrainingPlan(profile);
     try {
       const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a professional esports coach. Create a personalized training plan.' }, { role: 'user', content: `Create a 7-day training plan for:\nGames: ${profile.mainGames?.join(', ') || 'Various'}\nCurrent Rank: ${profile.rank || 'Unranked'}\nWin Rate: ${profile.winRate}%\nK/D: ${profile.kd}\nRole: ${profile.role || 'Flex'}\nInclude daily drills, practice routines, and improvement goals.` }], max_tokens: 1000 });
       return completion.choices[0]?.message?.content || generateLocalTrainingPlan(profile);
-    } catch { return generateLocalTrainingPlan(profile); }
+    } catch (error) { logAIError('training plan generation', error); return generateLocalTrainingPlan(profile); }
   }
 
-  async chat(message: string, history: { role: string; content: string }[], profile: any): Promise<string> {
+  async chat(message: string, history: { role: string; content: string }[], profile: {
+    mainGames?: string[];
+    rank?: string | null;
+    role?: string | null;
+    winRate?: number | null;
+    kd?: number | null;
+  } | null): Promise<string> {
     const fallbackResponses: Record<string, string> = {
       aim: "Focus on 30-min daily aim trainer routines. Try KovaaK's or Aim Lab with scenarios like Tile Frenzy, Microshot, and Pasu Track. Also do 10-min deathmatch before ranked matches.",
       strategy: "Map control wins games. Focus on: 1) Crosshair placement at head level 2) Trade kills with teammates 3) Use utility before peeking 4) Play around your team's strengths. Review your VODs to spot rotation mistakes.",
@@ -177,21 +231,21 @@ export class AIService {
       const systemPrompt: OpenAI.Chat.ChatCompletionMessageParam = { role: 'system', content: `You are GamerHub AI Coach, an expert gaming coach assistant. You help gamers improve their skills, find teammates, and level up. 
 The user's profile: Games: ${profile?.mainGames?.join(', ') || 'Various'}, Rank: ${profile?.rank || 'Unranked'}, Role: ${profile?.role || 'Flex'}, Win Rate: ${profile?.winRate || 0}%, K/D: ${profile?.kd || 0}.
 Keep responses concise, actionable, and encouraging. Focus on gaming improvement tips, strategies, and motivation. Never be rude or discouraging.` };
-      const historyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = history.slice(-10).map((m: any) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
+      const historyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = history.slice(-10).map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
       const userMessage: OpenAI.Chat.ChatCompletionMessageParam = { role: 'user', content: message };
       const messages = [systemPrompt, ...historyMessages, userMessage];
       const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages, max_tokens: 500, temperature: 0.7 });
       return completion.choices[0]?.message?.content || fallbackResponses.default;
     } catch (error) {
-      console.error('AI chat error:', error);
+      logAIError('chat response generation', error);
       return "I'm having trouble processing that right now. Let me try a simpler response: focus on fundamentals like crosshair placement, movement mechanics, map knowledge, and communication. Consistency in practice matters more than hours played. What specific game or role do you want help with?";
     }
   }
 
-  async summarizeNews(articles: any[]): Promise<string> {
+  async summarizeNews(articles: { title: string; url?: string; source?: string }[]): Promise<string> {
     if (!openai || !articles.length) return '';
     try {
-      const titles = articles.map((a: any) => a.title).join('\n');
+      const titles = articles.map((a) => a.title).join('\n');
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
@@ -201,7 +255,8 @@ Keep responses concise, actionable, and encouraging. Focus on gaming improvement
         max_tokens: 300,
       });
       return completion.choices[0]?.message?.content || '';
-    } catch {
+    } catch (error) {
+      logAIError('news summary generation', error);
       return '';
     }
   }

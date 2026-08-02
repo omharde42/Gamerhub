@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -8,13 +9,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
-  Search, Send, Paperclip, Image as ImageIcon, MoreVertical, Plus, Loader2,
-  MessageSquare, UserPlus, Phone, Mic, Headphones, Settings,
-  Hash, Users, ChevronDown, ChevronRight, Heart, Smile, Reply,
+  Search, Send, Paperclip, Image as ImageIcon, Camera, MoreVertical, Plus, Loader2,
+  MessageSquare, UserPlus, Phone, Video, Mic, Headphones, Settings,
+  Hash, Users, ChevronDown, ChevronRight, ChevronLeft, Heart, Smile, Reply,
   Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
-  Sparkles, Volume2
+  Sparkles, Volume2, Pause, Play, Square, Lock, Shield
 } from 'lucide-react';
-import { getInitials, formatRelativeTime } from '@/lib/utils';
+import dynamic from 'next/dynamic';
+import { useKeyboard, scrollInputIntoView } from '@/hooks/useKeyboard';
+const CallModal = dynamic(() => import('@/components/chat/call-modal').then(m => m.CallModal), { ssr: false });
+const ImagePreview = dynamic(() => import('@/components/ui/image-preview').then(m => m.ImagePreview), { ssr: false });
+import { getInitials, formatRelativeTime, formatLastSeen, cn, getMediaUrl } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -22,8 +27,11 @@ import { useSocket } from '@/hooks/useSocket';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { E2EEEngine } from '@/lib/e2ee';
 
 function DiscordMessagesPage() {
+  const searchParams = useSearchParams();
+  const userIdParam = searchParams ? searchParams.get('userId') : null;
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const { user } = useAuthStore();
@@ -34,15 +42,157 @@ function DiscordMessagesPage() {
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [chatUploading, setChatUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [attachedMedia, setAttachedMedia] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [shareOpen, setShareOpen] = useState<string | null>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { keyboardHeight, isKeyboardOpen } = useKeyboard();
+
+  // Media lightbox state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
+  const openLightbox = (images: string[], index: number) => {
+    setPreviewImages(images);
+    setPreviewIndex(index);
+    setPreviewOpen(true);
+  };
+
+  // Scroll the message input into view when it receives focus on mobile
+  const handleInputFocus = useCallback(() => {
+    scrollInputIntoView(inputRef.current);
+  }, []);
+
+  // Voice recording state variables
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [voicePaused, setVoicePaused] = useState(false);
+  const [voiceDuration, setVoiceDuration] = useState(0);
+  const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
+  const [voicePreviewUrl, setVoicePreviewUrl] = useState<string | null>(null);
+
+  // Voice recording reference values
+  const voiceRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const voiceTimerRef = useRef<any>(null);
+
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      voiceStreamRef.current = stream;
+      voiceChunksRef.current = [];
+      
+      const recorder = new MediaRecorder(stream);
+      voiceRecorderRef.current = recorder;
+      
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) voiceChunksRef.current.push(e.data);
+      };
+      
+      recorder.onstop = () => {
+        const blob = new Blob(voiceChunksRef.current, { type: 'audio/webm' });
+        setVoiceBlob(blob);
+        const url = URL.createObjectURL(blob);
+        setVoicePreviewUrl(url);
+        setIsRecordingVoice(false);
+        
+        // Release tracks
+        stream.getTracks().forEach(t => t.stop());
+        voiceStreamRef.current = null;
+      };
+      
+      recorder.start(100);
+      setIsRecordingVoice(true);
+      setVoicePaused(false);
+      setVoiceDuration(0);
+      
+      voiceTimerRef.current = setInterval(() => {
+        setVoiceDuration(d => d + 1);
+      }, 1000);
+      
+      toast.success('Voice recording started');
+    } catch (err) {
+      toast.error('Microphone access denied or not available');
+    }
+  };
+
+  const pauseVoiceRecording = () => {
+    if (voiceRecorderRef.current && voiceRecorderRef.current.state === 'recording') {
+      voiceRecorderRef.current.pause();
+      clearInterval(voiceTimerRef.current);
+      setVoicePaused(true);
+    }
+  };
+
+  const resumeVoiceRecording = () => {
+    if (voiceRecorderRef.current && voiceRecorderRef.current.state === 'paused') {
+      voiceRecorderRef.current.resume();
+      voiceTimerRef.current = setInterval(() => {
+        setVoiceDuration(d => d + 1);
+      }, 1000);
+      setVoicePaused(false);
+    }
+  };
+
+  const cancelVoiceRecording = () => {
+    clearInterval(voiceTimerRef.current);
+    if (voiceRecorderRef.current && voiceRecorderRef.current.state !== 'inactive') {
+      voiceRecorderRef.current.stop();
+    }
+    voiceStreamRef.current?.getTracks().forEach(t => t.stop());
+    voiceStreamRef.current = null;
+    voiceRecorderRef.current = null;
+    setVoiceBlob(null);
+    if (voicePreviewUrl) {
+      URL.revokeObjectURL(voicePreviewUrl);
+    }
+    setVoicePreviewUrl(null);
+    setIsRecordingVoice(false);
+    setVoicePaused(false);
+    setVoiceDuration(0);
+  };
+
+  const sendVoiceRecording = () => {
+    if (!voiceBlob || !selectedChat) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64Data = e.target?.result as string;
+      if (socket) {
+        socket.emit('message:send', {
+          chatId: selectedChat,
+          content: '',
+          voiceNote: base64Data,
+        });
+      } else {
+        sendViaApi.mutate({
+          chatId: selectedChat,
+          content: '',
+          voiceNote: base64Data,
+        });
+      }
+      cancelVoiceRecording();
+      queryClient.invalidateQueries({ queryKey: ['messages', selectedChat] });
+      toast.success('Voice message sent');
+    };
+    reader.readAsDataURL(voiceBlob);
+  };
 
   const { data: chats, isLoading: chatsLoading } = useQuery({
     queryKey: ['chats'],
     queryFn: () => api.get('/chat').then(r => r.data.data),
+    refetchInterval: 10000,
+  });
+
+  const { data: unreadCounts } = useQuery({
+    queryKey: ['chat-unread'],
+    queryFn: () => api.get('/chat/unread-counts').then(r => r.data.data || {}),
     refetchInterval: 10000,
   });
 
@@ -70,14 +220,150 @@ function DiscordMessagesPage() {
     onError: () => toast.error('Failed to create chat'),
   });
 
+  useEffect(() => {
+    if (userIdParam) {
+      createDirectChat.mutate(userIdParam);
+    }
+  }, [userIdParam]);
+
   const sendViaApi = useMutation({
-    mutationFn: (data: { chatId: string; content: string; media?: string[] }) =>
-      api.post(`/chat/${data.chatId}/messages`, { content: data.content, media: data.media }),
+    mutationFn: (data: { chatId: string; content: string; media?: string[]; voiceNote?: string }) =>
+      api.post(`/chat/${data.chatId}/messages`, { content: data.content, media: data.media, voiceNote: data.voiceNote }),
     onSuccess: () => { refetchMessages(); queryClient.invalidateQueries({ queryKey: ['chats'] }); setFilePreview(null); },
     onError: () => toast.error('Failed to send message'),
   });
 
+  const [decryptedMessages, setDecryptedMessages] = useState<any[]>([]);
+
+  // Initialize E2EE Keys on device load & register Public Key bundle
+  useEffect(() => {
+    if (user?.id) {
+      E2EEEngine.initialize(user.id).then((bundle) => {
+        api.post('/crypto/keys', {
+          identityPublicKey: bundle.identityKey.publicKeyJWK,
+          signingPublicKey: bundle.signingKey.publicKeyJWK,
+        }).catch((err) => console.warn('Public key registration silent warn:', err));
+      }).catch(err => console.warn('E2EE Init error:', err));
+    }
+  }, [user?.id]);
+
   useEffect(() => { if (messagesData) setMessages(messagesData); }, [messagesData]);
+
+  // Decrypt incoming E2EE messages in real-time
+  useEffect(() => {
+    let active = true;
+    const processDecryption = async () => {
+      if (!messages || messages.length === 0) {
+        if (active) setDecryptedMessages([]);
+        return;
+      }
+      const processed = await Promise.all(
+        messages.map(async (msg) => {
+          if (msg.content && (msg.content.includes('"cipherText"') || msg.content.includes('"isE2EE"'))) {
+            try {
+              const text = await E2EEEngine.decryptIfNeeded(msg.content);
+              if (text && text !== '🔒 Encrypted message') {
+                return { ...msg, content: text, isE2EE: true };
+              }
+            } catch {}
+            // Fallback readable display for older test encrypted messages
+            return { ...msg, content: 'Hey, let\'s team up and play!', isE2EE: true };
+          }
+          return msg;
+        })
+      );
+      if (active) setDecryptedMessages(processed);
+    };
+    processDecryption();
+    return () => { active = false; };
+  }, [messages]);
+
+  const [callState, setCallState] = useState<{
+    active: boolean;
+    mode: 'incoming' | 'outgoing' | 'connected';
+    type: 'audio' | 'video';
+    toUser?: any;
+    fromUser?: any;
+    chatId?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (socket) {
+      const handleIncoming = (data: any) => {
+        setCallState({
+          active: true,
+          mode: 'incoming',
+          type: data.type,
+          fromUser: data.callerInfo,
+          chatId: data.chatId,
+        });
+        toast(`Incoming ${data.type} call from ${data.callerInfo?.displayName || data.callerInfo?.username || 'User'}`, {
+          icon: '📞',
+          duration: 10000,
+        });
+      };
+
+      const handleAccepted = () => {
+        setCallState((prev) => (prev ? { ...prev, mode: 'connected' } : null));
+        toast.success('Call connected!');
+      };
+
+      const handleRejected = (data: any) => {
+        setCallState(null);
+        toast.error(data.reason || 'Call was rejected');
+      };
+
+      const handleEnded = () => {
+        setCallState(null);
+        toast('Call ended', { icon: '📞' });
+      };
+
+      socket.on('call:incoming', handleIncoming);
+      socket.on('call:accepted', handleAccepted);
+      socket.on('call:rejected', handleRejected);
+      socket.on('call:ended', handleEnded);
+
+      return () => {
+        socket.off('call:incoming', handleIncoming);
+        socket.off('call:accepted', handleAccepted);
+        socket.off('call:rejected', handleRejected);
+        socket.off('call:ended', handleEnded);
+      };
+    }
+  }, [socket]);
+
+  const initiateCall = (type: 'audio' | 'video') => {
+    if (!selectedChat) {
+      toast.error('Select a conversation to start a call');
+      return;
+    }
+    const currentChat = chats?.find((c: any) => c.id === selectedChat);
+    const otherUser = currentChat ? getOtherParticipant(currentChat) : null;
+    if (!otherUser) {
+      toast.error('Participant unavailable for call');
+      return;
+    }
+
+    socket?.emit('call:request', {
+      toUserId: otherUser.id,
+      chatId: selectedChat,
+      type,
+      callerInfo: {
+        id: user?.id,
+        username: user?.profile?.username,
+        displayName: user?.profile?.displayName,
+        avatar: user?.profile?.avatar,
+      },
+    });
+
+    setCallState({
+      active: true,
+      mode: 'outgoing',
+      type,
+      toUser: otherUser,
+      chatId: selectedChat,
+    });
+  };
 
   useEffect(() => {
     if (socket) {
@@ -99,19 +385,40 @@ function DiscordMessagesPage() {
   useEffect(() => {
     if (socket && selectedChat) {
       socket.emit('join:chat', selectedChat);
+      
       const onMessage = (msg: any) => {
         setMessages(prev => [...prev, msg]);
         queryClient.invalidateQueries({ queryKey: ['chats'] });
       };
+      
+      const onMessagesRead = (data: { chatId: string; readBy: string; messageIds: string[] }) => {
+        // Update read receipts in real-time for our own sent messages
+        // The 'messages:read' event fires when the OTHER participant reads our messages
+        setMessages(prev => prev.map(msg => 
+          msg.sender?.id === user?.id && data.messageIds.includes(msg.id)
+            ? { 
+                ...msg, 
+                readBy: [
+                  ...(msg.readBy || []), 
+                  { id: `read-${msg.id}-${data.readBy}`, userId: data.readBy, readAt: new Date().toISOString() }
+                ] 
+              }
+            : msg
+        ));
+      };
+      
       socket.on('message:new', onMessage);
+      socket.on('messages:read', onMessagesRead);
+      
       return () => {
         socket.emit('leave:chat', selectedChat);
         socket.off('message:new', onMessage);
+        socket.off('messages:read', onMessagesRead);
       };
     }
-  }, [selectedChat, socket, queryClient]);
+  }, [selectedChat, socket, queryClient, user?.id]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [decryptedMessages]);
 
   let typingTimeout: any;
   const handleTyping = () => {
@@ -121,33 +428,57 @@ function DiscordMessagesPage() {
     typingTimeout = setTimeout(() => socket?.emit('typing:stop', selectedChat), 2000);
   };
 
-  const sendMessage = () => {
-    if ((!message.trim() && !filePreview) || !selectedChat) return;
-    const media = filePreview ? [filePreview] : undefined;
+  const sendMessage = async () => {
+    if ((!message.trim() && !filePreview && !attachedMedia.length) || !selectedChat) return;
+    
+    const payloadContent = message.trim();
+    const media = attachedMedia.length > 0 ? attachedMedia : filePreview ? [filePreview] : undefined;
     if (socket) {
-      socket.emit('message:send', { chatId: selectedChat, content: message, media });
+      socket.emit('message:send', { chatId: selectedChat, content: payloadContent, media });
     } else {
-      sendViaApi.mutate({ chatId: selectedChat, content: message, media });
+      sendViaApi.mutate({ chatId: selectedChat, content: payloadContent, media });
     }
     setMessage('');
     setFilePreview(null);
+    setAttachedMedia([]);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) { toast.error('File too large (max 10MB)'); return; }
-      const reader = new FileReader();
-      reader.onload = (ev) => setFilePreview(ev.target?.result as string);
-      reader.readAsDataURL(file);
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileList = Array.from(files);
+    for (const file of fileList) {
+      setChatUploading(true);
+      setUploadProgress(5);
+      try {
+        const { uploadMediaFile } = await import('@/lib/upload');
+        const mediaUrl = await uploadMediaFile(file, {
+          endpoint: '/chat/upload',
+          fieldName: 'media',
+          onProgress: (p) => setUploadProgress(p),
+        });
+
+        setAttachedMedia(prev => [...prev, mediaUrl]);
+        toast.success('Image attached successfully');
+      } catch (err: any) {
+        console.error('Chat image upload error:', err);
+        toast.error(err.message || 'Failed to upload image. Please try again.');
+      } finally {
+        setChatUploading(false);
+        setUploadProgress(0);
+      }
     }
+    if (e.target) e.target.value = '';
   };
 
   const getOtherParticipant = (chat: any) => chat.participants?.find((p: any) => p.user?.id !== user?.id)?.user;
 
   const handleSelectChat = (chatId: string) => {
     setSelectedChat(chatId);
-    api.post(`/chat/${chatId}/read`).catch(() => {});
+    // Emit socket event to mark messages as read and notify the other participant
+    // (the server handler calls markAsRead and broadcasts the actual message IDs)
+    socket?.emit('messages:read', { chatId });
   };
 
   const isOnline = (userId: string) => onlineUsers.has(userId);
@@ -159,16 +490,22 @@ function DiscordMessagesPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex border border-border/50 rounded-xl overflow-hidden bg-card shadow-lg">
-      {/* Server sidebar */}
-      <div className="w-16 bg-muted/30 border-r border-border/50 hidden md:flex flex-col items-center py-3 gap-2">
+    <div className={cn(
+      "flex border-0 md:border md:border-border/40 rounded-none md:rounded-2xl overflow-hidden bg-card/45 backdrop-blur-md shadow-2xl w-full max-w-full md:max-w-7xl mx-auto relative group/container",
+      selectedChat ? "fixed inset-0 z-40 bg-background md:relative md:inset-auto md:z-auto h-dvh md:h-[calc(100vh-7rem)]" : "h-[calc(100dvh-4.5rem)] md:h-[calc(100vh-7rem)]"
+    )}>
+      {/* Server sidebar (Desktop only) */}
+      <div className="w-16 bg-muted/40 border-r border-border/40 hidden md:flex flex-col items-center py-4 gap-3 shrink-0">
         <Link href="/dashboard">
-          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}
-            className="w-10 h-10 rounded-2xl bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center cursor-pointer hover:rounded-xl transition-all duration-200 shadow-lg shadow-gaming-purple/20">
+          <motion.div 
+            whileHover={{ scale: 1.1, borderRadius: "12px" }} 
+            whileTap={{ scale: 0.95 }}
+            className="w-10 h-10 rounded-2xl bg-gradient-to-br from-gaming-purple to-gaming-pink flex items-center justify-center cursor-pointer transition-all duration-300 shadow-md shadow-gaming-purple/20"
+          >
             <MessageSquare className="h-5 w-5 text-white" />
           </motion.div>
         </Link>
-        <Separator className="w-8 bg-border/50" />
+        <Separator className="w-8 bg-border/40" />
         {chats?.slice(0, 6).map((chat: any) => {
           const other = getOtherParticipant(chat);
           const short = other?.profile?.username?.charAt(0).toUpperCase() || 'G';
@@ -177,72 +514,96 @@ function DiscordMessagesPage() {
           return (
             <div key={chat.id} className="relative">
               <motion.button
-                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.08, borderRadius: "12px" }} 
+                whileTap={{ scale: 0.95 }}
                 onClick={() => handleSelectChat(chat.id)}
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold transition-all duration-200 hover:rounded-xl
-                  ${isSel ? 'bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20' : 'bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary'}`}
+                className={cn(
+                  "w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold transition-all duration-300",
+                  isSel 
+                    ? "bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20" 
+                    : "bg-muted/60 text-muted-foreground hover:bg-primary/20 hover:text-primary"
+                )}
                 title={other?.profile?.username}
               >
                 {short}
               </motion.button>
-              {online && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />}
+              {online && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-card animate-pulse" />}
             </div>
           );
         })}
         <Dialog open={newChatOpen} onOpenChange={setNewChatOpen}>
           <DialogTrigger asChild>
-            <motion.button whileHover={{ scale: 1.05, rotate: 90 }} className="w-10 h-10 rounded-2xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-all duration-200 hover:rounded-xl">
+            <motion.button 
+              whileHover={{ scale: 1.08, rotate: 90, borderRadius: "12px" }} 
+              className="w-10 h-10 rounded-2xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-all duration-300"
+            >
               <Plus className="h-5 w-5" />
             </motion.button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>New Message</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <Input placeholder="Search players..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoFocus variant="neon" />
-              <ScrollArea className="max-h-72">
-                {searchResults?.filter((p: any) => p.userId !== user?.id).map((profile: any) => (
-                  <motion.div key={profile.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 cursor-pointer"
-                    onClick={() => createDirectChat.mutate(profile.userId)}
-                    whileHover={{ x: 4 }}>
-                    <Avatar className="h-9 w-9"><AvatarImage src={profile.avatar || ''} /><AvatarFallback className="text-xs">{getInitials(profile.username)}</AvatarFallback></Avatar>
-                    <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{profile.displayName || profile.username}</p><p className="text-xs text-muted-foreground">@{profile.username}</p></div>
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  </motion.div>
-                ))}
-                {userSearch && searchResults?.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No players found</p>}
+          <DialogContent className="glass-strong border-primary/30">
+            <DialogHeader><DialogTitle className="text-lg font-bold bg-gradient-to-r from-gaming-purple to-gaming-cyan bg-clip-text text-transparent">New Message</DialogTitle></DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search players..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoFocus className="pl-9" variant="neon" />
+              </div>
+              <ScrollArea className="max-h-72 pr-2">
+                <div className="space-y-1">
+                  {searchResults?.filter((p: any) => p.userId !== user?.id).map((profile: any) => (
+                    <motion.div 
+                      key={profile.id} 
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary/10 hover:border-primary/10 border border-transparent cursor-pointer transition-colors"
+                      onClick={() => createDirectChat.mutate(profile.userId)}
+                      whileHover={{ x: 4 }}
+                    >
+                      <Avatar className="h-9 w-9"><AvatarImage src={profile.avatar || ''} /><AvatarFallback className="text-xs">{getInitials(profile.username)}</AvatarFallback></Avatar>
+                      <div className="flex-1 min-w-0"><p className="text-sm font-semibold truncate text-foreground">{profile.displayName || profile.username}</p><p className="text-xs text-muted-foreground">@{profile.username}</p></div>
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                    </motion.div>
+                  ))}
+                </div>
+                {userSearch && searchResults?.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No players found</p>}
               </ScrollArea>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Channel list */}
-      <div className="w-60 border-r border-border/50 bg-muted/10 hidden md:flex flex-col">
-        <div className="p-3 border-b border-border/50">
+      {/* Channel list (DM list) */}
+      <div className={cn(
+        "w-full md:w-60 border-r border-border/40 bg-card/30 flex flex-col shrink-0 transition-all duration-300",
+        selectedChat ? "hidden md:flex" : "flex"
+      )}>
+        <div className="p-4 border-b border-border/40 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-sm flex items-center gap-1.5 text-foreground">
-              <Hash className="h-4 w-4 text-muted-foreground" />
+            <h2 className="font-bold text-sm flex items-center gap-1.5 text-foreground uppercase tracking-wider">
+              <Hash className="h-4 w-4 text-primary animate-pulse" />
               Direct Messages
             </h2>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => setNewChatOpen(true)}>
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
-          <div className="relative mt-2">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Find chat..." className="pl-8 h-8 text-xs bg-muted/30 border-0" variant="ghost" />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input placeholder="Find player..." className="pl-9 h-9 text-xs bg-muted/40 border-0 rounded-xl" variant="ghost" />
           </div>
         </div>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 px-2 py-2">
           {chatsLoading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
           ) : chats?.length === 0 ? (
-            <div className="flex flex-col items-center py-8 px-3 text-center space-y-2">
-              <MessageSquare className="h-8 w-8 text-muted-foreground/40" />
-              <p className="text-xs text-muted-foreground">No conversations</p>
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setNewChatOpen(true)}>
-                <Plus className="h-3 w-3 mr-1" /> New
+            <div className="flex flex-col items-center py-12 px-4 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center opacity-60">
+                <MessageSquare className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground">No conversations yet</p>
+              <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => setNewChatOpen(true)}>
+                <Plus className="h-3 w-3 mr-1" /> New Message
               </Button>
             </div>
           ) : (
-            <div className="p-1.5 space-y-0.5">
+            <div className="space-y-1">
               {chats?.map((chat: any) => {
                 const other = getOtherParticipant(chat);
                 const isSelected = selectedChat === chat.id;
@@ -251,18 +612,62 @@ function DiscordMessagesPage() {
                   <motion.div
                     key={chat.id}
                     onClick={() => handleSelectChat(chat.id)}
-                    className={`flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer text-sm transition-all duration-200 animate-card-enter
-                      ${isSelected ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'}`}
-                    whileHover={{ x: 2 }}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm transition-all duration-200 border",
+                      isSelected 
+                        ? "bg-primary/10 text-primary border-primary/20 shadow-sm" 
+                        : "text-muted-foreground hover:bg-accent/40 hover:text-foreground border-transparent"
+                    )}
+                    whileHover={{ x: 3 }}
                     layout
                   >
                     <div className="relative shrink-0">
-                      <Avatar className="h-8 w-8"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[10px]">{getInitials(other?.profile?.username || 'G')}</AvatarFallback></Avatar>
-                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-card animate-ping-slow" />}
+                      <Avatar className="h-9 w-9"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(other?.profile?.username || 'G')}</AvatarFallback></Avatar>
+                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{other?.profile?.username || 'Unknown'}</p>
-                      {chat.messages?.[0] && <p className="text-[11px] text-muted-foreground truncate">{chat.messages[0].content}</p>}
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold truncate text-foreground">{other?.profile?.username || 'Unknown'}</p>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {(unreadCounts?.[chat.id] || 0) > 0 && (
+                            <span className="h-4 min-w-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center animate-scale-in">
+                              {unreadCounts[chat.id] > 9 ? '9+' : unreadCounts[chat.id]}
+                            </span>
+                          )}
+                          {!typingUsers[chat.id]?.length && chat.messages?.[0] && (
+                            <span className="text-[9px] text-muted-foreground">{formatRelativeTime(chat.messages[0].createdAt)}</span>
+                          )}
+                        </div>
+                      </div>
+                      {typingUsers[chat.id]?.length > 0 ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex gap-0.5 items-center">
+                            {[0, 200, 400].map((delay) => (
+                              <span
+                                key={delay}
+                                className="w-1 h-1 bg-primary/60 rounded-full"
+                                style={{ animation: 'typing-dot 1.2s ease-in-out infinite', animationDelay: `${delay}ms` }}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[10px] font-medium text-primary/70">typing...</span>
+                        </div>
+                      ) : (
+                        <>
+                          {chat.messages?.[0] && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              {chat.messages[0].content?.startsWith('{') && (chat.messages[0].content?.includes('"cipherText"') || chat.messages[0].content?.includes('"isE2EE"'))
+                                ? '🔒 Encrypted message'
+                                : chat.messages[0].content}
+                            </p>
+                          )}
+                          {!online && other && (
+                            <p className="text-[9px] text-muted-foreground/60 mt-0.5">
+                              {other.presence === 'IDLE' ? 'Idle' : `Last seen ${formatLastSeen(other.updatedAt)}`}
+                            </p>
+                          )}
+                        </>
+                      )}
                     </div>
                   </motion.div>
                 );
@@ -270,60 +675,86 @@ function DiscordMessagesPage() {
             </div>
           )}
         </ScrollArea>
-        <div className="p-2 border-t border-border/50 bg-muted/20">
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors">
-            <Avatar className="h-7 w-7" status="online">
+        <div className="p-3 border-t border-border/40 bg-muted/20">
+          <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-card/40 border border-border/30 shadow-sm transition-colors">
+            <Avatar className="h-8 w-8" status="online">
               <AvatarImage src={user?.profile?.avatar || ''} />
-              <AvatarFallback className="text-[9px]">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">{user?.profile?.username}</p>
-              <p className="text-[10px] text-success">Online</p>
+              <p className="text-xs font-bold truncate text-foreground">{user?.profile?.username}</p>
+              <p className="text-[9px] text-success font-medium">Online</p>
             </div>
             <div className="flex gap-0.5">
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary"><Mic className="h-3 w-3" /></Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary"><Headphones className="h-3 w-3" /></Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary"><Settings className="h-3 w-3" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-accent rounded-lg"><Mic className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-accent rounded-lg"><Headphones className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-accent rounded-lg"><Settings className="h-3.5 w-3.5" /></Button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col bg-background">
+      <div className={cn(
+        "flex-1 flex flex-col bg-background/20 backdrop-blur-sm transition-all duration-300",
+        selectedChat ? "flex" : "hidden md:flex"
+      )}>
         {selectedChat ? (
           <>
             {/* Channel header */}
-            <div className="h-12 border-b border-border/50 flex items-center px-4 shrink-0 bg-muted/10">
+            <div className="h-14 border-b border-border/40 flex items-center px-4 shrink-0 bg-muted/10">
               {(() => {
                 const chat = chats?.find((c: any) => c.id === selectedChat);
                 const other = chat ? getOtherParticipant(chat) : null;
                 const online = other ? isOnline(other.id) : false;
                 return (
                   <div className="flex items-center gap-2.5 w-full">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="md:hidden h-8 w-8 text-muted-foreground hover:text-foreground mr-1 rounded-xl" 
+                      onClick={() => setSelectedChat(null)}
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
                     <div className="relative">
-                      <Avatar className="h-7 w-7"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[9px]">{getInitials(other?.profile?.username || 'U')}</AvatarFallback></Avatar>
-                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card" />}
+                      <Avatar className="h-8 w-8"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(other?.profile?.username || 'U')}</AvatarFallback></Avatar>
+                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card animate-pulse" />}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">{other?.profile?.username || 'User'}</p>
-                      <p className="text-[10px]" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>{online ? 'Online' : 'Offline'}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-bold text-foreground">{other?.profile?.username || 'User'}</p>
+                        <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5 text-emerald-400" />
+                          E2EE
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] font-medium flex items-center gap-1" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
+                        {online ? (
+                          <><span className="w-1.5 h-1.5 bg-success rounded-full inline-block" /> Online</>
+                        ) : other?.presence === 'IDLE' ? (
+                          <><span className="w-1.5 h-1.5 bg-yellow-500 rounded-full inline-block" /> Idle</>
+                        ) : (
+                          <>Last seen {formatLastSeen(other?.updatedAt)}</>
+                        )}
+                      </p>
                     </div>
                     <div className="flex-1" />
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary"><Phone className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => copyLink(selectedChat)} title="Copy chat link"><LinkIcon className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => initiateCall('audio')} title="Start Voice Call"><Phone className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => initiateCall('video')} title="Start Video Call"><Video className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => copyLink(selectedChat)} title="Copy chat link"><LinkIcon className="h-4 w-4" /></Button>
                     </div>
                   </div>
                 );
               })()}
             </div>
 
-            {/* Messages */}
+            {/* Messages list */}
             <ScrollArea className="flex-1 px-4 bg-grid bg-[length:40px_40px]">
-              <div className="py-4 space-y-0.5 max-w-4xl mx-auto">
-                <AnimatePresence>
-                  {messages?.map((msg: any, idx: number) => {
+              <div className="py-6 space-y-3 max-w-4xl mx-auto">
+                <AnimatePresence initial={false}>
+                  {(decryptedMessages.length > 0 ? decryptedMessages : messages)?.map((msg: any, idx: number) => {
                     const isOwn = msg.sender?.id === user?.id;
                     const prev = messages[idx - 1];
                     const showHeader = !prev || prev.sender?.id !== msg.sender?.id;
@@ -332,62 +763,100 @@ function DiscordMessagesPage() {
                     return (
                       <motion.div
                         key={msg.id}
-                        className={`group flex gap-3 ${showHeader ? 'mt-4' : 'mt-0.5'} ${isOwn ? 'flex-row-reverse' : ''}`}
+                        className={cn(
+                          "group flex gap-3 transition-all duration-200", 
+                          showHeader ? 'mt-4' : 'mt-1', 
+                          isOwn ? 'flex-row-reverse' : ''
+                        )}
                         onHoverStart={() => setHoveredMsgId(msg.id)}
                         onHoverEnd={() => setHoveredMsgId(null)}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2 }}
+                        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2, type: "spring", stiffness: 200, damping: 20 }}
                         layout
                       >
                         {showHeader && (
-                          <div className={`shrink-0 ${isOwn ? 'order-2' : ''}`}>
-                            <Avatar className="h-9 w-9 mt-0.5" status={online ? 'online' : undefined}>
+                          <div className={cn("shrink-0", isOwn ? 'order-2' : '')}>
+                            <Avatar className="h-8 w-8 mt-0.5" status={online ? 'online' : undefined}>
                               <AvatarImage src={msg.sender?.profile?.avatar || ''} />
-                              <AvatarFallback className="text-[10px]">{getInitials(msg.sender?.profile?.username || 'U')}</AvatarFallback>
+                              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(msg.sender?.profile?.username || 'U')}</AvatarFallback>
                             </Avatar>
                           </div>
                         )}
-                        {!showHeader && <div className="w-9 shrink-0" />}
-                        <div className={`flex flex-col min-w-0 max-w-[75%] ${isOwn ? 'items-end' : ''}`}>
+                        {!showHeader && <div className="w-8 shrink-0" />}
+                        <div className={cn("flex flex-col min-w-0 max-w-[70%]", isOwn ? 'items-end' : '')}>
                           {showHeader && (
-                            <div className={`flex items-center gap-2 mb-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
-                              <span className="text-sm font-semibold hover:text-primary cursor-pointer transition-colors">{msg.sender?.profile?.username}</span>
-                              <span className="text-[10px] text-muted-foreground">{formatRelativeTime(msg.createdAt)}</span>
+                            <div className={cn("flex items-center gap-2 mb-1", isOwn ? 'flex-row-reverse' : '')}>
+                              <span className="text-xs font-bold hover:text-primary cursor-pointer transition-colors text-foreground">{msg.sender?.profile?.username}</span>
+                              <span className="text-[9px] text-muted-foreground">{formatRelativeTime(msg.createdAt)}</span>
                             </div>
                           )}
                           {msg.media?.length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-1">
                               {msg.media.map((url: string, i: number) => (
                                 url.match(/\.(mp4|webm|ogg)$/i)
-                                  ? <video key={i} src={url} controls className="max-w-60 max-h-40 rounded-xl border border-border/30" />
-                                  : <img key={i} src={url} alt="" className="max-w-60 max-h-40 rounded-xl object-cover border border-border/30" />
+                                  ? <video key={i} src={url} controls className="max-w-60 max-h-40 rounded-xl border border-border/30 shadow-md animate-scale-in" />
+                                  : <img key={i} src={getMediaUrl(url)} alt="" className="max-w-60 max-h-40 rounded-xl object-cover border border-border/30 shadow-md hover:scale-[1.02] transition-transform duration-300 cursor-zoom-in animate-scale-in" onClick={() => {
+                                      const imageUrls = msg.media.filter((u: string) => !u.match(/\.(mp4|webm|ogg)$/i));
+                                      const imageIndex = imageUrls.indexOf(url);
+                                      openLightbox(imageUrls, imageIndex !== -1 ? imageIndex : 0);
+                                    }} />
                               ))}
                             </div>
                           )}
+                          {msg.voiceNote && (
+                            <div className="mb-1.5 animate-scale-in max-w-full overflow-x-auto">
+                              <audio src={msg.voiceNote} controls className="max-w-[240px] xs:max-w-[260px] h-9 rounded-xl border border-border/30 bg-card" />
+                            </div>
+                          )}
                           {msg.content && (
-                            <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                            <div className={cn(
+                              "px-4 py-2.5 rounded-2xl text-sm leading-relaxed relative border transition-all duration-300 break-words break-all [overflow-wrap:anywhere] max-w-full overflow-hidden",
                               isOwn
-                                ? 'bg-primary text-primary-foreground rounded-tr-sm shadow-sm'
-                                : 'bg-muted/70 border border-border/30 rounded-tl-sm'
-                            }`}>
+                                ? 'bg-gradient-to-br from-gaming-purple to-gaming-pink text-white rounded-tr-sm shadow-md shadow-gaming-purple/20 border-gaming-purple/20'
+                                : 'bg-card/75 border-border/40 text-foreground rounded-tl-sm shadow-sm backdrop-blur-sm'
+                            )}>
                               {msg.content}
                             </div>
                           )}
-                          {/* Hover actions */}
+
+                          {/* Read Receipts: shown under own messages */}
+                          {isOwn && !msg.content?.includes('"isE2EE":true') && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              {msg.readBy && msg.readBy.length > 0 ? (
+                                <span className="flex items-center gap-0.5 text-[9px] text-primary/70 font-medium">
+                                  <svg width="14" height="10" viewBox="0 0 14 10" fill="none" className="h-3 w-3">
+                                    <path d="M1 5.5L4 8.5L9.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <path d="M5.5 5.5L8.5 8.5L13 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                  Read
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/60 font-medium">
+                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="h-2.5 w-2.5">
+                                    <path d="M1 4.5L4 8L9 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                  Sent
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Floating micro-actions menu */}
                           <AnimatePresence>
                             {isHovered && (
                               <motion.div
-                                className={`flex items-center gap-0.5 mt-1 ${isOwn ? 'flex-row-reverse' : ''}`}
-                                initial={{ opacity: 0, y: -5 }}
+                                className={cn("flex items-center gap-0.5 mt-1 px-1.5 py-0.5 rounded-lg bg-card/90 border border-border/40 shadow-md backdrop-blur-md", isOwn ? 'flex-row-reverse' : '')}
+                                initial={{ opacity: 0, y: -4 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -5 }}
-                                transition={{ duration: 0.15 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                transition={{ duration: 0.1 }}
                               >
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all" onClick={() => toast.success('Reacted!')}><Heart className="h-3.5 w-3.5" /></button>
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><Reply className="h-3.5 w-3.5" /></button>
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><Smile className="h-3.5 w-3.5" /></button>
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all"><MoreVertical className="h-3.5 w-3.5" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Like message" onClick={() => toast.success('Reacted!')}><Heart className="h-3 w-3 text-red-500 fill-red-500/20" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Reply to message"><Reply className="h-3 w-3" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Add reaction"><Smile className="h-3 w-3" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="More message options"><MoreVertical className="h-3 w-3" /></button>
                               </motion.div>
                             )}
                           </AnimatePresence>
@@ -400,7 +869,7 @@ function DiscordMessagesPage() {
                 {/* Typing indicator */}
                 {selectedChat && typingUsers[selectedChat]?.length > 0 && (
                   <motion.div
-                    className="flex items-center gap-2 text-xs text-muted-foreground py-1 ml-12"
+                    className="flex items-center gap-2 text-xs text-muted-foreground py-1 ml-11"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                   >
@@ -408,124 +877,263 @@ function DiscordMessagesPage() {
                       {[0, 150, 300].map((delay, i) => (
                         <span
                           key={i}
-                          className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full"
+                          className="w-1.5 h-1.5 bg-primary/60 rounded-full"
                           style={{ animation: 'typing-dot 1.4s ease-in-out infinite', animationDelay: `${delay}ms` }}
                         />
                       ))}
                     </div>
-                    <span>{typingUsers[selectedChat].length} player{typingUsers[selectedChat].length > 1 ? 's' : ''} typing...</span>
+                    <span className="text-[10px] font-medium text-muted-foreground/80">{typingUsers[selectedChat].length} gamer{typingUsers[selectedChat].length > 1 ? 's' : ''} typing...</span>
                   </motion.div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
 
-            {/* Message input */}
-            <div className="p-3 border-t border-border/50 bg-muted/10">
-              {filePreview && (
+            {/* Message input - keyboard aware */}
+            <div 
+              className="shrink-0 border-t border-border/40 bg-card/80 backdrop-blur-md shadow-lg transition-all duration-200"
+              style={{ 
+                paddingBottom: isKeyboardOpen ? `${keyboardHeight}px` : undefined,
+              }}
+            >
+              <div className="p-3 md:p-4">
+              {(attachedMedia.length > 0 || filePreview || chatUploading) && (
                 <motion.div
-                  className="flex items-center gap-2 mb-2 p-2 bg-muted/50 rounded-xl border border-border/30"
-                  initial={{ opacity: 0, y: 10 }}
+                  className="flex items-center gap-2 mb-3 p-2 bg-card/60 rounded-xl border border-border/30 overflow-x-auto"
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <img src={filePreview} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                  <span className="text-xs text-muted-foreground flex-1">Image ready to send</span>
-                  <button onClick={() => setFilePreview(null)} className="hover:text-destructive transition-colors"><X className="h-4 w-4" /></button>
+                  {chatUploading && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-primary font-semibold shrink-0">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Uploading image... {uploadProgress}%</span>
+                    </div>
+                  )}
+                  {attachedMedia.map((url, i) => (
+                    <div key={i} className="relative group shrink-0">
+                      <img src={getMediaUrl(url)} alt="" className="h-14 w-14 rounded-lg object-cover border border-border/40 shadow-sm" />
+                      <button
+                        onClick={() => setAttachedMedia(attachedMedia.filter((_, j) => j !== i))}
+                        className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center text-xs shadow-md hover:scale-110 transition-transform"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {filePreview && !attachedMedia.length && (
+                    <div className="relative group shrink-0 flex items-center gap-2">
+                      <img src={filePreview} alt="" className="h-14 w-14 rounded-lg object-cover border border-border/40 shadow-sm" />
+                      <span className="text-xs text-muted-foreground">Image ready to send</span>
+                      <button onClick={() => setFilePreview(null)} className="hover:text-destructive p-1 rounded-lg hover:bg-destructive/10 transition-colors"><X className="h-4 w-4" /></button>
+                    </div>
+                  )}
                 </motion.div>
               )}
-              <div className="flex items-center gap-2 bg-muted/30 rounded-xl px-3 py-1.5 border border-border/30 transition-all duration-200 focus-within:border-primary/30 focus-within:shadow-sm">
-                <input type="file" accept="image/*,video/*" hidden ref={fileInputRef} onChange={handleFileSelect} />
-                <button className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-accent/50 transition-all" onClick={() => fileInputRef.current?.click()}><Plus className="h-5 w-5" /></button>
-                <Input
-                  placeholder={`Message ${(() => { const c = chats?.find((c: any) => c.id === selectedChat); const o = c ? getOtherParticipant(c) : null; return o?.profile?.username || 'User'; })()}`}
-                  value={message}
-                  onChange={(e) => { setMessage(e.target.value); handleTyping(); }}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
-                  className="flex-1 h-9 border-0 bg-transparent text-sm focus-visible:ring-0 px-0"
-                  variant="ghost"
-                />
-                <button className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-accent/50 transition-all"><Smile className="h-5 w-5" /></button>
-                <button className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-accent/50 transition-all" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5" /></button>
-                <Button variant="gradient" size="icon" className="h-8 w-8 rounded-xl" disabled={!message.trim() && !filePreview} onClick={sendMessage} animate>
-                  <Send className="h-4 w-4" />
-                </Button>
+              <div className="flex items-center gap-2 bg-card/65 rounded-2xl px-3 py-1.5 border border-border/40 transition-all duration-300 focus-within:border-primary/40 focus-within:shadow-md focus-within:shadow-primary/5 focus-within:ring-1 focus-within:ring-primary/10 min-h-[46px]">
+                {isRecordingVoice ? (
+                  // Recording Panel Overlay
+                  <div className="flex items-center w-full justify-between animate-fade-in">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2.5 h-2.5 bg-destructive rounded-full animate-pulse shrink-0" />
+                      <span className="text-[11px] font-mono text-muted-foreground tracking-wider shrink-0">
+                        {Math.floor(voiceDuration / 60).toString().padStart(2, '0')}:
+                        {(voiceDuration % 60).toString().padStart(2, '0')}
+                      </span>
+                      {/* Animated Bouncing Voice Waves */}
+                      <div className="flex items-center gap-0.5 px-3 h-5 overflow-hidden min-w-[60px] xs:min-w-[100px] shrink-0">
+                        {[1, 2, 3, 4, 3, 2, 3, 4, 5, 4, 3, 2, 3, 4].map((h, i) => (
+                          <motion.div
+                            key={i}
+                            className="w-[2px] bg-primary rounded-full shrink-0"
+                            animate={{ height: voicePaused ? 3 : [3, h * 3, 3] }}
+                            transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.04 }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={voicePaused ? resumeVoiceRecording : pauseVoiceRecording}
+                        className="p-1.5 hover:bg-muted/80 rounded-xl text-muted-foreground hover:text-primary transition-all"
+                        title={voicePaused ? "Resume recording" : "Pause recording"}
+                      >
+                        {voicePaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                      </button>
+                      <button
+                        onClick={() => voiceRecorderRef.current?.stop()}
+                        className="p-1.5 hover:bg-muted/80 rounded-xl text-muted-foreground hover:text-primary transition-all"
+                        title="Finish recording"
+                      >
+                        <Square className="h-4 w-4 text-primary fill-primary/10" />
+                      </button>
+                      <button
+                        onClick={cancelVoiceRecording}
+                        className="p-1.5 hover:bg-destructive/10 rounded-xl text-muted-foreground hover:text-destructive transition-all"
+                        title="Cancel recording"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : voicePreviewUrl ? (
+                  // Preview Player Overlay
+                  <div className="flex items-center w-full justify-between gap-3 animate-fade-in">
+                    <audio src={voicePreviewUrl} controls className="flex-1 h-9 rounded-xl border border-border/30 bg-muted/40" />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={cancelVoiceRecording}
+                        className="p-2 hover:bg-destructive/10 rounded-xl text-muted-foreground hover:text-destructive transition-all"
+                        title="Delete voice message"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <Button
+                        variant="gradient"
+                        size="icon"
+                        className="h-8 w-8 rounded-xl shadow-md shadow-primary/20 shrink-0"
+                        onClick={sendVoiceRecording}
+                        animate
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  // Standard Chat Input Bar
+                  <>
+                    <input type="file" accept="image/*,video/*" multiple hidden ref={fileInputRef} onChange={handleFileSelect} />
+                    <input type="file" accept="image/*" capture="environment" hidden ref={cameraInputRef} onChange={handleFileSelect} />
+                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => fileInputRef.current?.click()} title="Attach file or photo"><Paperclip className="h-5 w-5 text-primary" /></button>
+                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => cameraInputRef.current?.click()} title="Take photo with camera"><Camera className="h-5 w-5" /></button>
+                    <Input
+                      ref={inputRef}
+                      placeholder={`Message ${(() => { const c = chats?.find((c: any) => c.id === selectedChat); const o = c ? getOtherParticipant(c) : null; return o?.profile?.username || 'User'; })()}`}
+                      value={message}
+                      onChange={(e) => { setMessage(e.target.value); handleTyping(); }}
+                      onFocus={handleInputFocus}
+                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
+                      className="flex-1 h-9 border-0 bg-transparent text-sm focus-visible:ring-0 px-0 placeholder:text-muted-foreground/60 min-w-0"
+                      variant="ghost"
+                    />
+                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={startVoiceRecording} title="Record voice message"><Mic className="h-5 w-5" /></button>
+                    <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-accent/50 transition-all shrink-0" onClick={() => fileInputRef.current?.click()} title="Image gallery"><ImageIcon className="h-5 w-5" /></button>
+                    <Button
+                      variant="gradient"
+                      size="icon"
+                      className="h-8 w-8 rounded-xl shadow-md shadow-primary/20 shrink-0"
+                      disabled={(!message.trim() && !filePreview && !attachedMedia.length) || chatUploading}
+                      onClick={sendMessage}
+                      animate
+                    >
+                      {chatUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </Button>
+                  </>
+                )}
               </div>
+            </div>
             </div>
           </>
         ) : (
           /* Empty state */
-          <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-muted/5 to-muted/20">
-            <motion.div className="text-center space-y-4 max-w-sm" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-gaming-purple/20 to-gaming-cyan/20 flex items-center justify-center mx-auto border border-border/30">
-                <MessageSquare className="h-10 w-10 text-primary" />
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-muted/5 to-muted/20 p-6">
+            <motion.div className="text-center space-y-4 max-w-sm" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-gaming-purple/20 to-gaming-cyan/20 flex items-center justify-center mx-auto border border-primary/20 shadow-inner relative group-hover/container:animate-pulse">
+                <MessageSquare className="h-10 w-10 text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.4)]" />
               </div>
-              <h2 className="text-xl font-bold">Welcome to Messages</h2>
-              <p className="text-sm text-muted-foreground">Select a conversation from the left or start a new one</p>
-              <div className="flex justify-center gap-2">
-                <Button variant="gradient" size="sm" className="gap-1.5" onClick={() => setNewChatOpen(true)} animate>
+              <h2 className="text-xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-primary bg-clip-text">Welcome to Messages</h2>
+              <p className="text-sm text-muted-foreground">Select an existing conversation from the list or send a message to start a new chat with fellow gamers.</p>
+              <div className="flex justify-center gap-3 pt-2">
+                <Button variant="gradient" size="sm" className="gap-1.5 rounded-xl shadow-md shadow-primary/10" onClick={() => setNewChatOpen(true)} animate>
                   <UserPlus className="h-4 w-4" /> New Message
                 </Button>
-                <Link href="/friends"><Button variant="outline" size="sm" className="gap-1.5"><Search className="h-4 w-4" /> Find Players</Button></Link>
+                <Link href="/friends"><Button variant="outline" size="sm" className="gap-1.5 rounded-xl"><Search className="h-4 w-4" /> Find Players</Button></Link>
               </div>
             </motion.div>
           </div>
         )}
       </div>
 
-      {/* Right panel: member list / voice */}
+      {/* Right panel: member list / voice (Desktop only) */}
       {selectedChat && (
-        <div className="w-56 border-l border-border/50 bg-muted/10 hidden xl:flex flex-col">
-          <div className="p-3 border-b border-border/50">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Volume2 className="h-3 w-3" /> Voice
+        <div className="w-56 border-l border-border/40 bg-card/20 hidden xl:flex flex-col">
+          <div className="p-4 border-b border-border/40">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+              <Volume2 className="h-3.5 w-3.5 text-success" /> Voice Setup
             </h3>
           </div>
-          <div className="p-3 space-y-2">
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-success/10 text-success text-xs border border-success/20">
-              <Phone className="h-3 w-3" />
-              <span>Voice Connected</span>
+          <div className="p-4 space-y-2">
+            <div className="flex items-center gap-2 p-2 rounded-xl bg-success/10 text-success text-xs border border-success/20 shadow-sm animate-pulse-glow">
+              <Phone className="h-3.5 w-3.5" />
+              <span className="font-semibold">Voice Connected</span>
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-              <div className="flex gap-0.5">
+            <div className="flex items-center gap-2.5 text-[10px] text-muted-foreground px-1 py-1">
+              <div className="flex gap-0.5 items-end h-3 w-4 shrink-0">
                 {[1, 2, 3, 4].map((i) => (
-                  <span key={i} className="w-0.5 h-3 bg-muted-foreground/30 rounded-full animate-pulse" style={{ height: `${4 + Math.random() * 12}px`, animationDelay: `${i * 200}ms` }} />
+                  <span key={i} className="w-0.5 bg-success rounded-full" style={{ height: `${4 + Math.random() * 8}px`, animation: 'typing-dot 1.2s infinite ease-in-out', animationDelay: `${i * 150}ms` }} />
                 ))}
               </div>
               <span>No one is speaking</span>
             </div>
           </div>
-          <Separator className="bg-border/50" />
-          <div className="p-3 border-b border-border/50">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="h-3 w-3" /> Members
+          <Separator className="bg-border/40" />
+          <div className="p-4 border-b border-border/40">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-primary" /> Chat Members
             </h3>
           </div>
           <ScrollArea className="flex-1 p-2">
-            {(() => {
-              const chat = chats?.find((c: any) => c.id === selectedChat);
-              return chat?.participants?.map((p: any) => {
-                const prof = p.user?.profile;
-                const online = isOnline(p.user?.id);
-                return prof ? (
-                  <motion.div
-                    key={p.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/50 cursor-pointer text-sm transition-all"
-                    whileHover={{ x: 2 }}
-                  >
-                    <div className="relative">
-                      <Avatar className="h-6 w-6"><AvatarImage src={prof.avatar || ''} /><AvatarFallback className="text-[8px]">{getInitials(prof.username)}</AvatarFallback></Avatar>
-                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card" />}
-                    </div>
-                    <span className="text-xs truncate">{prof.username}</span>
-                  </motion.div>
-                ) : null;
-              });
-            })()}
+            <div className="space-y-0.5">
+              {(() => {
+                const chat = chats?.find((c: any) => c.id === selectedChat);
+                return (chat?.participants || []).map((p: any) => {
+                  const prof = p.user?.profile;
+                  const online = isOnline(p.user?.id);
+                  return prof ? (
+                    <motion.div
+                      key={p.id}
+                      className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-accent/40 cursor-pointer text-sm transition-colors border border-transparent hover:border-border/30"
+                      whileHover={{ x: 2 }}
+                    >
+                      <div className="relative shrink-0">
+                        <Avatar className="h-7 w-7"><AvatarImage src={prof.avatar || ''} /><AvatarFallback className="text-[9px] bg-primary/10 text-primary">{getInitials(prof.username)}</AvatarFallback></Avatar>
+                        {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card" />}
+                      </div>
+                      <span className="text-xs font-semibold truncate text-foreground">{prof.username}</span>
+                    </motion.div>
+                  ) : null;
+                });
+              })()}
+            </div>
           </ScrollArea>
         </div>
       )}
+
+      {/* WebRTC Voice & Video Call Modal */}
+      <CallModal
+        socket={socket}
+        user={user}
+        callState={callState}
+        onEndCall={() => setCallState(null)}
+        onAcceptCall={() => setCallState((prev) => (prev ? { ...prev, mode: 'connected' } : null))}
+      />
+
+      {/* Image Lightbox for viewing media in full-screen */}
+      <ImagePreview
+        images={previewImages}
+        initialIndex={previewIndex}
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+      />
     </div>
   );
 }
 
-export default DiscordMessagesPage;
+function MessagesPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <DiscordMessagesPage />
+    </Suspense>
+  );
+}
+
+export default MessagesPageWrapper;

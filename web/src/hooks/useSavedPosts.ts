@@ -1,30 +1,39 @@
-import { useState, useEffect, useCallback } from 'react';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 const STORAGE_KEY = 'gamerhub-saved-posts';
 
-export function useSavedPosts() {
-  const [savedIds, setSavedIds] = useState<string[]>([]);
+interface SavedPostsState {
+  savedIds: string[];
+  toggle: (postId: string) => void;
+  isSaved: (postId: string) => boolean;
+}
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try { setSavedIds(JSON.parse(stored)); } catch { setSavedIds([]); }
+export const useSavedPostsStore = create<SavedPostsState>()(
+  persist(
+    (set, get) => ({
+      savedIds: [],
+      toggle: (postId: string) => {
+        const ids = get().savedIds;
+        const next = ids.includes(postId)
+          ? ids.filter(id => id !== postId)
+          : [...ids, postId];
+        set({ savedIds: next });
+      },
+      isSaved: (postId: string) => {
+        return get().savedIds.includes(postId);
+      },
+    }),
+    {
+      name: STORAGE_KEY,
     }
-  }, []);
+  )
+);
 
-  const persist = useCallback((ids: string[]) => {
-    setSavedIds(ids);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
-  }, []);
-
-  const toggle = useCallback((postId: string) => {
-    const next = savedIds.includes(postId)
-      ? savedIds.filter(id => id !== postId)
-      : [...savedIds, postId];
-    persist(next);
-  }, [savedIds, persist]);
-
-  const isSaved = useCallback((postId: string) => savedIds.includes(postId), [savedIds]);
+export function useSavedPosts() {
+  const savedIds = useSavedPostsStore((state) => state.savedIds);
+  const toggle = useSavedPostsStore((state) => state.toggle);
+  const isSaved = useSavedPostsStore((state) => state.isSaved);
 
   return { savedIds, toggle, isSaved };
 }

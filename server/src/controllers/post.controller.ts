@@ -5,11 +5,36 @@ import { io } from '../index';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 import { NotFoundError } from '../utils/errors';
+import { mediaStorageService } from '../utils/storage';
 
 export class PostController {
+  uploadMedia = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      return sendError(res, 400, 'No files uploaded. Please select an image or video.');
+    }
+
+    const uploadPromises = files.map(async (file) => {
+      const result = await mediaStorageService.uploadMedia(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+        'posts'
+      );
+      return result.url;
+    });
+
+    const urls = await Promise.all(uploadPromises);
+    sendSuccess(res, { urls }, 'Post media uploaded successfully');
+  });
+
   create = asyncHandler(async (req: AuthRequest, res: Response) => {
     const post = await postService.create(req.body, req.user!.userId);
-    io.emit('post:new', post);
+    try {
+      if (io) io.emit('post:new', post);
+    } catch (socketErr) {
+      console.warn('Socket notification error on post creation:', socketErr);
+    }
     sendSuccess(res, post, undefined, 201);
   });
 
@@ -50,6 +75,13 @@ export class PostController {
     const { content } = req.body;
     const comment = await postService.comment(req.params.id, req.user!.userId, content);
     sendSuccess(res, comment, undefined, 201);
+  });
+
+  votePoll = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { optionId } = req.body;
+    if (!optionId) return sendError(res, 400, 'Option ID is required');
+    const poll = await postService.votePoll(optionId, req.user!.userId);
+    sendSuccess(res, poll, 'Vote updated');
   });
 
   getTrending = asyncHandler(async (_req: AuthRequest, res: Response) => {

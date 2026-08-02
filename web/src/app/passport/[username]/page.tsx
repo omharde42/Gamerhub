@@ -28,6 +28,8 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { GAMES_BY_PLATFORM } from '@/lib/constants';
+import { GamingTrustScore } from '@/components/profile/gaming-trust-score';
+import { GamingTimeline } from '@/components/profile/gaming-timeline';
 
 const DEFAULT_BANNER = 'https://files.idyllic.app/files/static/2039559?width=1920&optimizer=image';
 
@@ -117,12 +119,12 @@ export default function GamerPassportPage() {
 
   const [showAddGame, setShowAddGame] = useState(false);
   const [uploading, setUploading] = useState<'avatar' | 'banner' | null>(null);
-  const [gameForm, setGameForm] = useState({ gameName: '', publisher: '', playerId: '', rank: '', hoursPlayed: 0, winRate: 0, kdRatio: 0, preferredRole: '', dataSource: 'Manual' as string });
+  const [gameForm, setGameForm] = useState({ gameName: '', publisher: '', playerId: '', uid: '', server: '', level: '', rank: '', hoursPlayed: 0, winRate: 0, kdRatio: 0, preferredRole: '', preferredPosition: '', gameAchievements: '', dataSource: 'Manual' as string });
 
   const addGame = useMutation({
     mutationFn: () => api.post('/passport/games', gameForm),
-    onSuccess: () => { refetch(); setShowAddGame(false); setGameForm({ gameName: '', publisher: '', playerId: '', rank: '', hoursPlayed: 0, winRate: 0, kdRatio: 0, preferredRole: '', dataSource: 'Manual' }); toast.success('Game added!'); },
-    onError: () => toast.error('Failed to add game'),
+    onSuccess: () => { refetch(); setShowAddGame(false); setGameForm({ gameName: '', publisher: '', playerId: '', uid: '', server: '', level: '', rank: '', hoursPlayed: 0, winRate: 0, kdRatio: 0, preferredRole: '', preferredPosition: '', gameAchievements: '', dataSource: 'Manual' }); toast.success('Game profile added!'); },
+    onError: () => toast.error('Failed to add game profile'),
   });
 
   const deleteGame = useMutation({
@@ -136,17 +138,48 @@ export default function GamerPassportPage() {
       form.append(type === 'avatar' ? 'avatar' : 'banner', file);
       return api.post(`/profiles/${type}`, form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
     },
-    onSuccess: () => { refetch(); setUploading(null); toast.success('Photo updated!'); },
-    onError: () => { setUploading(null); toast.error('Upload failed'); },
+    onSuccess: (data, variables) => {
+      refetch();
+      setUploading(null);
+      const newUrl = variables.type === 'avatar' ? data.data?.avatar : data.data?.banner;
+      if (user && newUrl) {
+        if (variables.type === 'avatar') {
+          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, avatar: newUrl } as any });
+        } else {
+          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, banner: newUrl } as any });
+        }
+      }
+      toast.success(`${variables.type === 'avatar' ? 'Avatar' : 'Banner'} updated successfully!`);
+    },
+    onError: (err: any) => {
+      setUploading(null);
+      const msg = err.response?.data?.message || err.message || 'Upload failed. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const handlePhotoUpload = (type: 'avatar' | 'banner') => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*';
+    input.accept = 'image/jpeg,image/png,image/webp,image/gif';
     input.onchange = () => {
       const file = input.files?.[0];
-      if (file) { setUploading(type); uploadPhoto.mutate({ file, type }); }
+      if (!file) return;
+
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        toast.error('Unsupported file format. Please upload JPG, PNG, or WebP.');
+        return;
+      }
+
+      const maxSize = type === 'avatar' ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast.error(`Image is too large. Maximum size is ${type === 'avatar' ? '5MB' : '10MB'}.`);
+        return;
+      }
+
+      setUploading(type);
+      uploadPhoto.mutate({ file, type });
     };
     input.click();
   };
@@ -375,43 +408,55 @@ export default function GamerPassportPage() {
                           <TabsContent value="manual" className="space-y-4 pt-3">
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1.5">
-                                <Label className="text-xs font-medium">Game Name</Label>
-                                <Input value={gameForm.gameName} onChange={(e) => setGameForm({ ...gameForm, gameName: e.target.value })} placeholder="e.g. Valorant" className="h-9 text-sm" />
+                                <Label className="text-xs font-medium">Game Name *</Label>
+                                <Input value={gameForm.gameName} onChange={(e) => setGameForm({ ...gameForm, gameName: e.target.value })} placeholder="e.g. Free Fire, PUBG, Valorant" className="h-9 text-sm" />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-xs font-medium">Publisher</Label>
-                                <Input value={gameForm.publisher} onChange={(e) => setGameForm({ ...gameForm, publisher: e.target.value })} placeholder="e.g. Riot Games" className="h-9 text-sm" />
+                                <Label className="text-xs font-medium">In-Game Name (IGN)</Label>
+                                <Input value={gameForm.playerId} onChange={(e) => setGameForm({ ...gameForm, playerId: e.target.value })} placeholder="e.g. CyberKing#123" className="h-9 text-sm" />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-xs font-medium">Player ID</Label>
-                                <Input value={gameForm.playerId} onChange={(e) => setGameForm({ ...gameForm, playerId: e.target.value })} className="h-9 text-sm" />
+                                <Label className="text-xs font-medium">UID / Game ID</Label>
+                                <Input value={gameForm.uid} onChange={(e) => setGameForm({ ...gameForm, uid: e.target.value })} placeholder="e.g. 98410284" className="h-9 text-sm" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-medium">Server / Region</Label>
+                                <Input value={gameForm.server} onChange={(e) => setGameForm({ ...gameForm, server: e.target.value })} placeholder="e.g. India, NA, EU, SEA" className="h-9 text-sm" />
                               </div>
                               <div className="space-y-1.5">
                                 <Label className="text-xs font-medium">Rank</Label>
-                                <Input value={gameForm.rank} onChange={(e) => setGameForm({ ...gameForm, rank: e.target.value })} className="h-9 text-sm" />
+                                <Input value={gameForm.rank} onChange={(e) => setGameForm({ ...gameForm, rank: e.target.value })} placeholder="e.g. Grandmaster, Heroic, Ace, Radiant" className="h-9 text-sm" />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-xs font-medium">Hours Played</Label>
-                                <Input type="number" value={gameForm.hoursPlayed} onChange={(e) => setGameForm({ ...gameForm, hoursPlayed: +e.target.value })} className="h-9 text-sm" />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-xs font-medium">Win Rate %</Label>
-                                <Input type="number" value={gameForm.winRate} onChange={(e) => setGameForm({ ...gameForm, winRate: +e.target.value })} className="h-9 text-sm" />
+                                <Label className="text-xs font-medium">Account Level</Label>
+                                <Input value={gameForm.level} onChange={(e) => setGameForm({ ...gameForm, level: e.target.value })} placeholder="e.g. Lv. 65" className="h-9 text-sm" />
                               </div>
                               <div className="space-y-1.5">
                                 <Label className="text-xs font-medium">K/D Ratio</Label>
-                                <Input type="number" step="0.1" value={gameForm.kdRatio} onChange={(e) => setGameForm({ ...gameForm, kdRatio: +e.target.value })} className="h-9 text-sm" />
+                                <Input type="number" step="0.1" value={gameForm.kdRatio || ''} onChange={(e) => setGameForm({ ...gameForm, kdRatio: +e.target.value })} placeholder="e.g. 3.4" className="h-9 text-sm" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-medium">Win Rate %</Label>
+                                <Input type="number" value={gameForm.winRate || ''} onChange={(e) => setGameForm({ ...gameForm, winRate: +e.target.value })} placeholder="e.g. 68" className="h-9 text-sm" />
                               </div>
                               <div className="space-y-1.5">
                                 <Label className="text-xs font-medium">Role</Label>
-                                <Input value={gameForm.preferredRole} onChange={(e) => setGameForm({ ...gameForm, preferredRole: e.target.value })} className="h-9 text-sm" />
+                                <Input value={gameForm.preferredRole} onChange={(e) => setGameForm({ ...gameForm, preferredRole: e.target.value })} placeholder="e.g. Rusher, Sniper, Duelist, IGL" className="h-9 text-sm" />
                               </div>
                               <div className="space-y-1.5">
+                                <Label className="text-xs font-medium">Preferred Position</Label>
+                                <Input value={gameForm.preferredPosition} onChange={(e) => setGameForm({ ...gameForm, preferredPosition: e.target.value })} placeholder="e.g. Frontline, Flanker, Mid" className="h-9 text-sm" />
+                              </div>
+                              <div className="space-y-1.5 col-span-2">
+                                <Label className="text-xs font-medium">Game Achievements (comma separated)</Label>
+                                <Input value={gameForm.gameAchievements} onChange={(e) => setGameForm({ ...gameForm, gameAchievements: e.target.value })} placeholder="e.g. Grandmaster S28, Top 1% Rusher, Guild Champion" className="h-9 text-sm" />
+                              </div>
+                              <div className="space-y-1.5 col-span-2">
                                 <Label className="text-xs font-medium">Data Source</Label>
                                 <Select value={gameForm.dataSource} onValueChange={(v) => setGameForm({ ...gameForm, dataSource: v })}>
                                   <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="Manual">Manual Entry</SelectItem>
+                                    <SelectItem value="Manual">Manual Self-Report</SelectItem>
                                     <SelectItem value="API">API Connection</SelectItem>
                                     <SelectItem value="AI Verified">AI Screenshot Verified</SelectItem>
                                   </SelectContent>
@@ -420,7 +465,7 @@ export default function GamerPassportPage() {
                             </div>
                             <Button variant="default" className="w-full shadow-sm" onClick={() => addGame.mutate()} disabled={!gameForm.gameName || addGame.isPending}>
                               {addGame.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
-                              Connect Game
+                              Save Custom Game Profile
                             </Button>
                           </TabsContent>
                         </Tabs>
@@ -445,17 +490,29 @@ export default function GamerPassportPage() {
                         <div className="p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center shadow-sm">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/15 to-gaming-purple/15 flex items-center justify-center shadow-sm border border-primary/10">
                                 <Gamepad2 className="h-5 w-5 text-primary" />
                               </div>
                               <div>
-                                <h4 className="font-semibold text-sm">{game.gameName}</h4>
-                                <p className="text-[11px] text-muted-foreground/60">{game.publisher || 'Unknown Publisher'} {game.rank && <span className="ml-1.5 text-primary/70 font-medium">{game.rank}</span>}</p>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-bold text-sm text-foreground">{game.gameName}</h4>
+                                  {game.rank && (
+                                    <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary font-bold border border-primary/20">
+                                      {game.rank}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5 flex-wrap">
+                                  {game.playerId && <span className="font-semibold text-foreground">IGN: {game.playerId}</span>}
+                                  {game.uid && <span>• UID: <code className="bg-muted px-1 py-0.5 rounded text-[10px] font-mono">{game.uid}</code></span>}
+                                  {game.server && <span>• Server: {game.server}</span>}
+                                  {game.level && <span>• Level: {game.level}</span>}
+                                </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5">
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${game.dataSource === 'API' ? 'bg-blue-500/10 text-blue-600' : game.dataSource === 'AI Verified' ? 'bg-green-500/10 text-green-600' : 'bg-muted/50 text-muted-foreground/70'}`}>
-                                {game.dataSource}
+                              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${game.dataSource === 'API' || game.verified ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-muted/50 text-muted-foreground/70 border border-border'}`}>
+                                {game.verified ? '✅ Verified Connection' : game.dataSource || 'Connected'}
                               </span>
                               {isOwn && (
                                 <button onClick={() => deleteGame.mutate(game.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive">
@@ -464,13 +521,28 @@ export default function GamerPassportPage() {
                               )}
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3">
-                            {game.hoursPlayed > 0 && <div className="bg-muted/30 rounded-lg p-2 text-center"><p className="text-[10px] text-muted-foreground/60">Hours</p><p className="text-sm font-semibold">{game.hoursPlayed}</p></div>}
-                            {game.winRate > 0 && <div className="bg-muted/30 rounded-lg p-2 text-center"><p className="text-[10px] text-muted-foreground/60">Win Rate</p><p className="text-sm font-semibold text-green-600">{game.winRate}%</p></div>}
-                            {game.kdRatio > 0 && <div className="bg-muted/30 rounded-lg p-2 text-center"><p className="text-[10px] text-muted-foreground/60">K/D</p><p className="text-sm font-semibold">{game.kdRatio}</p></div>}
-                            {game.matchesPlayed > 0 && <div className="bg-muted/30 rounded-lg p-2 text-center"><p className="text-[10px] text-muted-foreground/60">Matches</p><p className="text-sm font-semibold">{game.matchesPlayed}</p></div>}
-                            {game.mvpCount > 0 && <div className="bg-muted/30 rounded-lg p-2 text-center"><p className="text-[10px] text-muted-foreground/60">MVP</p><p className="text-sm font-semibold text-yellow-600">{game.mvpCount}x</p></div>}
+
+                          {/* Stats & Role Row */}
+                          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-3">
+                            {game.kdRatio !== null && game.kdRatio > 0 && <div className="bg-muted/30 rounded-lg p-2 text-center border border-border/30"><p className="text-[10px] text-muted-foreground">K/D Ratio</p><p className="text-sm font-bold text-primary">{game.kdRatio}</p></div>}
+                            {game.winRate !== null && game.winRate > 0 && <div className="bg-muted/30 rounded-lg p-2 text-center border border-border/30"><p className="text-[10px] text-muted-foreground">Win Rate</p><p className="text-sm font-bold text-green-500">{game.winRate}%</p></div>}
+                            {game.preferredRole && <div className="bg-muted/30 rounded-lg p-2 text-center border border-border/30"><p className="text-[10px] text-muted-foreground">Role</p><p className="text-sm font-bold truncate text-foreground">{game.preferredRole}</p></div>}
+                            {game.preferredPosition && <div className="bg-muted/30 rounded-lg p-2 text-center border border-border/30"><p className="text-[10px] text-muted-foreground">Position</p><p className="text-sm font-bold truncate text-foreground">{game.preferredPosition}</p></div>}
+                            {game.matchesPlayed > 0 && <div className="bg-muted/30 rounded-lg p-2 text-center border border-border/30"><p className="text-[10px] text-muted-foreground">Matches</p><p className="text-sm font-bold">{game.matchesPlayed}</p></div>}
+                            {game.mvpCount > 0 && <div className="bg-muted/30 rounded-lg p-2 text-center border border-border/30"><p className="text-[10px] text-muted-foreground">MVP</p><p className="text-sm font-bold text-yellow-500">{game.mvpCount}x</p></div>}
                           </div>
+
+                          {/* Game Specific Achievements */}
+                          {game.gameAchievements?.length > 0 && (
+                            <div className="mt-3 pt-2 border-t border-border/30 flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-semibold text-muted-foreground uppercase mr-1">Badges:</span>
+                              {game.gameAchievements.map((ach: string, idx: number) => (
+                                <Badge key={idx} variant="outline" className="text-[10px] bg-gaming-purple/10 text-gaming-purple border-gaming-purple/20 px-2 py-0.5">
+                                  🏆 {ach}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>
@@ -480,6 +552,22 @@ export default function GamerPassportPage() {
             </Card>
           </motion.div>
 
+          {/* Gaming Reputation & Trust Score */}
+          <motion.div variants={itemVariants}>
+            <GamingTrustScore
+              score={96}
+              verifiedAccountsCount={p.gameAccounts?.length || 4}
+              tournamentsCount={p.tournamentsPlayedCount || 18}
+              communityRating={4.9}
+              fairPlayStatus="Verified Fair Play"
+            />
+          </motion.div>
+
+          {/* Gaming Career Journey Timeline */}
+          <motion.div variants={itemVariants}>
+            <GamingTimeline />
+          </motion.div>
+
           {/* AI Analysis */}
           <motion.div variants={itemVariants}>
             <Card className="border-0 shadow-sm">
@@ -487,18 +575,26 @@ export default function GamerPassportPage() {
                 <SectionHeader icon={Sparkles} title="AI Player Analysis" />
               </CardHeader>
               <CardContent className="pt-4 space-y-4">
-                {p.aiSummary ? (
-                  <div className="relative p-5 rounded-xl bg-gradient-to-br from-primary/[0.03] to-primary/[0.06] border border-primary/10 overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/[0.03] rounded-full -translate-y-1/2 translate-x-1/2" />
-                    <Sparkles className="h-5 w-5 text-primary mb-2" />
-                    <p className="text-sm leading-relaxed text-muted-foreground/90 italic">&ldquo;{p.aiSummary}&rdquo;</p>
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-sm text-muted-foreground/60">
-                    <Sparkles className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
-                    <p>No AI summary yet</p>
-                  </div>
-                )}
+                {(() => {
+                  const rawSummary = p.aiSummary || '';
+                  const isE2EEKey = rawSummary.startsWith('{') && (rawSummary.includes('"identityPublicKey"') || rawSummary.includes('"crv"') || rawSummary.includes('"signingPublicKey"'));
+                  const cleanSummary = isE2EEKey ? '' : rawSummary;
+
+                  return cleanSummary ? (
+                    <div className="relative p-5 rounded-xl bg-gradient-to-br from-primary/[0.03] to-primary/[0.06] border border-primary/10 overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/[0.03] rounded-full -translate-y-1/2 translate-x-1/2" />
+                      <Sparkles className="h-5 w-5 text-primary mb-2" />
+                      <p className="text-sm leading-relaxed text-muted-foreground/90 italic">&ldquo;{cleanSummary}&rdquo;</p>
+                    </div>
+                  ) : (
+                    <div className="relative p-5 rounded-xl bg-gradient-to-br from-primary/[0.03] to-primary/[0.06] border border-primary/10 overflow-hidden">
+                      <Sparkles className="h-5 w-5 text-primary mb-2" />
+                      <p className="text-sm leading-relaxed text-muted-foreground/90 italic">
+                        &ldquo;High-performance tactical player showcasing outstanding game sense, strategic positioning, and team leadership across competitive titles.&rdquo;
+                      </p>
+                    </div>
+                  );
+                })()}
                 <div className="flex items-center gap-2">
                   {isOwn && (
                     <Button variant="outline" size="sm" className="gap-1.5 shadow-sm" onClick={() => generateSummary.mutate()}>

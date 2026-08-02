@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "prisma db push --accept-data-loss && prisma generate && tsc",
+    "postinstall": "prisma generate",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
     "test": "jest --passWithNoTests",
@@ -21,20 +22,20 @@
     "express": "^4.21.1",
     "express-rate-limit": "^7.4.1",
     "express-validator": "^7.2.1",
+    "firebase-admin": "^14.2.0",
     "helmet": "^8.0.0",
     "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "multer": "^1.4.5-lts.1",
-    "nodemailer": "^6.9.16",
+    "multer": "^2.2.0",
+    "nodemailer": "^9.0.1",
     "openai": "^4.73.0",
     "socket.io": "^4.8.1",
     "speakeasy": "^2.0.0",
     "stripe": "^17.5.0",
-    "uuid": "^11.0.3",
-    "prisma": "5.22.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+    "uuid": "^11.0.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -52,7 +53,16 @@
     "@types/speakeasy": "^2.0.10",
     "@types/uuid": "^10.0.0",
     "jest": "^29.7.0",
+    "prisma": "5.22.0",
     "ts-jest": "^29.2.5"
   },
-  "prisma": { "seed": "tsx prisma/seed.ts" }
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "allowScripts": {
+    "@prisma/engines@5.22.0": true,
+    "esbuild@0.28.1": true,
+    "prisma@5.22.0": true
+
+  }
 }

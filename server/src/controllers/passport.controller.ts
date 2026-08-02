@@ -83,11 +83,12 @@ export class PassportController {
   addGame = asyncHandler(async (req: AuthRequest, res: Response) => {
     const profile = await prisma.profile.findUnique({ where: { userId: req.user!.userId } });
     if (!profile) throw new NotFoundError('Profile');
-    const { gameName, publisher, playerId, rank, hoursPlayed, winRate, kdRatio, matchesPlayed, mvpCount, preferredRole, dataSource, highestRank, currentRank, accuracy, headshotPct, server, region, level, favoriteWeapon, favoriteCharacter } = req.body;
+    const { gameName, publisher, playerId, uid, rank, hoursPlayed, winRate, kdRatio, matchesPlayed, mvpCount, preferredRole, preferredPosition, gameAchievements, dataSource, highestRank, currentRank, accuracy, headshotPct, server, region, level, favoriteWeapon, favoriteCharacter } = req.body;
     if (!gameName || typeof gameName !== 'string') throw new AppError('Game name is required', 400);
     const game = await prisma.connectedGame.create({
       data: {
-        gameName, publisher, playerId, server, region, level, rank, highestRank, currentRank, preferredRole,
+        gameName, publisher, playerId, uid, server, region, level, rank, highestRank, currentRank, preferredRole, preferredPosition,
+        gameAchievements: Array.isArray(gameAchievements) ? gameAchievements : typeof gameAchievements === 'string' ? gameAchievements.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
         hoursPlayed: hoursPlayed ? parseFloat(hoursPlayed) : 0,
         winRate: winRate ? parseFloat(winRate) : null,
         kdRatio: kdRatio ? parseFloat(kdRatio) : null,
@@ -110,9 +111,17 @@ export class PassportController {
     const existing = await prisma.connectedGame.findUnique({ where: { id }, include: { profile: true } });
     if (!existing) throw new NotFoundError('Connected game');
     if (existing.profile.userId !== req.user!.userId) throw new ForbiddenError('Not your game');
-    const allowed = ['rank', 'hoursPlayed', 'winRate', 'kdRatio', 'matchesPlayed', 'mvpCount', 'preferredRole', 'highestRank', 'currentRank', 'accuracy', 'headshotPct', 'server', 'region', 'level', 'favoriteWeapon', 'favoriteCharacter', 'playerId'];
+    const allowed = ['rank', 'hoursPlayed', 'winRate', 'kdRatio', 'matchesPlayed', 'mvpCount', 'preferredRole', 'preferredPosition', 'gameAchievements', 'highestRank', 'currentRank', 'accuracy', 'headshotPct', 'server', 'region', 'level', 'favoriteWeapon', 'favoriteCharacter', 'playerId', 'uid'];
     const data: Record<string, any> = {};
-    for (const field of allowed) { if (req.body[field] !== undefined) data[field] = req.body[field]; }
+    for (const field of allowed) {
+      if (req.body[field] !== undefined) {
+        if (field === 'gameAchievements' && typeof req.body[field] === 'string') {
+          data[field] = req.body[field].split(',').map((s: string) => s.trim()).filter(Boolean);
+        } else {
+          data[field] = req.body[field];
+        }
+      }
+    }
     const game = await prisma.connectedGame.update({ where: { id }, data });
     sendSuccess(res, game);
   });
@@ -219,9 +228,9 @@ export class PassportController {
     const parts: string[] = [`${profile.displayName || profile.username} is a ${profile.role || 'versatile'} player${topGame ? ` specializing in ${topGame.gameName}` : ''}.`];
     if (topSkill) parts.push(`Their strongest skill is ${topSkill.name} (${topSkill.score}%).`);
     if (topGame && topGame.kdRatio) parts.push(`In ${topGame.gameName}, they maintain a ${topGame.kdRatio} K/D ratio${topGame.winRate ? ` with a ${topGame.winRate}% win rate` : ''}.`);
-    if (profile.achievements?.length) parts.push(`Notable achievements include ${profile.achievements.map(a => a.title).join(', ')}.`);
+    if (profile.achievements?.length) parts.push(`Notable achievements include ${profile.achievements.map((a: any) => a.title).join(', ')}.`);
     if (recentTourney) parts.push(`Recently placed ${recentTourney.placement || 'participated'} in ${recentTourney.tournamentName}.`);
-    const totalHours = profile.connectedGames.reduce((s, g) => s + (g.hoursPlayed || 0), 0);
+    const totalHours = profile.connectedGames.reduce((s: any, g: any) => s + (g.hoursPlayed || 0), 0);
     if (totalHours > 100) parts.push(`With over ${Math.round(totalHours)} total hours logged, ${profile.displayName || profile.username} demonstrates serious dedication to gaming.`);
     parts.push(`Based on gameplay statistics and AI analysis, GamerHub recommends ${profile.displayName || profile.username} for competitive and semi-professional opportunities.`);
     const summary = parts.join(' ');
@@ -303,7 +312,7 @@ export class PassportController {
       }),
       prisma.profile.count({ where: { gamerScore: { gt: 0 } } }),
     ]);
-    sendSuccess(res, profiles.map((p, i) => ({ ...p, rankPosition: skip + i + 1 })), undefined, 200, { page, limit, total, totalPages: Math.ceil(total / limit) });
+    sendSuccess(res, profiles.map((p: any, i: any) => ({ ...p, rankPosition: skip + i + 1 })), undefined, 200, { page, limit, total, totalPages: Math.ceil(total / limit) });
   });
 }
 

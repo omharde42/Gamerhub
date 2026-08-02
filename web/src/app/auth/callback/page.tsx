@@ -1,12 +1,13 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuthStore();
@@ -14,37 +15,135 @@ export default function AuthCallbackPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const accessToken = searchParams.get('accessToken');
-    const refreshToken = searchParams.get('refreshToken');
+    let isSubscribed = true;
+
     const errorParam = searchParams.get('error');
-
     if (errorParam) {
-      setStatus('error');
-      setError(decodeURIComponent(errorParam));
+      if (isSubscribed) {
+        setStatus('error');
+        setError(decodeURIComponent(errorParam));
+      }
       return;
     }
 
-    if (!accessToken || !refreshToken) {
-      setStatus('error');
-      setError('Missing authentication tokens');
-      return;
-    }
-
-    const verifyAndLogin = async () => {
+    const verifyAndLogin = async (accessToken: string, refreshToken: string) => {
       try {
         const { data } = await api.get('/auth/me', {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         login(data.data, accessToken, refreshToken);
-        setStatus('success');
-        setTimeout(() => router.push('/feed'), 1500);
+        if (isSubscribed) {
+          setStatus('success');
+          setTimeout(() => router.push('/feed'), 1000);
+        }
       } catch {
-        setStatus('error');
-        setError('Failed to verify your identity');
+        if (isSubscribed) {
+          setStatus('error');
+          setError('Failed to verify user session after social login.');
+        }
       }
     };
 
-    verifyAndLogin();
+    const processSession = async () => {
+      try {
+        // 1. Direct query parameters (Steam & Backend OAuth redirect)
+        const queryAccess = searchParams.get('accessToken');
+        const queryRefresh = searchParams.get('refreshToken');
+        if (queryAccess && queryRefresh) {
+          await verifyAndLogin(queryAccess, queryRefresh);
+          return;
+        }
+
+        // 2. Hash parameters from Direct Google OAuth (#access_token=...)
+        if (typeof window !== 'undefined' && window.location.hash) {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const googleAccessToken = hashParams.get('access_token');
+          if (googleAccessToken) {
+            try {
+              const userInfoRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${googleAccessToken}`);
+              const userInfo = await userInfoRes.json();
+              if (userInfo.email) {
+                const { data } = await api.post('/auth/google', {
+                  email: userInfo.email,
+                  displayName: userInfo.name || userInfo.email.split('@')[0],
+                  avatar: userInfo.picture || null,
+                  googleId: userInfo.sub,
+                });
+                login(data.data.user, data.data.accessToken, data.data.refreshToken);
+                if (isSubscribed) {
+                  setStatus('success');
+                  setTimeout(() => router.push('/feed'), 1000);
+                }
+                return;
+              }
+            } catch (googleErr) {
+              console.warn('Google userinfo fetch failed:', googleErr);
+            }
+          }
+        }
+
+        // 3. Supabase Auth session (Google / Discord via Supabase)
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.access_token) {
+          const provider = session.user?.app_metadata?.provider || 'google';
+          const { data } = await api.post('/auth/social-login', {
+            token: session.access_token,
+            provider,
+          });
+
+          login(data.data.user, data.data.accessToken, data.data.refreshToken);
+          if (isSubscribed) {
+            setStatus('success');
+            setTimeout(() => router.push('/feed'), 1000);
+          }
+          return;
+        }
+
+        // 4. Supabase auth state listener fallback if session hydration takes a moment
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+          if (newSession && newSession.access_token && isSubscribed) {
+            try {
+              const provider = newSession.user?.app_metadata?.provider || 'google';
+              const { data } = await api.post('/auth/social-login', {
+                token: newSession.access_token,
+                provider,
+              });
+
+              login(data.data.user, data.data.accessToken, data.data.refreshToken);
+              setStatus('success');
+              setTimeout(() => router.push('/feed'), 1000);
+            } catch (err: any) {
+              setStatus('error');
+              setError(err.response?.data?.message || 'Failed to process social login');
+            }
+          }
+        });
+
+        // 5. Fallback timer if no credentials found
+        const timer = setTimeout(() => {
+          if (isSubscribed && status === 'loading') {
+            setStatus('error');
+            setError('Authentication cancelled or session expired. Please try signing in again.');
+          }
+        }, 3500);
+
+        return () => {
+          authListener.subscription.unsubscribe();
+          clearTimeout(timer);
+        };
+      } catch (err: any) {
+        if (isSubscribed) {
+          setStatus('error');
+          setError(err.response?.data?.message || err.message || 'Authentication exchange failed');
+        }
+      }
+    };
+
+    processSession();
+
+    return () => {
+      isSubscribed = false;
+    };
   }, [searchParams, login, router]);
 
   return (
@@ -83,5 +182,17 @@ export default function AuthCallbackPage() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

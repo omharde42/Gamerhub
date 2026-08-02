@@ -139,7 +139,7 @@ export default function StudioPage() {
                 <EditorTab clip={selectedClip} clips={clips} setClips={handleClipsUpdate} />
               </TabsContent>
               <TabsContent value="export" className="h-full m-0 p-0 data-[state=active]:flex flex-col">
-                <ExportTab clip={selectedClip} />
+                <ExportTab clip={selectedClip} setClips={handleClipsUpdate} setSelectedClipId={setSelectedClipId} setActiveTab={setActiveTab} />
               </TabsContent>
             </div>
           </Tabs>
@@ -223,6 +223,9 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDrawingRef = useRef(false);
   const clickIdRef = useRef(0);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (previewRef.current && screenStream) {
@@ -332,52 +335,127 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
     }, 1000);
     await new Promise(r => setTimeout(r, 3000));
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
+      // 1. Capture screen capture stream
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: { displaySurface: 'monitor' } as any,
         audio: audioEnabled,
       });
-      setScreenStream(stream);
-      if (showCamera) {
-        const cam = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        setCameraStream(cam);
+
+      // 2. Capture microphone stream if audio is enabled
+      let micStream: MediaStream | null = null;
+      if (audioEnabled) {
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          micStreamRef.current = micStream;
+        } catch (micErr) {
+          console.warn('Microphone stream access not granted or not available', micErr);
+        }
       }
+
+      // 3. Mix audio using AudioContext if both system capture and mic streams are present
+      let finalStream = displayStream;
+      if (audioEnabled) {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = audioContext;
+        const dest = audioContext.createMediaStreamDestination();
+        let hasAudioSource = false;
+
+        const displayAudioTracks = displayStream.getAudioTracks();
+        if (displayAudioTracks.length > 0) {
+          const source1 = audioContext.createMediaStreamSource(new MediaStream([displayAudioTracks[0]]));
+          source1.connect(dest);
+          hasAudioSource = true;
+        }
+
+        if (micStream && micStream.getAudioTracks().length > 0) {
+          const source2 = audioContext.createMediaStreamSource(new MediaStream([micStream.getAudioTracks()[0]]));
+          source2.connect(dest);
+          hasAudioSource = true;
+        }
+
+        if (hasAudioSource) {
+          const tracks = [displayStream.getVideoTracks()[0], dest.stream.getAudioTracks()[0]];
+          finalStream = new MediaStream(tracks);
+        }
+      }
+
+      setScreenStream(displayStream);
+      if (showCamera) {
+        try {
+          const cam = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          setCameraStream(cam);
+        } catch {
+          toast.error('Camera access denied');
+        }
+      }
+
       chunksRef.current = [];
-      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus' });
+      startTimeRef.current = Date.now();
+
+      let options = { mimeType: 'video/webm;codecs=vp9,opus' };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: 'video/webm;codecs=vp8,opus' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          options = { mimeType: 'video/webm' };
+          if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options = { mimeType: 'video/mp4' };
+          }
+        }
+      }
+
+      const recorder = new MediaRecorder(finalStream, options);
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
+        
+        // Calculate duration dynamically using start timestamp to avoid stale state closure bug
+        const duration = Math.max(1, Math.floor((Date.now() - startTimeRef.current) / 1000));
+        
         const clip: Clip = {
           id: Date.now().toString(),
           blob,
           url,
           name: `Clip ${clips.length + 1}`,
-          duration: recordingTime,
+          duration: duration,
           createdAt: Date.now(),
         };
         setClips(prev => [...prev, clip]);
         setSelectedClipId(clip.id);
+        
+        // Stop display tracks
+        displayStream.getTracks().forEach(t => t.stop());
         setScreenStream(null);
         setCameraStream(null);
         setRecordingTime(0);
         setDrawings([]);
+        
+        // Release audio tracks
+        micStreamRef.current?.getTracks().forEach(t => t.stop());
+        micStreamRef.current = null;
+        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+          audioContextRef.current.close();
+        }
+        audioContextRef.current = null;
+
         toast.success('Recording saved!');
       };
+      
       mediaRecorderRef.current = recorder;
       recorder.start(100);
       setRecording(true);
       setPaused(false);
-      const startTime = Date.now();
+      
       timerRef.current = setInterval(() => {
-        setRecordingTime(Math.floor((Date.now() - startTime) / 1000));
-      }, 100);
+        setRecordingTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }, 500);
       toast.success('Recording started');
     } catch (err: any) {
       setCountdown(0);
       if (err.name === 'NotAllowedError') toast.error('Screen capture permission denied');
       else toast.error('Failed to start recording');
     }
-  }, [audioEnabled, showCamera, qualityPreset, clips.length, recordingTime, setClips, setSelectedClipId]);
+  }, [audioEnabled, showCamera, qualityPreset, clips.length, setClips, setSelectedClipId]);
 
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
@@ -386,6 +464,14 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
     clearInterval(timerRef.current);
     setRecording(false);
     setPaused(false);
+    
+    // Release resources on stop
+    micStreamRef.current?.getTracks().forEach(t => t.stop());
+    micStreamRef.current = null;
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+    }
+    audioContextRef.current = null;
   }, [screenStream, cameraStream]);
 
   const togglePause = useCallback(() => {
@@ -396,10 +482,15 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
       setPaused(true);
     } else {
       mediaRecorderRef.current.resume();
-      timerRef.current = setInterval(() => { setRecordingTime(p => p + 1); }, 1000);
+      // Resume timer relative to elapsed time
+      const elapsed = recordingTime;
+      startTimeRef.current = Date.now() - elapsed * 1000;
+      timerRef.current = setInterval(() => {
+        setRecordingTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }, 500);
       setPaused(false);
     }
-  }, []);
+  }, [recordingTime]);
 
   const toggleCamera = useCallback(async () => {
     if (cameraStream) {
@@ -421,7 +512,11 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
     return () => {
       screenStream?.getTracks().forEach(t => t.stop());
       cameraStream?.getTracks().forEach(t => t.stop());
+      micStreamRef.current?.getTracks().forEach(t => t.stop());
       clearInterval(timerRef.current);
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
     };
   }, [screenStream, cameraStream]);
 
@@ -876,11 +971,33 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
   );
 }
 
-function ExportTab({ clip }: { clip: Clip | undefined }) {
+function ExportTab({ clip, setClips, setSelectedClipId, setActiveTab }: {
+  clip: Clip | undefined;
+  setClips?: (fn: (prev: Clip[]) => Clip[]) => void;
+  setSelectedClipId?: (id: string) => void;
+  setActiveTab?: (tab: string) => void;
+}) {
   const [quality, setQuality] = useState('1080p');
   const [format, setFormat] = useState('webm');
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const newClip: Clip = {
+      id: Date.now().toString(),
+      blob: file,
+      url,
+      name: file.name.replace(/\.[^/.]+$/, ''),
+      duration: 10,
+      createdAt: Date.now(),
+    };
+    if (setClips) setClips(prev => [newClip, ...prev]);
+    if (setSelectedClipId) setSelectedClipId(newClip.id);
+    toast.success('Video clip imported for export!');
+  };
 
   const handleExport = async () => {
     if (!clip) return toast.error('No clip selected');
@@ -906,11 +1023,28 @@ function ExportTab({ clip }: { clip: Clip | undefined }) {
 
   if (!clip) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <Download className="h-12 w-12 text-muted-foreground/30 mx-auto" />
-          <h3 className="text-sm font-medium text-muted-foreground">No clip selected</h3>
-          <p className="text-xs text-muted-foreground/60">Select a clip from the media library to export</p>
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+            <Download className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-foreground">Export Game Clip</h3>
+            <p className="text-xs text-muted-foreground mt-1">Select a recorded clip or import a video file to download</p>
+          </div>
+          <div className="flex flex-col gap-2 pt-2">
+            <label className="cursor-pointer">
+              <input type="file" accept="video/*" className="hidden" onChange={handleFileImport} />
+              <Button variant="gradient" className="w-full gap-2 text-xs font-bold">
+                <FileVideo className="h-4 w-4" /> Import Video File
+              </Button>
+            </label>
+            {setActiveTab && (
+              <Button variant="outline" className="w-full gap-2 text-xs" onClick={() => setActiveTab('record')}>
+                <Monitor className="h-4 w-4" /> Record New Clip
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );

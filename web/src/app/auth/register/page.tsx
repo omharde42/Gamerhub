@@ -9,13 +9,14 @@ import { Loader2, UserPlus, Eye, EyeOff, Check, X } from 'lucide-react';
 import { AuthFormWrapper } from '@/components/auth/auth-form-wrapper';
 import { SocialLogin } from '@/components/auth/social-login';
 import api from '@/lib/api';
+import { API_URL } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { user, isAuthenticated, login } = useAuthStore();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,6 +24,10 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState(false);
+
+  if (isAuthenticated && user) {
+    return null;
+  }
 
   const passwordChecks = {
     length: password.length >= 6,
@@ -55,10 +60,34 @@ export default function RegisterPage() {
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
+  const handleSocialLogin = async (provider: string) => {
     setSocialLoading(true);
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://gamerhub-api.onrender.com/api';
-    window.location.href = `${baseUrl}/auth/${provider}/register`;
+    try {
+      if (provider === 'discord') {
+        window.location.href = `${API_URL}/auth/discord?action=login`;
+        return;
+      }
+      if (provider === 'google') {
+        window.location.href = `${API_URL}/auth/google`;
+        return;
+      }
+      if (provider === 'steam') {
+        window.location.href = `${API_URL}/auth/steam`;
+        return;
+      }
+
+      const { supabase } = await import('@/lib/supabase');
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider as any,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message || `${provider} login failed. Please try again.`);
+      setSocialLoading(false);
+    }
   };
 
   const CheckIcon = ({ ok }: { ok: boolean }) => ok

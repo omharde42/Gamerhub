@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Gamepad2, Sparkles, Zap, Trophy, Users, Globe, Star, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -98,44 +99,29 @@ const stats = [
   { value: '50+', label: 'Games Supported', icon: Globe },
 ];
 
+import { useAuthStore } from '@/store/authStore';
+import { useRouter } from 'next/navigation';
+
 export default function EnterPage() {
+  const { user, isAuthenticated } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      router.push('/feed');
+    }
+  }, [isAuthenticated, user, router]);
+
+  if (isAuthenticated && user) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-      {/* Animated background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-gaming-purple/5 via-transparent to-gaming-blue/5" />
+      {/* Sleek, professional grid background with subtle dark gradients */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-60" />
       <div className="absolute inset-0 bg-grid opacity-[0.03]" />
-      <div className="absolute inset-0 bg-dots opacity-[0.03]" />
-      <div className="absolute inset-0 bg-gradient-animate" />
-
-      {/* Particles */}
-      <div className="absolute inset-0 pointer-events-none">
-        {Array.from({ length: PARTICLE_COUNT }).map((_, i) => (
-          <Particle key={i} index={i} />
-        ))}
-      </div>
-
-      {/* Floating game icons */}
-      <motion.div
-        className="absolute top-20 left-[15%] text-gaming-purple/10 pointer-events-none animate-breathe"
-        animate={{ y: [0, -15, 0], rotate: [0, 5, -5, 0] }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <Gamepad2 className="h-24 w-24" />
-      </motion.div>
-      <motion.div
-        className="absolute bottom-32 right-[12%] text-gaming-cyan/10 pointer-events-none animate-breathe"
-        animate={{ y: [0, -20, 0], rotate: [0, -10, 10, 0] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-      >
-        <Zap className="h-20 w-20" />
-      </motion.div>
-      <motion.div
-        className="absolute top-1/3 right-[20%] text-gaming-pink/10 pointer-events-none animate-breathe"
-        animate={{ y: [0, -12, 0], rotate: [0, 15, -15, 0] }}
-        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-      >
-        <Star className="h-16 w-16" />
-      </motion.div>
+      <div className="absolute inset-0 bg-dots opacity-[0.02]" />
 
       {/* Main content */}
       <div className="flex-1 flex items-center justify-center p-4 relative z-10">
@@ -143,39 +129,40 @@ export default function EnterPage() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="w-full max-w-md"
+          className="w-full max-w-md animate-card-enter"
         >
           <div className="text-center space-y-8">
-            {/* Logo */}
+            {/* Brand Logo */}
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+              transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
             >
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-gaming-purple via-gaming-pink to-gaming-cyan flex items-center justify-center mx-auto shadow-2xl shadow-gaming-purple/30 relative">
-                <Gamepad2 className="h-10 w-10 text-white" />
-                <motion.div
-                  className="absolute inset-0 rounded-2xl bg-gradient-to-br from-gaming-purple via-gaming-pink to-gaming-cyan"
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  style={{ filter: 'blur(12px)', zIndex: -1 }}
+              <div className="w-20 h-20 rounded-2xl overflow-hidden border border-primary/20 flex items-center justify-center mx-auto shadow-xl relative shrink-0">
+                <Image
+                  src="/logo.jpg"
+                  alt="GamerZ Hub"
+                  width={80}
+                  height={80}
+                  priority
+                  className="w-full h-full object-cover"
                 />
               </div>
             </motion.div>
 
             <div className="space-y-3">
               <motion.h1
-                className="text-4xl md:text-5xl font-bold"
+                className="text-4xl md:text-5xl font-extrabold tracking-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <span className="bg-gradient-to-r from-gaming-purple via-gaming-cyan to-gaming-pink bg-clip-text text-transparent animate-glow-rainbow">
-                  Welcome to GamerHub
+                <span className="bg-gradient-to-r from-indigo-400 via-primary to-violet-500 bg-clip-text text-transparent">
+                  Welcome to GamerZ Hub
                 </span>
               </motion.h1>
               <motion.p
-                className="text-lg text-muted-foreground h-8"
+                className="text-base text-muted-foreground h-8"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
@@ -190,18 +177,18 @@ export default function EnterPage() {
               transition={{ delay: 0.6 }}
               className="space-y-4"
             >
-              <div className="flex items-center gap-3 justify-center">
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link href="/auth/register">
-                    <Button variant="gradient" size="xl" className="h-14 px-10 text-lg rounded-2xl gap-2" animate>
+              <div className="flex flex-col sm:flex-row items-center gap-3 justify-center w-full max-w-[280px] sm:max-w-none mx-auto">
+                <motion.div className="w-full sm:w-auto" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Link href="/auth/register" className="w-full">
+                    <Button variant="gradient" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-10 text-base sm:text-lg rounded-2xl gap-2" animate>
                       <UserPlus className="h-5 w-5" />
                       Create Account
                     </Button>
                   </Link>
                 </motion.div>
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link href="/auth/login">
-                    <Button variant="outline" size="xl" className="h-14 px-8 text-lg rounded-2xl gap-2">
+                <motion.div className="w-full sm:w-auto" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Link href="/auth/login" className="w-full">
+                    <Button variant="outline" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-8 text-base sm:text-lg rounded-2xl gap-2">
                       <LogIn className="h-5 w-5" />
                       Sign In
                     </Button>
@@ -211,7 +198,7 @@ export default function EnterPage() {
             </motion.div>
 
             <motion.div
-              className="flex items-center justify-center gap-6 pt-4"
+              className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1 }}

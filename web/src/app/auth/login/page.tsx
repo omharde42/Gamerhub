@@ -9,18 +9,23 @@ import { Loader2, LogIn, Eye, EyeOff } from 'lucide-react';
 import { AuthFormWrapper } from '@/components/auth/auth-form-wrapper';
 import { SocialLogin } from '@/components/auth/social-login';
 import api from '@/lib/api';
+import { API_URL } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { user, isAuthenticated, login } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState(false);
+
+  if (isAuthenticated && user) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,10 +44,34 @@ export default function LoginPage() {
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
+  const handleSocialLogin = async (provider: string) => {
     setSocialLoading(true);
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://gamerhub-api.onrender.com/api';
-    window.location.href = `${baseUrl}/auth/${provider}`;
+    try {
+      if (provider === 'discord') {
+        window.location.href = `${API_URL}/auth/discord?action=login`;
+        return;
+      }
+      if (provider === 'google') {
+        window.location.href = `${API_URL}/auth/google`;
+        return;
+      }
+      if (provider === 'steam') {
+        window.location.href = `${API_URL}/auth/steam`;
+        return;
+      }
+
+      const { supabase } = await import('@/lib/supabase');
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider as any,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message || `${provider} login failed. Please try again.`);
+      setSocialLoading(false);
+    }
   };
 
   return (
@@ -55,8 +84,7 @@ export default function LoginPage() {
           <Link href="/auth/register" className="text-primary hover:underline font-medium">Sign up</Link>
         </span>
       }
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
+    >            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         <motion.div className="space-y-2" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
           <Label htmlFor="email">Email</Label>
           <Input

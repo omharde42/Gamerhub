@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { chatController } from '../controllers/chat.controller';
 import { authenticate } from '../middleware/auth';
+import { uploadMedia } from '../middleware/upload';
 import {
   createDirectMessageValidation,
   createGroupChatValidation,
@@ -12,7 +13,9 @@ import { validate } from '../middleware/validate';
 const router = Router();
 
 router.get('/', authenticate, chatController.getUserChats);
+router.get('/unread-counts', authenticate, chatController.getUnreadCounts);
 router.get('/:id/messages', authenticate, idParamValidation, paginationValidation, validate, chatController.getChatMessages);
+router.post('/upload', authenticate, uploadMedia, chatController.uploadMedia);
 router.post('/direct', authenticate, createDirectMessageValidation, validate, chatController.createDirectMessage);
 router.post('/group', authenticate, createGroupChatValidation, validate, chatController.createGroupChat);
 router.post('/:id/messages', authenticate, idParamValidation, sendMessageValidation, validate, chatController.sendMessage);

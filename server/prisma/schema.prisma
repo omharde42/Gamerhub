@@ -1,131 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-enum UserRole {
-  USER
-  MODERATOR
-  ADMIN
-  SUPER_ADMIN
-}
-enum AccountProvider {
-  GOOGLE
-  DISCORD
-  STEAM
-  CREDENTIALS
-}
-enum PostType {
-  POST
-  ARTICLE
-  CLIP
-  POLL
-}
-enum NotificationType {
-  LIKE
-  COMMENT
-  FOLLOW
-  MESSAGE
-  TEAM_INVITE
-  TEAM_APPLICATION
-  TOURNAMENT_START
-  TOURNAMENT_RESULT
-  JOB_APPLICATION
-  ACHIEVEMENT
-  SYSTEM
-  MATCH_FOUND
-}
-enum TeamRole {
-  CAPTAIN
-  MANAGER
-  COACH
-  MEMBER
-  TRIAL
-}
-enum TeamStatus {
-  ACTIVE
-  INACTIVE
-  DISBANDED
-}
-enum TournamentStatus {
-  DRAFT
-  REGISTRATION_OPEN
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-enum TournamentType {
-  SINGLE_ELIMINATION
-  DOUBLE_ELIMINATION
-  ROUND_ROBIN
-  SWISS
-}
-enum MatchStatus {
-  SCHEDULED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-enum OrgMemberRole {
-  OWNER
-  ADMIN
-  MEMBER
-  SCOUT
-}
-enum JobType {
-  PLAYER
-  COACH
-  ANALYST
-  MANAGER
-  CASTER
-  OTHER
-}
-enum JobStatus {
-  DRAFT
-  OPEN
-  CLOSED
-  FILLED
-}
-enum ReportReason {
-  HARASSMENT
-  CHEATING
-  TOXICITY
-  SPAM
-  IMPERSONATION
-  OTHER
-}
-enum SubscriptionTier {
-  PRO
-  ELITE
-  TEAM_PRO
-}
-enum ServerMemberRole {
-  OWNER
-  ADMIN
-  MODERATOR
-  MEMBER
-}
-enum ChannelType {
-  TEXT
-  VOICE
-  ANNOUNCEMENT
-}
-enum FriendRequestStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-  BLOCKED
-}
-enum UserPresence {
-  ONLINE
-  IDLE
-  DND
-  INVISIBLE
-  OFFLINE
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -138,6 +19,20 @@ model User {
   twoFactorSecret String?
   banned          Boolean  @default(false)
   banReason       String?
+  discordId           String?   @unique
+  discordUsername     String?
+  discordDisplayName  String?
+  discordAvatar       String?
+  discordEmail        String?
+  discordAccessToken  String?
+  discordRefreshToken String?
+  discordConnectedAt  DateTime?
+  steamId             String?   @unique
+  steamUsername       String?
+  steamAvatar         String?
+  steamProfileUrl     String?
+  steamLevel          Int?
+  steamConnectedAt    DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   profile         Profile?
@@ -180,8 +75,43 @@ model User {
   friendRequestsReceived FriendRequest[] @relation("FriendRequestsReceived")
   serverMessages      ServerMessage[]
   messageReactions    MessageReaction[]
+  createdEvents       ServerEvent[]
+  gameRequests        GameRequest[]
+  gameAccounts        GameAccount[]
   @@index([email])
   @@index([role])
+}
+
+model GameAccount {
+  id             String    @id @default(uuid())
+  userId         String
+  game           String
+  inGameUid      String
+  inGameName     String
+  region         String?
+  rank           String?
+  level          Int?      @default(1)
+  kdRatio        Float?    @default(0.0)
+  winRate        Float?    @default(0.0)
+  totalMatches   Int?      @default(0)
+  rankRating     Int?      @default(0)
+  headshotPct    Float?    @default(0.0)
+  elo            Int?      @default(1000)
+  steamLevel     Int?      @default(1)
+  hoursPlayed    Float?    @default(0.0)
+  recentMatches  Json?
+  achievements   Json?
+  avatarUrl      String?
+  verified       Boolean   @default(true)
+  syncStatus     String?   @default("IDLE")
+  lastSyncedAt   DateTime? @default(now())
+  verifiedAt     DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, game])
+  @@index([userId])
+  @@index([game, inGameUid])
 }
 
 model Account {
@@ -311,6 +241,7 @@ model ConnectedGame {
   gameName          String
   publisher         String?
   playerId          String?
+  uid               String?
   server            String?
   region            String?
   level             String?
@@ -328,6 +259,8 @@ model ConnectedGame {
   favoriteWeapon    String?
   favoriteCharacter String?
   preferredRole     String?
+  preferredPosition String?
+  gameAchievements  String[] @default([])
   hoursPlayed       Float    @default(0)
   lastActive        DateTime?
   leaderboardPos    Int?
@@ -935,6 +868,7 @@ model Server {
   owner        User     @relation("ServerOwner", fields: [ownerId], references: [id])
   members      ServerMember[]
   channels     Channel[]
+  events       ServerEvent[]
   @@index([slug])
   @@index([inviteCode])
 }
@@ -1008,4 +942,197 @@ model FriendRequest {
   @@unique([senderId, receiverId])
   @@index([senderId])
   @@index([receiverId])
+}
+
+model ServerEvent {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  location    String
+  startDate   DateTime
+  endDate     DateTime?
+  serverId    String
+  server      Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  creatorId   String
+  creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserPresence {
+  ONLINE
+  IDLE
+  DND
+  INVISIBLE
+  OFFLINE
+}
+
+enum AccountProvider {
+  GOOGLE
+  DISCORD
+  STEAM
+  APPLE
+  CREDENTIALS
+}
+
+enum PostType {
+  POST
+  ARTICLE
+  VIDEO
+  NEWS
+  POLL
+  CLIP
+}
+
+enum TeamStatus {
+  ACTIVE
+  INACTIVE
+  OPEN
+  DISBANDED
+}
+
+enum TeamRole {
+  LEADER
+  CO_LEADER
+  CAPTAIN
+  MEMBER
+  MANAGER
+  COACH
+  TRIAL
+}
+
+enum TournamentType {
+  SINGLE_ELIMINATION
+  DOUBLE_ELIMINATION
+  ROUND_ROBIN
+  SWISS
+  BATTLE_ROYALE
+}
+
+enum TournamentStatus {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REGISTRATION_OPEN
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum OrgMemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+  SCOUT
+}
+
+enum JobType {
+  PLAYER
+  COACH
+  MANAGER
+  CASTER
+  ANALYST
+  CONTENT_CREATOR
+  OTHER
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+  FILLED
+  ON_HOLD
+  DRAFT
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  LIKE
+  COMMENT
+  FOLLOW
+  MESSAGE
+  TEAM_INVITE
+  TOURNAMENT
+  SYSTEM
+  TEAM_APPLICATION
+  TOURNAMENT_START
+  TOURNAMENT_RESULT
+  JOB_APPLICATION
+  ACHIEVEMENT
+  MATCH_FOUND
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  CHEATING
+  TOXIC_BEHAVIOR
+  INAPPROPRIATE_CONTENT
+  OTHER
+  TOXICITY
+  IMPERSONATION
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+  PRO
+  ENTERPRISE
+  ELITE
+  TEAM_PRO
+}
+
+enum ChannelType {
+  TEXT
+  VOICE
+  ANNOUNCEMENT
+}
+
+enum ServerMemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REJECTED
+  BLOCKED
+}
+
+enum GameRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model GameRequest {
+  id          String            @id @default(uuid())
+  gameName    String
+  genre       String
+  logo        String?
+  status      GameRequestStatus @default(PENDING)
+  adminNote   String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([status])
+  @@index([userId])
 }

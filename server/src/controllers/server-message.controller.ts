@@ -10,10 +10,23 @@ export class ServerMessageController {
     const { channelId, content, media } = req.body;
     const channel = await prisma.channel.findUnique({ where: { id: channelId }, include: { server: true } });
     if (!channel || channel.type === 'VOICE') return sendError(res, 400, 'Invalid channel');
+    
     const member = await prisma.serverMember.findUnique({
       where: { serverId_userId: { serverId: channel.serverId, userId: req.user!.userId } },
     });
     if (!member) return sendError(res, 403, 'Not a member');
+
+    // Enforce permissions:
+    // 1. Private channels can only be posted to by OWNER, ADMIN, MODERATOR
+    if (channel.isPrivate && !['OWNER', 'ADMIN', 'MODERATOR'].includes(member.role)) {
+      return sendError(res, 403, 'Only owners, admins, and moderators can send messages in private channels');
+    }
+
+    // 2. Announcement channels can only be posted to by OWNER, ADMIN, MODERATOR
+    if (channel.type === 'ANNOUNCEMENT' && !['OWNER', 'ADMIN', 'MODERATOR'].includes(member.role)) {
+      return sendError(res, 403, 'Only owners, admins, and moderators can send announcements');
+    }
+
     const message = await prisma.serverMessage.create({
       data: { channelId, senderId: req.user!.userId, content, media: media || [] },
       include: {
@@ -33,6 +46,12 @@ export class ServerMessageController {
       where: { serverId_userId: { serverId: channel.serverId, userId: req.user!.userId } },
     });
     if (!member) return sendError(res, 403, 'Not a member');
+
+    // Enforce permissions:
+    // Private channels can only be read by OWNER, ADMIN, MODERATOR
+    if (channel.isPrivate && !['OWNER', 'ADMIN', 'MODERATOR'].includes(member.role)) {
+      return sendError(res, 403, 'Only owners, admins, and moderators can view messages in private channels');
+    }
     const messages = await prisma.serverMessage.findMany({
       where: { channelId },
       orderBy: { createdAt: 'asc' },
