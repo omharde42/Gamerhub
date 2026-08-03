@@ -1,27 +1,33 @@
 'use client';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Navbar } from './navbar';
 import { Sidebar } from './sidebar';
 import { MobileBottomNav } from './mobile-bottom-nav';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
+import { useSessionRefresh } from '@/hooks/useSessionRefresh';
 import toast from 'react-hot-toast';
 import { UpdateChecker } from '../common/update-checker';
+
+// Routes prefetched eagerly after a session is restored so navigation is instant.
+const PREFETCH_ROUTES = ['/feed', '/messages', '/notifications', '/dashboard'];
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, lastPath, setLastPath } = useAuthStore();
   const [hasHydrated, setHasHydrated] = useState(false);
+  const restoredRef = useRef(false);
 
   const isLanding = pathname === '/';
-  const isAuthOrLanding = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');
-  const hideSidebar = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages');
-  const hideBottomNav = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages');
+  const isAuthRoute = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');
+  const hideSidebar = isAuthRoute || pathname?.startsWith('/messages');
+  const hideBottomNav = isAuthRoute || pathname?.startsWith('/messages');
   const isServerPage = pathname?.startsWith('/servers/');
   const isMessages = pathname?.startsWith('/messages');
 
+  // Hydration of zustand's persist store is synchronous with localStorage, so
+  // this resolves within the first render cycle — no artificial delay needed.
   useEffect(() => {
     const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
       setHasHydrated(true);
@@ -29,51 +35,64 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     if (useAuthStore.persist.hasHydrated()) {
       setHasHydrated(true);
     }
-    const timer = setTimeout(() => {
-      setHasHydrated(true);
-    }, 300);
-
-    return () => {
-      unsubscribe();
-      clearTimeout(timer);
-    };
+    return () => unsubscribe();
   }, []);
 
+  // Remember the last visited page (skipping landing/auth) for instant restore.
+  useEffect(() => {
+    if (!hasHydrated || isAuthRoute || !isAuthenticated) return;
+    setLastPath(pathname);
+  }, [pathname, hasHydrated, isAuthenticated, setLastPath]);
+
+  // Restore the last visited page instead of always forcing /feed.
   useEffect(() => {
     if (!hasHydrated) return;
 
-    // Guard 1: Redirect to login if unauthenticated and trying to access private page
-    if (!isAuthenticated && !isAuthOrLanding) {
-      router.push('/auth/login');
+    // Guard 1: Unauthenticated on a private page → login (silent, no splash).
+    if (!isAuthenticated && !isAuthRoute) {
+      router.replace('/auth/login');
       return;
     }
 
-    // Guard 2: Redirect to feed if authenticated and trying to access landing/auth page
-    if (isAuthenticated && user && isAuthOrLanding && pathname !== '/auth/callback') {
-      router.push('/feed');
-      return;
+    // Guard 2: Authenticated on landing/auth → restore last page or feed.
+    if (isAuthenticated && user && isAuthRoute && pathname !== '/auth/callback') {
+      if (restoredRef.current) return;
+      restoredRef.current = true;
+      const target = lastPath && lastPath !== '/' ? lastPath : '/feed';
+      setLastPath(null);
+      router.replace(target);
     }
+  }, [hasHydrated, user, isAuthenticated, isAuthRoute, pathname, router, lastPath, setLastPath]);
 
-    // Guard 3: Redirect to profile settings if profile is incomplete
-    if (isAuthenticated && user) {
-      const isProfileIncomplete = 
-        !user.profile ||
-        !user.profile.displayName?.trim();
+  // Background session validation + silent user refresh. Never blocks rendering.
+  useSessionRefresh(hasHydrated && !!isAuthenticated);
 
-      const onSettingsPage = pathname === '/profile/settings';
+  // Prefetch the critical routes right after session restore.
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated) return;
+    const t = setTimeout(() => {
+      PREFETCH_ROUTES.forEach((route) => {
+        if (route !== pathname) router.prefetch(route);
+      });
+      if (user?.profile?.username) router.prefetch(`/profile/${user.profile.username}`);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [hasHydrated, isAuthenticated, pathname, router, user?.profile?.username]);
 
-      if (isProfileIncomplete && !onSettingsPage && !isAuthOrLanding) {
-        toast('Gamer Passport incomplete. Please complete setup!', { id: 'setup-guard-toast' });
-        router.push('/profile/settings');
-      }
+  // Guard 3: Redirect to settings if the Gamer Passport is incomplete.
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated || !user) return;
+    const isProfileIncomplete = !user.profile || !user.profile.displayName?.trim();
+    const onSettingsPage = pathname === '/profile/settings';
+    if (isProfileIncomplete && !onSettingsPage && !isAuthRoute) {
+      toast('Gamer Passport incomplete. Please complete setup!', { id: 'setup-guard-toast' });
+      router.push('/profile/settings');
     }
-  }, [hasHydrated, user, isAuthenticated, isAuthOrLanding, pathname, router]);
+  }, [hasHydrated, user, isAuthenticated, isAuthRoute, pathname, router]);
 
-  const isRedirectingAuthenticatedUser = isAuthenticated && !!user && isAuthOrLanding && pathname !== '/auth/callback';
-  const isRedirectingUnauthenticatedUser = !isAuthenticated && !isAuthOrLanding;
-
-  // Render a subtle Splash Screen until rehydration and route redirection are resolved to eliminate layout flashes
-  if (!hasHydrated || isRedirectingAuthenticatedUser || isRedirectingUnauthenticatedUser) {
+  // Only show the branded splash while the persisted session is being read
+  // (a single synchronous tick with localStorage — typically invisible).
+  if (!hasHydrated) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-center animate-fade-in">

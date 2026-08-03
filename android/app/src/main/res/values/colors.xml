@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Gaming Brand Colors (from web design system) -->
+    <color name="colorPrimary">#7C3AED</color>          <!-- Electric Purple -->
+    <color name="colorPrimaryDark">#5B21B6</color>      <!-- Darker Purple -->
+    <color name="colorSecondary">#FF6B00</color>        <!-- Cyber Orange -->
+    <color name="colorAccent">#00E676</color>           <!-- Success Green -->
+
+    <color name="statusBarColor">#05070E</color>        <!-- Matches color-bg-main -->
+    <color name="navigationBarColor">#05070E</color>    <!-- Matches color-bg-main -->
+    <color name="windowBackground">#05070E</color>      <!-- Matches color-bg-main -->
+</resources>

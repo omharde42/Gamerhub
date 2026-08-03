@@ -21,6 +21,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PostCard } from '@/components/post/post-card';
 import { SteamShowcase } from '@/components/profile/steam-showcase';
+import { PageBackButton } from '@/components/ui/page-back-button';
 
 function StatCard({ value, label, color, delay = 0 }: { value: string | number; label: string; color: string; delay?: number }) {
   return (
@@ -250,6 +251,7 @@ export default function ProfilePage() {
           {profile.banner && <img src={profile.banner} alt="" className="w-full h-full object-cover" />}
           <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
           <div className="absolute inset-0 bg-grid opacity-5" />
+          <PageBackButton fallbackHref="/dashboard" className="absolute top-2 left-2 text-white bg-black/30 hover:bg-black/50 backdrop-blur-md z-10 rounded-full" aria-label="Back" />
           {user?.profile?.username === username && (
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
               <div className="opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center gap-1 text-white text-xs font-semibold">

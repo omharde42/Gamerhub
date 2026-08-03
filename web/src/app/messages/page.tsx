@@ -13,10 +13,10 @@ import {
   MessageSquare, UserPlus, Phone, Video, Mic, Headphones, Settings,
   Hash, Users, ChevronDown, ChevronRight, ChevronLeft, Heart, Smile, Reply,
   Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
-  Sparkles, Volume2, Pause, Play, Square, Lock, Shield
+  Sparkles, Volume2, Pause, Play, Square, Lock, Shield, RotateCw
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useKeyboard, scrollInputIntoView } from '@/hooks/useKeyboard';
+import { useKeyboard } from '@/hooks/useKeyboard';
 const CallModal = dynamic(() => import('@/components/chat/call-modal').then(m => m.CallModal), { ssr: false });
 const ImagePreview = dynamic(() => import('@/components/ui/image-preview').then(m => m.ImagePreview), { ssr: false });
 import { getInitials, formatRelativeTime, formatLastSeen, cn, getMediaUrl } from '@/lib/utils';
@@ -66,9 +66,9 @@ function DiscordMessagesPage() {
   };
 
   // Scroll the message input into view when it receives focus on mobile
-  const handleInputFocus = useCallback(() => {
-    scrollInputIntoView(inputRef.current);
-  }, []);
+  // NOTE: No scrollIntoView here — that scrolled the entire page/header off-screen.
+  // The layout (fixed h-dvh container + keyboardHeight padding) keeps the input
+  // pinned above the keyboard on both Android and iOS.
 
   // Voice recording state variables
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -227,13 +227,32 @@ function DiscordMessagesPage() {
   }, [userIdParam]);
 
   const sendViaApi = useMutation({
-    mutationFn: (data: { chatId: string; content: string; media?: string[]; voiceNote?: string }) =>
+    mutationFn: (data: { chatId: string; content: string; media?: string[]; voiceNote?: string; _tempId?: string }) =>
       api.post(`/chat/${data.chatId}/messages`, { content: data.content, media: data.media, voiceNote: data.voiceNote }),
-    onSuccess: () => { refetchMessages(); queryClient.invalidateQueries({ queryKey: ['chats'] }); setFilePreview(null); },
-    onError: () => toast.error('Failed to send message'),
+    onSuccess: (_res, vars) => {
+      if (vars._tempId) setMessages(prev => prev.filter(m => m.id !== vars._tempId));
+      refetchMessages(); queryClient.invalidateQueries({ queryKey: ['chats'] }); setFilePreview(null);
+    },
+    onError: (_err, vars) => {
+      if (vars._tempId) setMessages(prev => prev.map(m => m.id === vars._tempId ? { ...m, status: 'failed' } : m));
+      toast.error('Failed to send message');
+    },
   });
 
   const [decryptedMessages, setDecryptedMessages] = useState<any[]>([]);
+
+  // Scroll area + auto-scroll behavior (only auto-scroll when user is near bottom)
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const nearBottomRef = useRef(true);
+
+  const getViewport = useCallback(() => {
+    return scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+  }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const vp = getViewport();
+    if (vp) vp.scrollTo({ top: vp.scrollHeight, behavior });
+  }, [getViewport]);
 
   // Initialize E2EE Keys on device load & register Public Key bundle
   useEffect(() => {
@@ -387,10 +406,26 @@ function DiscordMessagesPage() {
       socket.emit('join:chat', selectedChat);
       
       const onMessage = (msg: any) => {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          if (msg.sender?.id === user?.id) {
+            const tempIdx = prev.findIndex(m => m._temp && m.status !== 'failed');
+            if (tempIdx !== -1) {
+              const next = [...prev];
+              next[tempIdx] = msg;
+              return next;
+            }
+          }
+          return [...prev, msg];
+        });
         queryClient.invalidateQueries({ queryKey: ['chats'] });
       };
-      
+
+      const onSocketError = (err: any) => {
+        setMessages(prev => prev.map(m => m._temp && m.status === 'sending' ? { ...m, status: 'failed' } : m));
+        toast.error(err?.message || 'Failed to send message');
+      };
+
       const onMessagesRead = (data: { chatId: string; readBy: string; messageIds: string[] }) => {
         // Update read receipts in real-time for our own sent messages
         // The 'messages:read' event fires when the OTHER participant reads our messages
@@ -409,16 +444,39 @@ function DiscordMessagesPage() {
       
       socket.on('message:new', onMessage);
       socket.on('messages:read', onMessagesRead);
+      socket.on('error', onSocketError);
       
       return () => {
         socket.emit('leave:chat', selectedChat);
         socket.off('message:new', onMessage);
         socket.off('messages:read', onMessagesRead);
+        socket.off('error', onSocketError);
       };
     }
   }, [selectedChat, socket, queryClient, user?.id]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [decryptedMessages]);
+  // Auto-scroll to bottom only when the user is already near the bottom
+  useEffect(() => {
+    if (nearBottomRef.current && selectedChat) scrollToBottom('smooth');
+  }, [decryptedMessages, selectedChat, scrollToBottom]);
+
+  useEffect(() => {
+    if (!selectedChat) return;
+    nearBottomRef.current = true;
+    const t = setTimeout(() => scrollToBottom('auto'), 60);
+    return () => clearTimeout(t);
+  }, [selectedChat, scrollToBottom]);
+
+  useEffect(() => {
+    if (!selectedChat) return;
+    const vp = getViewport();
+    if (!vp) return;
+    const onScroll = () => {
+      nearBottomRef.current = vp.scrollHeight - vp.scrollTop - vp.clientHeight < 120;
+    };
+    vp.addEventListener('scroll', onScroll, { passive: true });
+    return () => vp.removeEventListener('scroll', onScroll);
+  }, [selectedChat, getViewport]);
 
   let typingTimeout: any;
   const handleTyping = () => {
@@ -433,14 +491,39 @@ function DiscordMessagesPage() {
     
     const payloadContent = message.trim();
     const media = attachedMedia.length > 0 ? attachedMedia : filePreview ? [filePreview] : undefined;
-    if (socket) {
-      socket.emit('message:send', { chatId: selectedChat, content: payloadContent, media });
-    } else {
-      sendViaApi.mutate({ chatId: selectedChat, content: payloadContent, media });
-    }
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+    // Optimistic send: show the message instantly while it confirms
+    setMessages(prev => [...prev, {
+      id: tempId,
+      sender: { id: user?.id, profile: user?.profile },
+      content: payloadContent,
+      media,
+      createdAt: new Date().toISOString(),
+      status: 'sending',
+      _temp: true,
+    }]);
     setMessage('');
     setFilePreview(null);
     setAttachedMedia([]);
+
+    if (socket) {
+      socket.emit('message:send', { chatId: selectedChat, content: payloadContent, media });
+      // Safety net: if the server never echoes back, mark as failed for retry
+      setTimeout(() => {
+        setMessages(prev => prev.some(m => m.id === tempId && m._temp && m.status === 'sending')
+          ? prev.map(m => m.id === tempId && m._temp ? { ...m, status: 'failed' } : m)
+          : prev);
+      }, 8000);
+    } else {
+      sendViaApi.mutate({ chatId: selectedChat, content: payloadContent, media, _tempId: tempId });
+    }
+  };
+
+  const retryMessage = (msg: any) => {
+    if (!selectedChat) return;
+    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, status: 'sending' } : m));
+    sendViaApi.mutate({ chatId: selectedChat, content: msg.content || '', media: msg.media, _tempId: msg.id });
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -476,6 +559,7 @@ function DiscordMessagesPage() {
 
   const handleSelectChat = (chatId: string) => {
     setSelectedChat(chatId);
+    nearBottomRef.current = true;
     // Emit socket event to mark messages as read and notify the other participant
     // (the server handler calls markAsRead and broadcasts the actual message IDs)
     socket?.emit('messages:read', { chatId });
@@ -721,15 +805,15 @@ function DiscordMessagesPage() {
                       <Avatar className="h-8 w-8"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(other?.profile?.username || 'U')}</AvatarFallback></Avatar>
                       {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card animate-pulse" />}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-bold text-foreground">{other?.profile?.username || 'User'}</p>
-                        <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 flex items-center gap-1">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-sm font-bold text-foreground truncate">{other?.profile?.username || 'User'}</p>
+                        <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 flex items-center gap-1 shrink-0">
                           <Lock className="w-2.5 h-2.5 text-emerald-400" />
                           E2EE
                         </Badge>
                       </div>
-                      <p className="text-[10px] font-medium flex items-center gap-1" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
+                      <p className="text-[10px] font-medium flex items-center gap-1 truncate" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
                         {online ? (
                           <><span className="w-1.5 h-1.5 bg-success rounded-full inline-block" /> Online</>
                         ) : other?.presence === 'IDLE' ? (
@@ -751,7 +835,7 @@ function DiscordMessagesPage() {
             </div>
 
             {/* Messages list */}
-            <ScrollArea className="flex-1 px-4 bg-grid bg-[length:40px_40px]">
+            <ScrollArea key={selectedChat} ref={scrollAreaRef} className="flex-1 px-4 bg-grid bg-[length:40px_40px]">
               <div className="py-6 space-y-3 max-w-4xl mx-auto">
                 <AnimatePresence initial={false}>
                   {(decryptedMessages.length > 0 ? decryptedMessages : messages)?.map((msg: any, idx: number) => {
@@ -821,10 +905,18 @@ function DiscordMessagesPage() {
                             </div>
                           )}
 
-                          {/* Read Receipts: shown under own messages */}
+                          {/* Read Receipts / send status: shown under own messages */}
                           {isOwn && !msg.content?.includes('"isE2EE":true') && (
                             <div className="flex items-center gap-1 mt-0.5">
-                              {msg.readBy && msg.readBy.length > 0 ? (
+                              {msg._temp && msg.status === 'failed' ? (
+                                <button onClick={() => retryMessage(msg)} className="flex items-center gap-1 text-[9px] text-destructive font-medium hover:underline">
+                                  <RotateCw className="h-2.5 w-2.5" /> Failed - tap to retry
+                                </button>
+                              ) : msg._temp ? (
+                                <span className="flex items-center gap-1 text-[9px] text-muted-foreground/60 font-medium">
+                                  <Loader2 className="h-2.5 w-2.5 animate-spin" /> Sending
+                                </span>
+                              ) : msg.readBy && msg.readBy.length > 0 ? (
                                 <span className="flex items-center gap-0.5 text-[9px] text-primary/70 font-medium">
                                   <svg width="14" height="10" viewBox="0 0 14 10" fill="none" className="h-3 w-3">
                                     <path d="M1 5.5L4 8.5L9.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1010,7 +1102,6 @@ function DiscordMessagesPage() {
                       placeholder={`Message ${(() => { const c = chats?.find((c: any) => c.id === selectedChat); const o = c ? getOtherParticipant(c) : null; return o?.profile?.username || 'User'; })()}`}
                       value={message}
                       onChange={(e) => { setMessage(e.target.value); handleTyping(); }}
-                      onFocus={handleInputFocus}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
                       className="flex-1 h-9 border-0 bg-transparent text-sm focus-visible:ring-0 px-0 placeholder:text-muted-foreground/60 min-w-0"
                       variant="ghost"

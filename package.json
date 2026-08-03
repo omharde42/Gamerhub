@@ -14,11 +14,11 @@
     "db:migrate": "cd server && npx prisma migrate dev"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "concurrently": "^8.2.2"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
-    "@capacitor/cli": "^8.4.2",
     "@capacitor/core": "^8.4.2"
   }
 }

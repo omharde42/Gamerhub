@@ -1,34 +1,38 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportHeight="108"
     android:viewportWidth="108">
-    <path
-        android:fillType="evenOdd"
-        android:pathData="M32,64C32,64 38.39,52.99 44.13,50.95C51.37,48.37 70.14,49.57 70.14,49.57L108.26,87.69L108,109.01L75.97,107.97L32,64Z"
-        android:strokeColor="#00000000"
-        android:strokeWidth="1">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="78.5885"
-                android:endY="90.9159"
-                android:startX="48.7653"
-                android:startY="61.0927"
-                android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
+    <!-- Gamepad body -->
     <path
         android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:pathData="M66.94,46.02L66.94,46.02C72.44,50.07 76,56.61 76,64L32,64C32,56.61 35.56,50.11 40.98,46.06L36.18,41.19C35.45,40.45 35.45,39.3 36.18,38.56C36.91,37.81 38.05,37.81 38.78,38.56L44.25,44.05C47.18,42.57 50.48,41.71 54,41.71C57.48,41.71 60.78,42.57 63.68,44.05L69.11,38.56C69.84,37.81 70.98,37.81 71.71,38.56C72.44,39.3 72.44,40.45 71.71,41.19L66.94,46.02ZM62.94,56.92C64.08,56.92 65,56.01 65,54.88C65,53.76 64.08,52.85 62.94,52.85C61.8,52.85 60.88,53.76 60.88,54.88C60.88,56.01 61.8,56.92 62.94,56.92ZM45.06,56.92C46.2,56.92 47.13,56.01 47.13,54.88C47.13,53.76 46.2,52.85 45.06,52.85C43.92,52.85 43,53.76 43,54.88C43,56.01 43.92,56.92 45.06,56.92Z"
-        android:strokeColor="#00000000"
-        android:strokeWidth="1" />
+        android:pathData="M18,42 C18,31.716 26.716,23 37,23 L71,23 C81.284,23 90,31.716 90,42 L90,66 C90,76.284 81.284,85 71,85 L37,85 C26.716,85 18,76.284 18,76 L18,42 Z" />
+    <!-- Left joystick base -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,40 C32,33.373 37.373,28 44,28 C50.627,28 56,33.373 56,40 C56,46.627 50.627,52 44,52 C37.373,52 32,46.627 32,40 Z" />
+    <!-- Left joystick stick -->
+    <path
+        android:fillColor="#7C3AED"
+        android:pathData="M38,34 C38,30.686 40.686,28 44,28 C47.314,28 50,30.686 50,34 C50,37.314 47.314,40 44,40 C40.686,40 38,37.314 38,34 Z" />
+    <!-- Right joystick base -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M52,48 C52,41.373 57.373,36 64,36 C70.627,36 76,41.373 76,48 C76,54.627 70.627,60 64,60 C57.373,60 52,54.627 52,48 Z" />
+    <!-- Right joystick stick -->
+    <path
+        android:fillColor="#FF6B00"
+        android:pathData="M58,42 C58,38.686 60.686,36 64,36 C67.314,36 70,38.686 70,42 C70,45.314 67.314,48 64,48 C60.686,48 58,45.314 58,42 Z" />
+    <!-- D-pad -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M26,54 L26,70 L42,70 L42,54 L26,54 Z M34,46 L34,78 L46,78 L46,46 L34,46 Z" />
+    <!-- ABXY buttons (right side) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M74,54 C74,47.373 79.373,42 86,42 C92.627,42 98,47.373 98,54 C98,60.627 92.627,66 86,66 C79.373,66 74,60.627 74,54 Z" />
+    <!-- L1/R1 triggers -->
+    <path
+        android:fillColor="#7C3AED"
+        android:pathData="M18,23 C18,20.791 19.791,19 22,19 L86,19 C88.209,19 90,20.791 90,23 L90,42 C90,44.209 88.209,46 86,46 L22,46 C19.791,46 18,44.209 18,42 L18,23 Z" />
 </vector>
