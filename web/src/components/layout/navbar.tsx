@@ -11,7 +11,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useTheme } from 'next-themes';
-import { motion, AnimatePresence } from 'framer-motion';import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import {
   Gamepad2, Search, Bell, MessageSquare, Users,
   LogOut, User, Settings, Crown, Home, Briefcase, ChevronDown,
@@ -26,20 +27,6 @@ const navIcons = [
   { href: '/studio', icon: Film, label: 'Studio' },
   { href: '/friends', icon: Users, label: 'Network' },
   { href: '/servers', icon: Globe, label: 'Servers' },
-];
-
-const moreNavItems = (username: string) => [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/explore', label: 'Explore', icon: Compass },
-  { href: '/games', label: 'Game Library', icon: GamepadIcon },
-  { href: '/news', label: 'Gaming News', icon: Newspaper },
-  { href: '/teams', label: 'Teams', icon: Trophy },
-  { href: '/tournaments', label: 'Tournaments', icon: GamepadIcon },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/saved', label: 'Saved Posts', icon: Bookmark },
-  { href: '/ai-coach', label: 'AI Coach', icon: Bot },
-  { href: `/passport/${username}`, label: 'Gamer Passport', icon: Shield },
-  { href: '/premium', label: 'Premium', icon: Crown },
 ];
 
 export function Navbar() {
@@ -337,39 +324,42 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-1">
-          {/* Theme Switcher Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground">
-                {mounted && activeTheme === 'light' ? (
-                  <Sun className="h-4.5 w-4.5" />
-                ) : mounted && activeTheme === 'gray' ? (
-                  <Palette className="h-4.5 w-4.5" />
-                ) : (
-                  <Moon className="h-4.5 w-4.5" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36 glass-strong">
-              <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2 cursor-pointer text-xs font-semibold">
-                <Sun className="h-4 w-4 text-orange-500" /> Light Mode
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2 cursor-pointer text-xs font-semibold">
-                <Moon className="h-4 w-4 text-primary" /> Dark Mode
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('gray')} className="gap-2 cursor-pointer text-xs font-semibold">
-                <Palette className="h-4 w-4 text-muted-foreground" /> Gray Mode
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Theme Switcher (Desktop only) */}
+          <div className="hidden md:block">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground">
+                  {mounted && activeTheme === 'light' ? (
+                    <Sun className="h-4.5 w-4.5" />
+                  ) : mounted && activeTheme === 'gray' ? (
+                    <Palette className="h-4.5 w-4.5" />
+                  ) : (
+                    <Moon className="h-4.5 w-4.5" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-36 glass-strong">
+                <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2 cursor-pointer text-xs font-semibold">
+                  <Sun className="h-4 w-4 text-orange-500" /> Light Mode
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2 cursor-pointer text-xs font-semibold">
+                  <Moon className="h-4 w-4 text-primary" /> Dark Mode
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('gray')} className="gap-2 cursor-pointer text-xs font-semibold">
+                  <Palette className="h-4 w-4 text-muted-foreground" /> Gray Mode
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
+          {/* Profile Dropdown (Both Mobile & Desktop) */}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-1.5 px-2 h-12 rounded-lg hover:bg-accent/50">
-                  <Avatar className="h-7 w-7" ring status="online">
+                <Button variant="ghost" className="flex items-center gap-1.5 px-2 h-11 w-11 md:w-auto rounded-lg hover:bg-accent/50 shrink-0">
+                  <Avatar className="h-8 w-8 md:h-7 md:w-7" ring status="online">
                     <AvatarImage src={user?.profile?.avatar || ''} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-[10px]">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                    <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-extrabold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
                   </Avatar>
                   <ChevronDown className="h-3 w-3 text-muted-foreground hidden md:block" />
                 </Button>
@@ -405,7 +395,7 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Link href="/auth/login">
                 <Button variant="outline" size="sm" className="h-9 px-4 rounded-lg text-xs font-medium">
                   Sign In

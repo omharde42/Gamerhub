@@ -32,6 +32,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
       setHasHydrated(true);
     });
+
     if (useAuthStore.persist.hasHydrated()) {
       setHasHydrated(true);
     }
@@ -94,7 +95,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   // (a single synchronous tick with localStorage — typically invisible).
   if (!hasHydrated) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#05070E] flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl overflow-hidden border border-primary/20 shadow-xl relative shrink-0">
             <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
