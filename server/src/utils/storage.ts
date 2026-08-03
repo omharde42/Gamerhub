@@ -3,17 +3,19 @@ import { config } from '../config';
 import path from 'path';
 import fs from 'fs';
 
-// Initialize Cloudinary with configured or production fallback credentials so uploads NEVER fail
-const cloudName = config.cloudinary.cloudName || process.env.CLOUDINARY_CLOUD_NAME || 'gamerhub-cdn';
-const apiKey = config.cloudinary.apiKey || process.env.CLOUDINARY_API_KEY || '819273641234123';
-const apiSecret = config.cloudinary.apiSecret || process.env.CLOUDINARY_API_SECRET || 'abc123secretkey987';
+// Initialize Cloudinary with configured credentials
+const cloudName = config.cloudinary.cloudName || process.env.CLOUDINARY_CLOUD_NAME;
+const apiKey = config.cloudinary.apiKey || process.env.CLOUDINARY_API_KEY;
+const apiSecret = config.cloudinary.apiSecret || process.env.CLOUDINARY_API_SECRET;
 
-cloudinary.config({
-  cloud_name: cloudName,
-  api_key: apiKey,
-  api_secret: apiSecret,
-  secure: true,
-});
+if (cloudName && apiKey && apiSecret) {
+  cloudinary.config({
+    cloud_name: cloudName,
+    api_key: apiKey,
+    api_secret: apiSecret,
+    secure: true,
+  });
+}
 
 export interface UploadResult {
   url: string;
@@ -26,7 +28,7 @@ export interface UploadResult {
 export class MediaStorageService {
   /**
    * Upload a file buffer to permanent Cloud CDN storage (Cloudinary)
-   * Fallback to disk or compressed base64 Data URI if cloud network is unreachable
+   * Fallback to base64 Data URIs to prevent image loss on ephemeral hosts (like Render)
    */
   async uploadMedia(
     fileBuffer: Buffer,
@@ -77,9 +79,10 @@ export class MediaStorageService {
       }
     }
 
-    // 2. Secondary Storage: If running on Render ephemeral host without Cloudinary, use Base64 Data URI to prevent image loss on container restart
+    // 2. Secondary Storage Fallback: base64 Data URI to prevent image loss on ephemeral hosts (like Render/containers)
+    // base64 strings are stored directly in PostgreSQL database columns (TEXT) which persists permanently across deployments!
     const isRenderHost = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL);
-    if (isRenderHost || fileBuffer.length < 2 * 1024 * 1024) {
+    if (isRenderHost || fileBuffer.length < 5 * 1024 * 1024) {
       const b64 = fileBuffer.toString('base64');
       return {
         url: `data:${mimeType};base64,${b64}`,
@@ -89,7 +92,7 @@ export class MediaStorageService {
       };
     }
 
-    // 3. Local Persistent Disk Storage (for local development only)
+    // 3. Local Persistent Disk Storage (backup option)
     try {
       const uploadsDir = path.resolve(process.cwd(), `public/uploads/${folder}`);
       if (!fs.existsSync(uploadsDir)) {
@@ -111,10 +114,10 @@ export class MediaStorageService {
         mimeType,
       };
     } catch (diskErr) {
-      console.warn(`Disk write warning (${folder}), using compressed base64 fallback:`, diskErr);
+      console.warn(`Disk write warning (${folder}), using base64 fallback:`, diskErr);
     }
 
-    // 4. Fallback: Base64 Data URI
+    // 4. Ultimate Fallback: Base64 Data URI
     const b64 = fileBuffer.toString('base64');
     return {
       url: `data:${mimeType};base64,${b64}`,
@@ -129,7 +132,7 @@ export class MediaStorageService {
    */
   async deleteMedia(publicId: string): Promise<boolean> {
     try {
-      if (publicId) {
+      if (publicId && cloudName && apiKey && apiSecret) {
         await cloudinary.uploader.destroy(publicId);
         return true;
       }

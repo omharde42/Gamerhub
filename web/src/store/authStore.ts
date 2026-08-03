@@ -2,22 +2,30 @@ import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import type { User } from '@/types';
 
-// Simple localStorage adapter (removed Capacitor dependency for web-only)
+// Simple localStorage adapter with error checking
 const webStorageAdapter: StateStorage = {
   getItem: (name: string): string | null => {
     if (typeof window !== 'undefined') {
-      try { return localStorage.getItem(name); } catch { return null; }
+      try {
+        return localStorage.getItem(name);
+      } catch {
+        return null;
+      }
     }
     return null;
   },
   setItem: (name: string, value: string): void => {
     if (typeof window !== 'undefined') {
-      try { localStorage.setItem(name, value); } catch {}
+      try {
+        localStorage.setItem(name, value);
+      } catch {}
     }
   },
   removeItem: (name: string): void => {
     if (typeof window !== 'undefined') {
-      try { localStorage.removeItem(name); } catch {}
+      try {
+        localStorage.removeItem(name);
+      } catch {}
     }
   },
 };
@@ -44,6 +52,13 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user, isAuthenticated: !!user }),
 
       setTokens: (accessToken, refreshToken) => {
+        // Double backup the tokens directly to separate localStorage keys for raw non-Zustand APIs/sockets
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('refreshToken', refreshToken);
+          } catch {}
+        }
         set((state) => ({
           accessToken,
           refreshToken,
@@ -52,10 +67,22 @@ export const useAuthStore = create<AuthState>()(
       },
 
       login: (user, accessToken, refreshToken) => {
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('refreshToken', refreshToken);
+          } catch {}
+        }
         set({ user, accessToken, refreshToken, isAuthenticated: true });
       },
 
       logout: () => {
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+          } catch {}
+        }
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
       },
     }),
