@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -8,12 +8,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MapPin, Globe, Trophy, Target, TrendingUp, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Calendar, Award, Swords, X, Plus, Hash, Search, Loader2, Heart, Reply, MoreVertical, Smile, Paperclip, Image as ImageIcon, UserCheck, UserPlus, Phone, Link as LinkIcon, Sparkles, Settings, Camera, MessageSquare } from 'lucide-react';
-import { formatDate, formatNumber, getInitials, getRankColor, formatRelativeTime } from '@/lib/utils';
+import { MapPin, Trophy, Target, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Award, Swords, X, Loader2, Heart, UserCheck, UserPlus, Sparkles, Settings, Camera, MessageSquare, Search } from 'lucide-react';
+import { formatDate, getInitials, getRankColor } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useSocket } from '@/hooks/useSocket';
 import Link from 'next/link';
@@ -21,6 +20,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PostCard } from '@/components/post/post-card';
 import { SteamShowcase } from '@/components/profile/steam-showcase';
+import { BackHeader } from '@/components/common/back-header';
 
 function StatCard({ value, label, color, delay = 0 }: { value: string | number; label: string; color: string; delay?: number }) {
   return (
@@ -202,7 +202,6 @@ export default function ProfilePage() {
     setListModalOpen(true);
   };
 
-  // Navigate to unified messages page
   const router = useRouter();
   const openMessages = () => {
     if (profile?.user?.id) {
@@ -222,8 +221,6 @@ export default function ProfilePage() {
     }
   }, [socket]);
 
-  const isOnline = (userId: string) => onlineUsers.has(userId);
-
   if (isLoading) return <div className="max-w-4xl mx-auto space-y-6"><Skeleton className="h-64 rounded-2xl" /><Skeleton className="h-96 rounded-2xl" /></div>;
   if (!profile) return <div className="text-center py-20"><h2 className="text-2xl font-bold">Profile not found</h2></div>;
 
@@ -237,7 +234,8 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* No duplicate chat overlay - use unified /messages page */}
+      {/* Back navigation button */}
+      <BackHeader title={profile.displayName || profile.username} />
 
       {/* Profile header */}
       <Card variant="glass" className="overflow-hidden border-border/60" hover={false}>
@@ -286,7 +284,6 @@ export default function ProfilePage() {
                 <Badge variant="outline">{profile.role || 'Flex'}</Badge>
                 {profile.country && <Badge variant="outline"><MapPin className="h-3 w-3 mr-1" />{profile.country}</Badge>}
                 
-                {/* Dynamically derived gaming style/status badges */}
                 {profile.winRate >= 60 && (
                   <Badge variant="neon" className="bg-success/5 border-success/30 text-success gap-1 text-[10px] py-0.5 px-2">
                     <Sparkles className="h-2.5 w-2.5 animate-pulse" /> Dominator
@@ -387,7 +384,7 @@ export default function ProfilePage() {
               className="flex items-center gap-1.5 hover:text-gaming-pink transition-colors cursor-pointer group"
             >
               <Heart className="h-4 w-4 text-gaming-pink group-hover:scale-110 transition-transform" />
-              <span className="font-bold">{profile.user?._count?.followers || 0}</span>
+              <span className="font-bold">{(profile.user as any)?._count?.followers || 0}</span>
               <span className="text-muted-foreground text-xs">Followers</span>
             </button>
             <button 
@@ -395,7 +392,7 @@ export default function ProfilePage() {
               className="flex items-center gap-1.5 hover:text-gaming-cyan transition-colors cursor-pointer group"
             >
               <UserCheck className="h-4 w-4 text-gaming-cyan group-hover:scale-110 transition-transform" />
-              <span className="font-bold">{profile.user?._count?.following || 0}</span>
+              <span className="font-bold">{(profile.user as any)?._count?.following || 0}</span>
               <span className="text-muted-foreground text-xs">Following</span>
             </button>
             <div className="flex items-center gap-1.5 cursor-default group">
@@ -405,7 +402,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center gap-1.5 cursor-default group">
               <Star className="h-4 w-4 text-gaming-purple group-hover:scale-110 transition-transform" />
-              <span className="font-bold">{profile.user?._count?.posts || 0}</span>
+              <span className="font-bold">{(profile.user as any)?._count?.posts || posts?.length || 0}</span>
               <span className="text-muted-foreground text-xs">Posts</span>
             </div>
           </motion.div>
@@ -443,7 +440,7 @@ export default function ProfilePage() {
           <TabsTrigger value="steam" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Gamepad2 className="h-4 w-4 mr-1" />Steam Library</TabsTrigger>
           <TabsTrigger value="achievements" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Award className="h-4 w-4 mr-1" />Achievements ({profile.achievements?.length || 0})</TabsTrigger>
           <TabsTrigger value="history" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Swords className="h-4 w-4 mr-1" />History ({profile.tournamentHistory?.length || 0})</TabsTrigger>
-          <TabsTrigger value="posts" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Star className="h-4 w-4 mr-1" />Posts ({profile.user?._count?.posts || 0})</TabsTrigger>
+          <TabsTrigger value="posts" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Star className="h-4 w-4 mr-1" />Posts ({posts?.length || 0})</TabsTrigger>
           <TabsTrigger value="about" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Shield className="h-4 w-4 mr-1" />About</TabsTrigger>
         </TabsList>
 

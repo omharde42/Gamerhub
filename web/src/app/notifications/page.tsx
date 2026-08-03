@@ -6,13 +6,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bell, Heart, MessageCircle, UserPlus, Trophy, Calendar, Briefcase, Flag, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
+import { Bell, Heart, MessageCircle, UserPlus, Trophy, Calendar, Briefcase, Flag, CheckCircle, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { formatRelativeTime, getInitials } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { BackHeader } from '@/components/common/back-header';
 
 const NOTIFICATION_ICONS: Record<string, any> = {
   LIKE: Heart,
@@ -60,11 +61,14 @@ export default function NotificationsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-0 space-y-4">
+      {/* Dynamic Back Header */}
+      <BackHeader title="Notifications" />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
-            Notifications
+            Inbox
           </h1>
           <p className="text-xs text-muted-foreground">Stay updated with your activity</p>
         </div>

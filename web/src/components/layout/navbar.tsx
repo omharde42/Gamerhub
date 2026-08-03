@@ -14,11 +14,10 @@ import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
-  Gamepad2, Search, Bell, MessageSquare, Users,
-  LogOut, User, Settings, Crown, Home, Briefcase, ChevronDown,
-  Heart, Trophy, Loader2, LayoutDashboard, Compass,
-  Bookmark, Bot, Shield, BarChart3, Gamepad2 as GamepadIcon, Building2, MoreHorizontal,
-  Globe, UserCheck, Zap, Sparkles, Newspaper, Film, Sun, Moon, Palette, Menu, X
+  Search, Bell, MessageSquare, Users,
+  LogOut, User, Settings, Crown, Home, ChevronDown,
+  Bookmark, Shield, BarChart3, Gamepad2 as GamepadIcon, MoreHorizontal,
+  Globe, Loader2, Sun, Moon, Palette, Menu, X, Sparkles, Newspaper, Film, Heart, Reply
 } from 'lucide-react';
 
 const navIcons = [
@@ -27,20 +26,6 @@ const navIcons = [
   { href: '/studio', icon: Film, label: 'Studio' },
   { href: '/friends', icon: Users, label: 'Network' },
   { href: '/servers', icon: Globe, label: 'Servers' },
-];
-
-const moreNavItems = (username: string) => [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/explore', label: 'Explore', icon: Compass },
-  { href: '/games', label: 'Game Library', icon: GamepadIcon },
-  { href: '/news', label: 'Gaming News', icon: Newspaper },
-  { href: '/teams', label: 'Teams', icon: Trophy },
-  { href: '/tournaments', label: 'Tournaments', icon: GamepadIcon },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/saved', label: 'Saved Posts', icon: Bookmark },
-  { href: '/ai-coach', label: 'AI Coach', icon: Bot },
-  { href: `/passport/${username}`, label: 'Gamer Passport', icon: Shield },
-  { href: '/premium', label: 'Premium', icon: Crown },
 ];
 
 export function Navbar() {
@@ -142,19 +127,19 @@ export function Navbar() {
   return (
     <header className={`fixed top-0 z-40 w-full transition-all duration-300 ${scrolled ? 'glass-strong border-border/60' : 'bg-background/80 backdrop-blur-md border-b border-border/60'}`}>
       <div className="w-full mx-auto flex h-16 items-center px-4 md:px-6 gap-2 md:gap-3">
-        {/* Mobile Left Corner: Profile Avatar Drawer Trigger */}
-        {user ? (
-          <button onClick={() => setDrawerOpen(true)} className="flex md:hidden shrink-0 focus:outline-none">
-            <Avatar className="h-8 w-8 border border-border/60">
-              <AvatarImage src={user?.profile?.avatar || ''} />
-              <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-bold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
-            </Avatar>
-          </button>
-        ) : (
-          <div className="w-8 h-8 rounded-lg overflow-hidden border border-primary/20 shadow-sm md:hidden shrink-0">
-            <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
-          </div>
-        )}
+
+        {/* Left Side Menu Button: Trigger side drawer on mobile, brand on desktop */}
+        <div className="flex md:hidden shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setDrawerOpen(true)}
+            className="h-11 w-11 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/40"
+            aria-label="More options"
+          >
+            <MoreHorizontal className="h-6 w-6" />
+          </Button>
+        </div>
 
         {/* Desktop Brand Logo */}
         <Link href="/dashboard" className="hidden md:flex items-center gap-2.5 shrink-0 group">
@@ -164,8 +149,8 @@ export function Navbar() {
           <span className="text-base font-extrabold hidden sm:block text-foreground group-hover:text-primary transition-colors tracking-tight">GamerZ Hub</span>
         </Link>
 
-        {/* Center: Search Bar (displayed on both mobile & desktop) */}
-        <div className="flex relative flex-1 max-w-full md:max-w-sm mx-1 md:mx-0">
+        {/* Center: Maximized Search Bar on mobile, fits beautifully in the space */}
+        <div className="flex relative flex-1 mx-1 md:mx-0 max-w-full md:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full" 
@@ -227,151 +212,116 @@ export function Navbar() {
           </AnimatePresence>
         </div>
 
-        {/* Mobile Right Corner: Menu & Actions */}
-        <div className="flex md:hidden items-center ml-auto">
-          <button
-            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
+        {/* Right Side: Profile icon (displayed on BOTH mobile & desktop) */}
+        <div className="flex items-center gap-1.5 ml-auto">
+          {/* Desktop Nav icons (hidden on mobile) */}
+          <nav className="hidden md:flex items-center gap-0.5">
+            {navIcons.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || (item.href !== '/feed' && pathname?.startsWith(item.href));
+              const isMessages = item.href === '/messages';
+              return (
+                <Link key={item.href} href={item.href}
+                  className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
+                    ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}>
+                  <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary animate-bounce-in' : ''}`} />
+                  <span>{item.label}</span>
+                  {isMessages && totalChatUnread > 0 && (
+                    <span className="absolute -top-1 right-2 h-[18px] min-w-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-scale-in shadow-lg shadow-destructive/30">
+                      {totalChatUnread > 9 ? '9+' : totalChatUnread}
+                    </span>
+                  )}
+                  {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />}
+                </Link>
+              );
+            })}
 
-        <div className="hidden md:block flex-1" />
-
-        {/* Mobile menu dropdown */}
-        {mobileMenuOpen && (
-          <div className="absolute top-16 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-b border-primary/20 shadow-xl md:hidden max-h-[70vh] overflow-y-auto">
-            <div className="p-3 space-y-0.5">
-              {[...navIcons, { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' }].map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href || (item.href !== '/feed' && pathname?.startsWith(item.href));
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'text-primary bg-primary/10'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <nav className="hidden md:flex items-center gap-0.5">
-          {navIcons.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== '/feed' && pathname?.startsWith(item.href));
-            const isMessages = item.href === '/messages';
-            return (
-              <Link key={item.href} href={item.href}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
-                  ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}>
-                <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary animate-bounce-in' : ''}`} />
-                <span>{item.label}</span>
-                {isMessages && totalChatUnread > 0 && (
-                  <span className="absolute -top-1 right-2 h-[18px] min-w-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-scale-in shadow-lg shadow-destructive/30">
-                    {totalChatUnread > 9 ? '9+' : totalChatUnread}
-                  </span>
-                )}
-                {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />}
-              </Link>
-            );
-          })}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
-                ${pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
-                <Bell className={`h-5 w-5 transition-all duration-200 ${unreadCount > 0 ? 'animate-pulse-glow' : ''}`} />
-                <span>Alerts</span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 right-3 h-4 min-w-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-scale-in">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 glass-strong">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
-                <span className="text-sm font-semibold">Notifications</span>
-                <Link href="/notifications" className="text-xs text-primary hover:underline">View all</Link>
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {recentNotifs?.length === 0 && (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    No notifications yet
-                  </div>
-                )}
-                {recentNotifs?.map((notif: any) => (
-                  <Link key={notif.id} href={notif.link || '/notifications'}>
-                    <div className={`flex items-start gap-3 px-4 py-3 hover:bg-accent/50 transition-colors ${!notif.isRead ? 'bg-primary/5' : ''}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!notif.isRead ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                        <Bell className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs line-clamp-2">{notif.title}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{formatRelativeTime(notif.createdAt)}</p>
-                      </div>
-                      {!notif.isRead && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-              <DropdownMenuSeparator />
-              <Link href="/notifications">
-                <div className="px-4 py-2 text-sm text-primary font-medium text-center hover:bg-accent/50 transition-colors rounded-b-lg">
-                  See all notifications
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
+                  ${pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
+                  <Bell className={`h-5 w-5 transition-all duration-200 ${unreadCount > 0 ? 'animate-pulse-glow' : ''}`} />
+                  <span>Alerts</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 right-3 h-4 min-w-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-scale-in">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 glass-strong">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
+                  <span className="text-sm font-semibold">Notifications</span>
+                  <Link href="/notifications" className="text-xs text-primary hover:underline">View all</Link>
                 </div>
-              </Link>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </nav>
+                <div className="max-h-80 overflow-y-auto">
+                  {recentNotifs?.length === 0 && (
+                    <div className="text-center py-8 text-sm text-muted-foreground">
+                      <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      No notifications yet
+                    </div>
+                  )}
+                  {recentNotifs?.map((notif: any) => (
+                    <Link key={notif.id} href={notif.link || '/notifications'}>
+                      <div className={`flex items-start gap-3 px-4 py-3 hover:bg-accent/50 transition-colors ${!notif.isRead ? 'bg-primary/5' : ''}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!notif.isRead ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                          <Bell className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs line-clamp-2">{notif.title}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{formatRelativeTime(notif.createdAt)}</p>
+                        </div>
+                        {!notif.isRead && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                <DropdownMenuSeparator />
+                <Link href="/notifications">
+                  <div className="px-4 py-2 text-sm text-primary font-medium text-center hover:bg-accent/50 transition-colors rounded-b-lg">
+                    See all notifications
+                  </div>
+                </Link>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </nav>
 
-        <div className="flex items-center gap-1">
-          {/* Theme Switcher Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground">
-                {mounted && activeTheme === 'light' ? (
-                  <Sun className="h-4.5 w-4.5" />
-                ) : mounted && activeTheme === 'gray' ? (
-                  <Palette className="h-4.5 w-4.5" />
-                ) : (
-                  <Moon className="h-4.5 w-4.5" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36 glass-strong">
-              <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2 cursor-pointer text-xs font-semibold">
-                <Sun className="h-4 w-4 text-orange-500" /> Light Mode
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2 cursor-pointer text-xs font-semibold">
-                <Moon className="h-4 w-4 text-primary" /> Dark Mode
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('gray')} className="gap-2 cursor-pointer text-xs font-semibold">
-                <Palette className="h-4 w-4 text-muted-foreground" /> Gray Mode
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Theme Switcher (Desktop only) */}
+          <div className="hidden md:block">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground">
+                  {mounted && activeTheme === 'light' ? (
+                    <Sun className="h-4.5 w-4.5" />
+                  ) : mounted && activeTheme === 'gray' ? (
+                    <Palette className="h-4.5 w-4.5" />
+                  ) : (
+                    <Moon className="h-4.5 w-4.5" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-36 glass-strong">
+                <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2 cursor-pointer text-xs font-semibold">
+                  <Sun className="h-4 w-4 text-orange-500" /> Light Mode
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2 cursor-pointer text-xs font-semibold">
+                  <Moon className="h-4 w-4 text-primary" /> Dark Mode
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('gray')} className="gap-2 cursor-pointer text-xs font-semibold">
+                  <Palette className="h-4 w-4 text-muted-foreground" /> Gray Mode
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
+          {/* Profile Dropdown (Both Mobile & Desktop) */}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-1.5 px-2 h-12 rounded-lg hover:bg-accent/50">
-                  <Avatar className="h-7 w-7" ring status="online">
+                <Button variant="ghost" className="flex items-center gap-1.5 px-2 h-11 w-11 md:w-auto rounded-lg hover:bg-accent/50 shrink-0">
+                  <Avatar className="h-8 w-8 md:h-7 md:w-7" ring status="online">
                     <AvatarImage src={user?.profile?.avatar || ''} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-[10px]">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                    <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-extrabold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
                   </Avatar>
                   <ChevronDown className="h-3 w-3 text-muted-foreground hidden md:block" />
                 </Button>
@@ -407,7 +357,7 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Link href="/auth/login">
                 <Button variant="outline" size="sm" className="h-9 px-4 rounded-lg text-xs font-medium">
                   Sign In

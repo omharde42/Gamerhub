@@ -1,11 +1,11 @@
 'use client';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, useRef } from 'react';
 import { Navbar } from './navbar';
 import { Sidebar } from './sidebar';
 import { MobileBottomNav } from './mobile-bottom-nav';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
+import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 import { UpdateChecker } from '../common/update-checker';
 
@@ -13,7 +13,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
+
+  // Use our useAuth hook to silently refresh/validate session in the background
+  useAuth();
+
   const [hasHydrated, setHasHydrated] = useState(false);
+  const splashTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isLanding = pathname === '/';
   const isAuthOrLanding = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');
@@ -26,16 +31,19 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
       setHasHydrated(true);
     });
+
     if (useAuthStore.persist.hasHydrated()) {
       setHasHydrated(true);
     }
-    const timer = setTimeout(() => {
+
+    // High performance target: Under 150ms splash screen duration if hydrated, max 250ms fallback
+    splashTimerRef.current = setTimeout(() => {
       setHasHydrated(true);
-    }, 300);
+    }, 200);
 
     return () => {
       unsubscribe();
-      clearTimeout(timer);
+      if (splashTimerRef.current) clearTimeout(splashTimerRef.current);
     };
   }, []);
 
@@ -69,13 +77,15 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [hasHydrated, user, isAuthenticated, isAuthOrLanding, pathname, router]);
 
+  // Instantly restore session: If we are already authenticated with cached credentials,
+  // render the UI immediately in the background, skipping any blocking splash redirects
   const isRedirectingAuthenticatedUser = isAuthenticated && !!user && isAuthOrLanding && pathname !== '/auth/callback';
   const isRedirectingUnauthenticatedUser = !isAuthenticated && !isAuthOrLanding;
 
-  // Render a subtle Splash Screen until rehydration and route redirection are resolved to eliminate layout flashes
+  // Render a branded GamerZ Hub splash screen for less than 300 ms
   if (!hasHydrated || isRedirectingAuthenticatedUser || isRedirectingUnauthenticatedUser) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#05070E] flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl overflow-hidden border border-primary/20 shadow-xl relative shrink-0">
             <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />

@@ -54,7 +54,7 @@
     "@types/uuid": "^10.0.0",
     "jest": "^29.7.0",
     "prisma": "5.22.0",
-    "ts-jest": "^29.2.5"
+    "ts-jest": "^29.4.12"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -63,6 +63,5 @@
     "@prisma/engines@5.22.0": true,
     "esbuild@0.28.1": true,
     "prisma@5.22.0": true
-
   }
 }

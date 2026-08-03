@@ -15,6 +15,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
+import { BackHeader } from '@/components/common/back-header';
 
 const STATUS_COLORS: Record<string, string> = {
   ONLINE: 'bg-success',
@@ -103,6 +104,9 @@ export default function FriendsPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
+      {/* Back navigation button */}
+      <BackHeader title="Network" />
+
       <motion.div className="flex items-center justify-between" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Friends Network</h1>

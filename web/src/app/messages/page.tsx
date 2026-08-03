@@ -1,19 +1,18 @@
 'use client';
 import { useState, useEffect, useRef, Suspense, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Search, Send, Paperclip, Image as ImageIcon, Camera, MoreVertical, Plus, Loader2,
   MessageSquare, UserPlus, Phone, Video, Mic, Headphones, Settings,
-  Hash, Users, ChevronDown, ChevronRight, ChevronLeft, Heart, Smile, Reply,
-  Trash2, Edit3, Pin, Flag, X, Link as LinkIcon, ExternalLink,
-  Sparkles, Volume2, Pause, Play, Square, Lock, Shield
+  Hash, Users, ChevronLeft, Heart, Smile, Reply,
+  Trash2, Play, Pause, Square, Volume2, X, Link as LinkIcon, Lock
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useKeyboard, scrollInputIntoView } from '@/hooks/useKeyboard';
@@ -28,8 +27,10 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { E2EEEngine } from '@/lib/e2ee';
+import { BackHeader } from '@/components/common/back-header';
 
 function DiscordMessagesPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const userIdParam = searchParams ? searchParams.get('userId') : null;
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
@@ -38,6 +39,7 @@ function DiscordMessagesPage() {
   const queryClient = useQueryClient();
   const socket = useSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [userSearch, setUserSearch] = useState('');
@@ -49,7 +51,6 @@ function DiscordMessagesPage() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const [shareOpen, setShareOpen] = useState<string | null>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { keyboardHeight, isKeyboardOpen } = useKeyboard();
@@ -387,13 +388,14 @@ function DiscordMessagesPage() {
       socket.emit('join:chat', selectedChat);
       
       const onMessage = (msg: any) => {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => {
+          const filtered = prev.filter(m => !(m.status === 'sending' && m.content === msg.content));
+          return [...filtered, msg];
+        });
         queryClient.invalidateQueries({ queryKey: ['chats'] });
       };
       
       const onMessagesRead = (data: { chatId: string; readBy: string; messageIds: string[] }) => {
-        // Update read receipts in real-time for our own sent messages
-        // The 'messages:read' event fires when the OTHER participant reads our messages
         setMessages(prev => prev.map(msg => 
           msg.sender?.id === user?.id && data.messageIds.includes(msg.id)
             ? { 
@@ -418,7 +420,15 @@ function DiscordMessagesPage() {
     }
   }, [selectedChat, socket, queryClient, user?.id]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [decryptedMessages]);
+  // Handle auto scroll intelligently: scroll down only if the user is already at the bottom
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+    const isAtBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop <= scrollContainer.clientHeight + 250;
+    if (isAtBottom || messages.length === 1) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [decryptedMessages, messages.length]);
 
   let typingTimeout: any;
   const handleTyping = () => {
@@ -433,14 +443,49 @@ function DiscordMessagesPage() {
     
     const payloadContent = message.trim();
     const media = attachedMedia.length > 0 ? attachedMedia : filePreview ? [filePreview] : undefined;
-    if (socket) {
-      socket.emit('message:send', { chatId: selectedChat, content: payloadContent, media });
-    } else {
-      sendViaApi.mutate({ chatId: selectedChat, content: payloadContent, media });
+
+    // Optimistic UI update: Immediately append the message to the local list with a temporary ID
+    const tempId = `temp-${Date.now()}`;
+    const tempMsg = {
+      id: tempId,
+      content: payloadContent,
+      media: media || [],
+      sender: {
+        id: user?.id,
+        profile: user?.profile || { username: user?.profile?.username || 'me' },
+      },
+      createdAt: new Date().toISOString(),
+      status: 'sending',
+    };
+
+    setMessages(prev => [...prev, tempMsg]);
+
+    try {
+      if (socket) {
+        socket.emit('message:send', { chatId: selectedChat, content: payloadContent, media });
+      } else {
+        await sendViaApi.mutateAsync({ chatId: selectedChat, content: payloadContent, media });
+      }
+    } catch (err) {
+      // Mark as failed if sending fails
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
+      toast.error('Failed to send message. Tap to retry.');
     }
+
     setMessage('');
     setFilePreview(null);
     setAttachedMedia([]);
+  };
+
+  const handleRetryMessage = async (msg: any) => {
+    if (!selectedChat) return;
+    // Remove failed message and retry
+    setMessages(prev => prev.filter(m => m.id !== msg.id));
+    if (socket) {
+      socket.emit('message:send', { chatId: selectedChat, content: msg.content, media: msg.media });
+    } else {
+      sendViaApi.mutate({ chatId: selectedChat, content: msg.content, media: msg.media });
+    }
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -476,18 +521,10 @@ function DiscordMessagesPage() {
 
   const handleSelectChat = (chatId: string) => {
     setSelectedChat(chatId);
-    // Emit socket event to mark messages as read and notify the other participant
-    // (the server handler calls markAsRead and broadcasts the actual message IDs)
     socket?.emit('messages:read', { chatId });
   };
 
   const isOnline = (userId: string) => onlineUsers.has(userId);
-
-  const copyLink = (id: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/messages?chat=${id}`);
-    toast.success('Link copied');
-    setShareOpen(null);
-  };
 
   return (
     <div className={cn(
@@ -589,7 +626,7 @@ function DiscordMessagesPage() {
             <Input placeholder="Find player..." className="pl-9 h-9 text-xs bg-muted/40 border-0 rounded-xl" variant="ghost" />
           </div>
         </div>
-        <ScrollArea className="flex-1 px-2 py-2">
+        <div className="flex-1 overflow-y-auto px-2 py-2">
           {chatsLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
           ) : chats?.length === 0 ? (
@@ -674,7 +711,7 @@ function DiscordMessagesPage() {
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
         <div className="p-3 border-t border-border/40 bg-muted/20">
           <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-card/40 border border-border/30 shadow-sm transition-colors">
             <Avatar className="h-8 w-8" status="online">
@@ -696,7 +733,7 @@ function DiscordMessagesPage() {
 
       {/* Main chat area */}
       <div className={cn(
-        "flex-1 flex flex-col bg-background/20 backdrop-blur-sm transition-all duration-300",
+        "flex-1 flex flex-col bg-background/20 backdrop-blur-sm transition-all duration-300 h-full overflow-hidden",
         selectedChat ? "flex" : "hidden md:flex"
       )}>
         {selectedChat ? (
@@ -708,50 +745,53 @@ function DiscordMessagesPage() {
                 const other = chat ? getOtherParticipant(chat) : null;
                 const online = other ? isOnline(other.id) : false;
                 return (
-                  <div className="flex items-center gap-2.5 w-full">
+                  <div className="flex items-center gap-2.5 w-full min-w-0">
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="md:hidden h-8 w-8 text-muted-foreground hover:text-foreground mr-1 rounded-xl" 
+                      className="md:hidden h-11 w-11 text-muted-foreground hover:text-foreground mr-1 rounded-xl shrink-0 flex items-center justify-center"
                       onClick={() => setSelectedChat(null)}
+                      aria-label="Back to conversations list"
                     >
-                      <ChevronLeft className="h-5 w-5" />
+                      <ChevronLeft className="h-6 w-6" />
                     </Button>
-                    <div className="relative">
+                    <div className="relative shrink-0">
                       <Avatar className="h-8 w-8"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(other?.profile?.username || 'U')}</AvatarFallback></Avatar>
                       {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card animate-pulse" />}
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-bold text-foreground">{other?.profile?.username || 'User'}</p>
-                        <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 flex items-center gap-1">
+                        <p className="text-sm font-extrabold text-foreground truncate max-w-[150px] sm:max-w-[200px]">{other?.profile?.displayName || other?.profile?.username || 'User'}</p>
+                        <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 flex items-center gap-1 shrink-0">
                           <Lock className="w-2.5 h-2.5 text-emerald-400" />
                           E2EE
                         </Badge>
                       </div>
-                      <p className="text-[10px] font-medium flex items-center gap-1" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
+                      <p className="text-[10px] font-medium flex items-center gap-1 truncate" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
                         {online ? (
-                          <><span className="w-1.5 h-1.5 bg-success rounded-full inline-block" /> Online</>
+                          <><span className="w-1.5 h-1.5 bg-success rounded-full inline-block shrink-0" /> Online</>
                         ) : other?.presence === 'IDLE' ? (
-                          <><span className="w-1.5 h-1.5 bg-yellow-500 rounded-full inline-block" /> Idle</>
+                          <><span className="w-1.5 h-1.5 bg-yellow-500 rounded-full inline-block shrink-0" /> Idle</>
                         ) : (
-                          <>Last seen {formatLastSeen(other?.updatedAt)}</>
+                          <span className="truncate">Last seen {formatLastSeen(other?.updatedAt)}</span>
                         )}
                       </p>
                     </div>
-                    <div className="flex-1" />
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 shrink-0">
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => initiateCall('audio')} title="Start Voice Call"><Phone className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => initiateCall('video')} title="Start Video Call"><Video className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => copyLink(selectedChat)} title="Copy chat link"><LinkIcon className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/messages?chat=${selectedChat}`);
+                        toast.success('Link copied!');
+                      }} title="Copy chat link"><LinkIcon className="h-4 w-4" /></Button>
                     </div>
                   </div>
                 );
               })()}
             </div>
 
-            {/* Messages list */}
-            <ScrollArea className="flex-1 px-4 bg-grid bg-[length:40px_40px]">
+            {/* Messages list - Fully optimized standard div with native scrolling */}
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 bg-grid bg-[length:40px_40px]">
               <div className="py-6 space-y-3 max-w-4xl mx-auto">
                 <AnimatePresence initial={false}>
                   {(decryptedMessages.length > 0 ? decryptedMessages : messages)?.map((msg: any, idx: number) => {
@@ -807,37 +847,42 @@ function DiscordMessagesPage() {
                           )}
                           {msg.voiceNote && (
                             <div className="mb-1.5 animate-scale-in max-w-full overflow-x-auto">
-                              <audio src={msg.voiceNote} controls className="max-w-[240px] xs:max-w-[260px] h-9 rounded-xl border border-border/30 bg-card" />
+                              <audio src={msg.voiceNote || ''} controls className="max-w-[240px] xs:max-w-[260px] h-9 rounded-xl border border-border/30 bg-card" />
                             </div>
                           )}
                           {msg.content && (
-                            <div className={cn(
-                              "px-4 py-2.5 rounded-2xl text-sm leading-relaxed relative border transition-all duration-300 break-words break-all [overflow-wrap:anywhere] max-w-full overflow-hidden",
-                              isOwn
-                                ? 'bg-gradient-to-br from-gaming-purple to-gaming-pink text-white rounded-tr-sm shadow-md shadow-gaming-purple/20 border-gaming-purple/20'
-                                : 'bg-card/75 border-border/40 text-foreground rounded-tl-sm shadow-sm backdrop-blur-sm'
-                            )}>
+                            <div
+                              onClick={() => msg.status === 'failed' && handleRetryMessage(msg)}
+                              className={cn(
+                                "px-4 py-2.5 rounded-2xl text-sm leading-relaxed relative border transition-all duration-300 break-words break-all [overflow-wrap:anywhere] max-w-full overflow-hidden",
+                                isOwn
+                                  ? 'bg-gradient-to-br from-gaming-purple to-gaming-pink text-white rounded-tr-sm shadow-md shadow-gaming-purple/20 border-gaming-purple/20'
+                                  : 'bg-card/75 border-border/40 text-foreground rounded-tl-sm shadow-sm backdrop-blur-sm',
+                                msg.status === 'failed' ? 'border-destructive/50 text-destructive bg-destructive/10 cursor-pointer hover:bg-destructive/15' : ''
+                              )}
+                            >
                               {msg.content}
                             </div>
                           )}
 
-                          {/* Read Receipts: shown under own messages */}
-                          {isOwn && !msg.content?.includes('"isE2EE":true') && (
+                          {/* Read Receipts & Sending/Failed Status Indicators */}
+                          {isOwn && (
                             <div className="flex items-center gap-1 mt-0.5">
-                              {msg.readBy && msg.readBy.length > 0 ? (
-                                <span className="flex items-center gap-0.5 text-[9px] text-primary/70 font-medium">
-                                  <svg width="14" height="10" viewBox="0 0 14 10" fill="none" className="h-3 w-3">
-                                    <path d="M1 5.5L4 8.5L9.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M5.5 5.5L8.5 8.5L13 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                  Read
+                              {msg.status === 'sending' ? (
+                                <span className="flex items-center gap-1 text-[9px] text-muted-foreground/60 font-semibold italic animate-pulse">
+                                  ⏳ Sending
+                                </span>
+                              ) : msg.status === 'failed' ? (
+                                <span className="flex items-center gap-1 text-[9px] text-destructive font-bold">
+                                  ⚠️ Tap to retry
+                                </span>
+                              ) : msg.readBy && msg.readBy.length > 0 ? (
+                                <span className="flex items-center gap-0.5 text-[9px] text-primary/70 font-semibold">
+                                  <span className="text-primary font-bold">✅✅</span> Delivered
                                 </span>
                               ) : (
-                                <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/60 font-medium">
-                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="h-2.5 w-2.5">
-                                    <path d="M1 4.5L4 8L9 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                  Sent
+                                <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/60 font-semibold">
+                                  <span>✅</span> Sent
                                 </span>
                               )}
                             </div>
@@ -845,7 +890,7 @@ function DiscordMessagesPage() {
 
                           {/* Floating micro-actions menu */}
                           <AnimatePresence>
-                            {isHovered && (
+                            {isHovered && msg.status !== 'sending' && msg.status !== 'failed' && (
                               <motion.div
                                 className={cn("flex items-center gap-0.5 mt-1 px-1.5 py-0.5 rounded-lg bg-card/90 border border-border/40 shadow-md backdrop-blur-md", isOwn ? 'flex-row-reverse' : '')}
                                 initial={{ opacity: 0, y: -4 }}
@@ -887,11 +932,11 @@ function DiscordMessagesPage() {
                 )}
                 <div ref={messagesEndRef} />
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Message input - keyboard aware */}
             <div 
-              className="shrink-0 border-t border-border/40 bg-card/80 backdrop-blur-md shadow-lg transition-all duration-200"
+              className="shrink-0 border-t border-border/40 bg-card/85 backdrop-blur-md shadow-lg transition-all duration-200"
               style={{ 
                 paddingBottom: isKeyboardOpen ? `${keyboardHeight}px` : undefined,
               }}
@@ -922,7 +967,7 @@ function DiscordMessagesPage() {
                   ))}
                   {filePreview && !attachedMedia.length && (
                     <div className="relative group shrink-0 flex items-center gap-2">
-                      <img src={filePreview} alt="" className="h-14 w-14 rounded-lg object-cover border border-border/40 shadow-sm" />
+                      <img src={filePreview || ''} alt="" className="h-14 w-14 rounded-lg object-cover border border-border/40 shadow-sm" />
                       <span className="text-xs text-muted-foreground">Image ready to send</span>
                       <button onClick={() => setFilePreview(null)} className="hover:text-destructive p-1 rounded-lg hover:bg-destructive/10 transition-colors"><X className="h-4 w-4" /></button>
                     </div>
@@ -978,7 +1023,7 @@ function DiscordMessagesPage() {
                 ) : voicePreviewUrl ? (
                   // Preview Player Overlay
                   <div className="flex items-center w-full justify-between gap-3 animate-fade-in">
-                    <audio src={voicePreviewUrl} controls className="flex-1 h-9 rounded-xl border border-border/30 bg-muted/40" />
+                    <audio src={voicePreviewUrl || ''} controls className="flex-1 h-9 rounded-xl border border-border/30 bg-muted/40" />
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         onClick={cancelVoiceRecording}
@@ -1081,7 +1126,7 @@ function DiscordMessagesPage() {
               <Users className="h-3.5 w-3.5 text-primary" /> Chat Members
             </h3>
           </div>
-          <ScrollArea className="flex-1 p-2">
+          <div className="flex-1 overflow-y-auto p-2">
             <div className="space-y-0.5">
               {(() => {
                 const chat = chats?.find((c: any) => c.id === selectedChat);
@@ -1104,7 +1149,7 @@ function DiscordMessagesPage() {
                 });
               })()}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       )}
 

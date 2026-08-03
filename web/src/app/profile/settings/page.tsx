@@ -15,11 +15,12 @@ import { useAuthStore } from '@/store/authStore';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { GAMES, ROLES, PLAY_STYLES, COMMUNICATION_STYLES, REGIONS, LANGUAGES, API_URL } from '@/lib/constants';
+import { GAMES, ROLES, PLAY_STYLES, COMMUNICATION_STYLES, LANGUAGES, API_URL } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { Shield, Bell, User, Gamepad2, X, Loader2, CheckCircle2, Circle, Sparkles, Trophy, Camera } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { BackHeader } from '@/components/common/back-header';
  
 export default function SettingsPage() {
   const router = useRouter();
@@ -90,7 +91,6 @@ export default function SettingsPage() {
     profile.mainGames.length > 0;
 
   const updateProfile = useMutation({
-    // Wait, the API endpoint is PUT /profiles
     mutationFn: () => api.put('/profiles', profile),
     onSuccess: (res: any) => {
       const updated = res.data.data;
@@ -98,7 +98,6 @@ export default function SettingsPage() {
       
       const username = updated.username || user?.profile?.username || (user as any)?.username;
       
-      // Invalidate the cache for profile query so it reloads in real time without refreshing
       queryClient.invalidateQueries({ queryKey: ['profile', username] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       
@@ -241,6 +240,9 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Back navigation button */}
+      <BackHeader title="Settings" />
+
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold">Passport Settings</h1>
         {!coreSetupCompleted && (
