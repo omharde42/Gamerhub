@@ -51,24 +51,15 @@ export default function FeedPage() {
 
   const posts = data?.pages.flatMap((page: any) => page.data || []) || [];
 
-  // Defer non-critical sidebar queries so the feed renders first (progressive loading).
-  const [sidebarReady, setSidebarReady] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setSidebarReady(true), 350);
-    return () => clearTimeout(t);
-  }, []);
-
   const { data: trending } = useQuery({
     queryKey: ['trending'],
     queryFn: () => api.get('/posts/trending').then(r => r.data.data).catch(() => []),
-    enabled: sidebarReady,
   });
 
   const { data: newsData } = useQuery({
     queryKey: ['gaming-news'],
     queryFn: () => api.get('/news').then(r => r.data.data).catch(() => []),
     refetchInterval: 60000,
-    enabled: sidebarReady,
   });
 
   useEffect(() => {

@@ -14,11 +14,10 @@ import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
-  Gamepad2, Search, Bell, MessageSquare, Users,
-  LogOut, User, Settings, Crown, Home, Briefcase, ChevronDown,
-  Heart, Trophy, Loader2, LayoutDashboard, Compass,
-  Bookmark, Bot, Shield, BarChart3, Gamepad2 as GamepadIcon, Building2, MoreHorizontal,
-  Globe, UserCheck, Zap, Sparkles, Newspaper, Film, Sun, Moon, Palette, X
+  Search, Bell, MessageSquare, Users,
+  LogOut, User, Settings, Crown, Home, ChevronDown,
+  Bookmark, Shield, BarChart3, Gamepad2 as GamepadIcon, MoreHorizontal,
+  Globe, Loader2, Sun, Moon, Palette, Menu, X, Sparkles, Newspaper, Film, Heart, Reply
 } from 'lucide-react';
 
 const navIcons = [
@@ -38,6 +37,7 @@ export function Navbar() {
 
   const { theme: activeTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -127,14 +127,19 @@ export function Navbar() {
   return (
     <header className={`fixed top-0 z-40 w-full transition-all duration-300 ${scrolled ? 'glass-strong border-border/60' : 'bg-background/80 backdrop-blur-md border-b border-border/60'}`}>
       <div className="w-full mx-auto flex h-16 items-center px-4 md:px-6 gap-2 md:gap-3">
-        {/* Mobile Left Corner: Menu Trigger (⋮) */}
-        <button
-          className="flex md:hidden items-center justify-center p-2 min-h-[44px] min-w-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all shrink-0"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <MoreHorizontal className="h-5 w-5" />}
-        </button>
+
+        {/* Left Side Menu Button: Trigger side drawer on mobile, brand on desktop */}
+        <div className="flex md:hidden shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setDrawerOpen(true)}
+            className="h-11 w-11 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/40"
+            aria-label="More options"
+          >
+            <MoreHorizontal className="h-6 w-6" />
+          </Button>
+        </div>
 
         {/* Desktop Brand Logo */}
         <Link href="/dashboard" className="hidden md:flex items-center gap-2.5 shrink-0 group">
@@ -144,8 +149,8 @@ export function Navbar() {
           <span className="text-base font-extrabold hidden sm:block text-foreground group-hover:text-primary transition-colors tracking-tight">GamerZ Hub</span>
         </Link>
 
-        {/* Center: Search Bar (displayed on both mobile & desktop) */}
-        <div className="flex relative flex-1 max-w-full md:max-w-md mx-1 md:mx-0">
+        {/* Center: Maximized Search Bar on mobile, redirects to the dedicated full-screen search experience */}
+        <div className="flex relative flex-1 mx-1 md:mx-0 max-w-full md:max-w-sm cursor-pointer">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full cursor-pointer"
@@ -158,123 +163,80 @@ export function Navbar() {
           />
         </div>
 
-        <div className="hidden md:block flex-1" />
+        {/* Right Side: Profile icon (displayed on BOTH mobile & desktop) */}
+        <div className="flex items-center gap-1.5 ml-auto">
+          {/* Desktop Nav icons (hidden on mobile) */}
+          <nav className="hidden md:flex items-center gap-0.5">
+            {navIcons.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || (item.href !== '/feed' && pathname?.startsWith(item.href));
+              const isMessages = item.href === '/messages';
+              return (
+                <Link key={item.href} href={item.href}
+                  className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
+                    ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}>
+                  <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary animate-bounce-in' : ''}`} />
+                  <span>{item.label}</span>
+                  {isMessages && totalChatUnread > 0 && (
+                    <span className="absolute -top-1 right-2 h-[18px] min-w-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-scale-in shadow-lg shadow-destructive/30">
+                      {totalChatUnread > 9 ? '9+' : totalChatUnread}
+                    </span>
+                  )}
+                  {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />}
+                </Link>
+              );
+            })}
 
-        {/* Mobile menu dropdown */}
-        {mobileMenuOpen && (
-          <div className="absolute top-16 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-b border-primary/20 shadow-xl md:hidden max-h-[70vh] overflow-y-auto">
-            <div className="p-3 space-y-0.5">
-              {[...navIcons, { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' }].map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href || (item.href !== '/feed' && pathname?.startsWith(item.href));
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'text-primary bg-primary/10'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-              <div className="border-t border-border/45 my-3" />
-              <Link href={`/profile/${user?.profile?.username}`} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50">
-                <User className="h-5 w-5 shrink-0 text-primary" /> User Profile
-              </Link>
-              <Link href="/profile/settings" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50">
-                <Settings className="h-5 w-5 shrink-0 text-primary" /> Edit Profile
-              </Link>
-              <Link href="/saved" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50">
-                <Bookmark className="h-5 w-5 shrink-0 text-primary" /> Saved Posts
-              </Link>
-              <Link href={`/passport/${user?.profile?.username}`} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50">
-                <Shield className="h-5 w-5 shrink-0 text-primary" /> AI Resume & Passport
-              </Link>
-              <button onClick={() => { setMobileMenuOpen(false); handleLogout(); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10">
-                <LogOut className="h-5 w-5 shrink-0" /> Sign Out
-              </button>
-            </div>
-          </div>
-        )}
-
-        <nav className="hidden md:flex items-center gap-0.5">
-          {navIcons.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== '/feed' && pathname?.startsWith(item.href));
-            const isMessages = item.href === '/messages';
-            return (
-              <Link key={item.href} href={item.href}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
-                  ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}>
-                <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary animate-bounce-in' : ''}`} />
-                <span>{item.label}</span>
-                {isMessages && totalChatUnread > 0 && (
-                  <span className="absolute -top-1 right-2 h-[18px] min-w-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-scale-in shadow-lg shadow-destructive/30">
-                    {totalChatUnread > 9 ? '9+' : totalChatUnread}
-                  </span>
-                )}
-                {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />}
-              </Link>
-            );
-          })}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
-                ${pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
-                <Bell className={`h-5 w-5 transition-all duration-200 ${unreadCount > 0 ? 'animate-pulse-glow' : ''}`} />
-                <span>Alerts</span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 right-3 h-4 min-w-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-scale-in">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 glass-strong">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
-                <span className="text-sm font-semibold">Notifications</span>
-                <Link href="/notifications" className="text-xs text-primary hover:underline">View all</Link>
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {recentNotifs?.length === 0 && (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    No notifications yet
-                  </div>
-                )}
-                {recentNotifs?.map((notif: any) => (
-                  <Link key={notif.id} href={notif.link || '/notifications'}>
-                    <div className={`flex items-start gap-3 px-4 py-3 hover:bg-accent/50 transition-colors ${!notif.isRead ? 'bg-primary/5' : ''}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!notif.isRead ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                        <Bell className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs line-clamp-2">{notif.title}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{formatRelativeTime(notif.createdAt)}</p>
-                      </div>
-                      {!notif.isRead && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-              <DropdownMenuSeparator />
-              <Link href="/notifications">
-                <div className="px-4 py-2 text-sm text-primary font-medium text-center hover:bg-accent/50 transition-colors rounded-b-lg">
-                  See all notifications
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
+                  ${pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
+                  <Bell className={`h-5 w-5 transition-all duration-200 ${unreadCount > 0 ? 'animate-pulse-glow' : ''}`} />
+                  <span>Alerts</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 right-3 h-4 min-w-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-scale-in">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 glass-strong">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
+                  <span className="text-sm font-semibold">Notifications</span>
+                  <Link href="/notifications" className="text-xs text-primary hover:underline">View all</Link>
                 </div>
-              </Link>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </nav>
+                <div className="max-h-80 overflow-y-auto">
+                  {recentNotifs?.length === 0 && (
+                    <div className="text-center py-8 text-sm text-muted-foreground">
+                      <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      No notifications yet
+                    </div>
+                  )}
+                  {recentNotifs?.map((notif: any) => (
+                    <Link key={notif.id} href={notif.link || '/notifications'}>
+                      <div className={`flex items-start gap-3 px-4 py-3 hover:bg-accent/50 transition-colors ${!notif.isRead ? 'bg-primary/5' : ''}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!notif.isRead ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                          <Bell className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs line-clamp-2">{notif.title}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{formatRelativeTime(notif.createdAt)}</p>
+                        </div>
+                        {!notif.isRead && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                <DropdownMenuSeparator />
+                <Link href="/notifications">
+                  <div className="px-4 py-2 text-sm text-primary font-medium text-center hover:bg-accent/50 transition-colors rounded-b-lg">
+                    See all notifications
+                  </div>
+                </Link>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </nav>
 
-        <div className="flex items-center gap-1">
           {/* Theme Switcher (Desktop only) */}
           <div className="hidden md:block">
             <DropdownMenu>
@@ -361,6 +323,67 @@ export function Navbar() {
           )}
         </div>
       </div>
+
+      {/* Mobile Left Side Drawer */}
+      <AnimatePresence>
+        {drawerOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDrawerOpen(false)}
+              className="fixed inset-0 z-50 bg-black md:hidden"
+            />
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="fixed inset-y-0 left-0 z-50 w-72 bg-background border-r border-border/60 flex flex-col md:hidden overflow-hidden shadow-2xl"
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-border/50 flex items-center justify-between bg-muted/10">
+                <div className="flex items-center gap-2.5">
+                  <Avatar className="h-9 w-9 border border-border/60">
+                    <AvatarImage src={user?.profile?.avatar || ''} />
+                    <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                  </Avatar>
+                  <div className="text-left">
+                    <p className="font-semibold text-xs truncate max-w-[150px]">{user?.profile?.displayName || user?.profile?.username}</p>
+                    <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">@{user?.profile?.username}</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setDrawerOpen(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Body Links */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                <Link href={`/profile/${user?.profile?.username}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/85 text-sm text-foreground transition-all">
+                  <User className="h-4 w-4 text-primary" /> User Profile
+                </Link>
+                <Link href="/profile/settings" onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/85 text-sm text-foreground transition-all">
+                  <Settings className="h-4 w-4 text-primary" /> Edit Profile
+                </Link>
+                <Link href="/saved" onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/85 text-sm text-foreground transition-all">
+                  <Bookmark className="h-4 w-4 text-primary" /> Saved Posts
+                </Link>
+                <Link href={`/passport/${user?.profile?.username}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/85 text-sm text-foreground transition-all">
+                  <Shield className="h-4 w-4 text-primary" /> AI Resume & Passport
+                </Link>
+                <div className="border-t border-border/45 my-3" />
+                <Button variant="ghost" onClick={() => { setDrawerOpen(false); handleLogout(); }} className="w-full flex items-center justify-start gap-3 p-3 h-11 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <LogOut className="h-4 w-4" /> Sign Out
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

@@ -20,6 +20,7 @@ const nextConfig = {
       '@radix-ui/react-avatar',
       '@radix-ui/react-dialog',
       '@radix-ui/react-select',
+      '@radix-ui/react-[#7C3AED]',
       '@radix-ui/react-tabs',
       '@tanstack/react-query',
     ],

@@ -8,7 +8,6 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Zap, Users, Target, Shield, Gamepad2, ChevronLeft, ChevronRight, Sparkles, Trophy, Flame, Play, Settings } from 'lucide-react';
 import { getInitials, getRankColor } from '@/lib/utils';
-import { PageBackButton } from '@/components/ui/page-back-button';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -85,7 +84,6 @@ export default function MatchmakingPage() {
       {/* Top Controller Header Banner */}
       <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[#0B1220] border border-[#7C3AED]/30 shadow-xl backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <PageBackButton fallbackHref="/dashboard" className="text-white hover:bg-white/10 rounded-xl" aria-label="Back" />
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#FF6B00] flex items-center justify-center shadow-lg shadow-[#7C3AED]/30">
             <Gamepad2 className="h-5 w-5 text-white animate-pulse" />
           </div>
