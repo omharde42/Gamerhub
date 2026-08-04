@@ -1,19 +1,8 @@
-import { Capacitor } from '@capacitor/core';
-
 const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
 const envSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
 
-// On native platforms (Capacitor Android/iOS), local loopback 'localhost' is unreachable.
-// Fallback to the production backend URLs if the configured URLs point to localhost.
-const isNative = typeof window !== 'undefined' && Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
-
-export const API_URL = isNative && envApiUrl?.includes('localhost')
-  ? 'https://gamerhub-api-6lga.onrender.com/api'
-  : (envApiUrl || 'https://gamerhub-api-6lga.onrender.com/api');
-
-export const SOCKET_URL = isNative && envSocketUrl?.includes('localhost')
-  ? 'https://gamerhub-api-6lga.onrender.com'
-  : (envSocketUrl || 'https://gamerhub-api-6lga.onrender.com');
+export const API_URL = envApiUrl || 'https://gamerhub-api-6lga.onrender.com/api';
+export const SOCKET_URL = envSocketUrl || 'https://gamerhub-api-6lga.onrender.com';
 export const APP_NAME = 'GamerZ Hub';
 export const COPYRIGHT = `© ${new Date().getFullYear()} GamerZ Hub. All rights reserved.`;
 

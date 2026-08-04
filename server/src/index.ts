@@ -59,9 +59,6 @@ const allowedOrigins = [
   "http://localhost:3000",
   "https://web-drab-nu-21.vercel.app",
   "https://gamerhub-web.onrender.com",
-  "http://localhost",
-  "https://localhost",
-  "capacitor://localhost",
   process.env.FRONTEND_URL
 ].filter((origin): origin is string => Boolean(origin));
 

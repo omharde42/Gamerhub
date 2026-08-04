@@ -10,13 +10,9 @@ import { supabase } from '@/lib/supabase';
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, lastPath } = useAuthStore();
+  const { login } = useAuthStore();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState('');
-
-  const goAfterLogin = () => {
-    setTimeout(() => router.push(lastPath || '/feed'), 1000);
-  };
 
   useEffect(() => {
     let isSubscribed = true;
@@ -38,7 +34,7 @@ function AuthCallbackContent() {
         login(data.data, accessToken, refreshToken);
         if (isSubscribed) {
           setStatus('success');
-          goAfterLogin();
+          setTimeout(() => router.push('/feed'), 1000);
         }
       } catch {
         if (isSubscribed) {
@@ -76,7 +72,7 @@ function AuthCallbackContent() {
                 login(data.data.user, data.data.accessToken, data.data.refreshToken);
                 if (isSubscribed) {
                   setStatus('success');
-                  goAfterLogin();
+                  setTimeout(() => router.push('/feed'), 1000);
                 }
                 return;
               }
@@ -98,7 +94,7 @@ function AuthCallbackContent() {
           login(data.data.user, data.data.accessToken, data.data.refreshToken);
           if (isSubscribed) {
             setStatus('success');
-            goAfterLogin();
+            setTimeout(() => router.push('/feed'), 1000);
           }
           return;
         }
@@ -115,7 +111,7 @@ function AuthCallbackContent() {
 
               login(data.data.user, data.data.accessToken, data.data.refreshToken);
               setStatus('success');
-              goAfterLogin();
+              setTimeout(() => router.push('/feed'), 1000);
             } catch (err: any) {
               setStatus('error');
               setError(err.response?.data?.message || 'Failed to process social login');

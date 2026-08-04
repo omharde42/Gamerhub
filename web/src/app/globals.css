@@ -68,19 +68,6 @@
     color: #FFFFFF;
   }
 
-  /* Responsive guards: media never overflows its container */
-  img, video, canvas, svg {
-    max-width: 100%;
-  }
-
-  /* Notch / rounded-corner device safe areas */
-  .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  .safe-top {
-    padding-top: env(safe-area-inset-top, 0px);
-  }
-
   body {
     @apply antialiased;
     font-family: var(--font-inter), sans-serif;
