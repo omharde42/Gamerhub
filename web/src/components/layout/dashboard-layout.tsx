@@ -1,5 +1,5 @@
 'use client';
-import { ReactNode, useEffect, useState, useRef } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Navbar } from './navbar';
 import { Sidebar } from './sidebar';
 import { MobileBottomNav } from './mobile-bottom-nav';
@@ -14,36 +14,32 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
 
-  // Use our useAuth hook to silently refresh/validate session in the background
+  // Validate and refresh session silently in the background
   useAuth();
 
   const [hasHydrated, setHasHydrated] = useState(false);
-  const splashTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isLanding = pathname === '/';
   const isAuthOrLanding = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');
-  const hideSidebar = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages');
-  const hideBottomNav = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages');
+  const hideSidebar = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
+  const hideBottomNav = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
   const isServerPage = pathname?.startsWith('/servers/');
   const isMessages = pathname?.startsWith('/messages');
 
   useEffect(() => {
+    // Check if the auth store is already hydrated from localStorage
+    if (useAuthStore.persist.hasHydrated()) {
+      setHasHydrated(true);
+      return;
+    }
+
+    // Otherwise, listen for hydration completion
     const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
       setHasHydrated(true);
     });
 
-    if (useAuthStore.persist.hasHydrated()) {
-      setHasHydrated(true);
-    }
-
-    // High performance target: Under 150ms splash screen duration if hydrated, max 250ms fallback
-    splashTimerRef.current = setTimeout(() => {
-      setHasHydrated(true);
-    }, 200);
-
     return () => {
       unsubscribe();
-      if (splashTimerRef.current) clearTimeout(splashTimerRef.current);
     };
   }, []);
 
@@ -77,12 +73,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [hasHydrated, user, isAuthenticated, isAuthOrLanding, pathname, router]);
 
-  // Instantly restore session: If we are already authenticated with cached credentials,
-  // render the UI immediately in the background, skipping any blocking splash redirects
   const isRedirectingAuthenticatedUser = isAuthenticated && !!user && isAuthOrLanding && pathname !== '/auth/callback';
   const isRedirectingUnauthenticatedUser = !isAuthenticated && !isAuthOrLanding;
 
-  // Render a branded GamerZ Hub splash screen for less than 300 ms
+  // Render a branded splash screen only until hydration completes to eliminate unauthenticated redirects or layout flashes
   if (!hasHydrated || isRedirectingAuthenticatedUser || isRedirectingUnauthenticatedUser) {
     return (
       <div className="min-h-screen bg-[#05070E] flex items-center justify-center p-4">
@@ -92,7 +86,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
-            <span>Initializing GamerZ Hub...</span>
+            <span>Loading GamerZ Hub...</span>
           </div>
         </div>
       </div>

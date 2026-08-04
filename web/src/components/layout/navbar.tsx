@@ -149,67 +149,18 @@ export function Navbar() {
           <span className="text-base font-extrabold hidden sm:block text-foreground group-hover:text-primary transition-colors tracking-tight">GamerZ Hub</span>
         </Link>
 
-        {/* Center: Maximized Search Bar on mobile, fits beautifully in the space */}
-        <div className="flex relative flex-1 mx-1 md:mx-0 max-w-full md:max-w-sm">
+        {/* Center: Maximized Search Bar on mobile, redirects to the dedicated full-screen search experience */}
+        <div className="flex relative flex-1 mx-1 md:mx-0 max-w-full md:max-w-sm cursor-pointer">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full" 
-            placeholder="Search players..." 
+            className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full cursor-pointer"
+            placeholder="Search players, teams..."
             variant="ghost" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Escape' && setSearchQuery('')}
+            value=""
+            readOnly
+            onClick={() => router.push('/search')}
+            onFocus={() => router.push('/search')}
           />
-          
-          <AnimatePresence>
-            {searchQuery.trim().length >= 2 && (
-              <motion.div 
-                className="absolute top-full left-0 right-0 mt-1.5 bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-xl z-50 p-2 max-h-72 overflow-y-auto"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-              >
-                {searchLoading ? (
-                  <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>
-                ) : searchResults.length === 0 ? (
-                  <div className="py-4 text-center text-xs text-muted-foreground">No users found</div>
-                ) : (
-                  <div className="space-y-1">
-                    {searchResults.map((p: any) => (
-                      <div key={p.id} className="flex items-center justify-between p-1.5 hover:bg-accent/40 rounded-lg transition-colors gap-2">
-                        <div 
-                          className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
-                          onClick={() => {
-                            router.push(`/profile/${p.username}`);
-                            setSearchQuery('');
-                          }}
-                        >
-                          <Avatar className="h-7 w-7 shrink-0 border border-border/60">
-                            <AvatarImage src={p.avatar || ''} />
-                            <AvatarFallback className="text-[9px]">{getInitials(p.username)}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-foreground truncate">{p.displayName || p.username}</p>
-                            <p className="text-[9px] text-muted-foreground truncate">@{p.username}</p>
-                          </div>
-                        </div>
-                        <Button 
-                          variant="gradient" 
-                          size="sm" 
-                          className="h-6 px-2 text-[9px] rounded-lg shrink-0"
-                          onClick={() => sendConnectRequest.mutate(p.userId)}
-                          disabled={sendConnectRequest.isPending}
-                          animate
-                        >
-                          Connect
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         {/* Right Side: Profile icon (displayed on BOTH mobile & desktop) */}

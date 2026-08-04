@@ -188,13 +188,13 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                 </AvatarFallback>
               </Avatar>
             </Link>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Link href={`/profile/${post.user?.profile?.username}`} className="font-bold text-white hover:text-[#7C3AED] transition-colors text-sm font-inter">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <Link href={`/profile/${post.user?.profile?.username}`} className="font-bold text-white hover:text-[#7C3AED] transition-colors text-sm font-inter truncate max-w-[150px] sm:max-w-xs">
                   {post.user?.profile?.displayName || post.user?.profile?.username}
                 </Link>
                 {post.user?.profile?.rank && (
-                  <Badge variant="outline" className="text-[10px] font-mono bg-[#7C3AED]/15 text-[#7C3AED] border-[#7C3AED]/30 px-2 py-0.5 font-bold">
+                  <Badge variant="outline" className="text-[10px] font-mono bg-[#7C3AED]/15 text-[#7C3AED] border-[#7C3AED]/30 px-2 py-0.5 font-bold shrink-0">
                     <Sparkles className="h-2.5 w-2.5 mr-1 text-[#FF6B00]" />
                     {post.user.profile.rank}
                   </Badge>

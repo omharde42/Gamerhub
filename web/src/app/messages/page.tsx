@@ -43,6 +43,7 @@ function DiscordMessagesPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [userSearch, setUserSearch] = useState('');
+  const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [chatUploading, setChatUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -623,25 +624,61 @@ function DiscordMessagesPage() {
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Find player..." className="pl-9 h-9 text-xs bg-muted/40 border-0 rounded-xl" variant="ghost" />
+            <Input
+              placeholder="Search conversations..."
+              value={chatSearchQuery}
+              onChange={(e) => setChatSearchQuery(e.target.value)}
+              className="pl-9 h-9 text-xs bg-muted/40 border-0 rounded-xl"
+              variant="ghost"
+            />
+            {chatSearchQuery && (
+              <button onClick={() => setChatSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-2 py-2">
-          {chatsLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
-          ) : chats?.length === 0 ? (
-            <div className="flex flex-col items-center py-12 px-4 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center opacity-60">
-                <MessageSquare className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <p className="text-xs text-muted-foreground">No conversations yet</p>
-              <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => setNewChatOpen(true)}>
-                <Plus className="h-3 w-3 mr-1" /> New Message
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {chats?.map((chat: any) => {
+          {(() => {
+            const filteredChats = chats?.filter((chat: any) => {
+              if (!chatSearchQuery.trim()) return true;
+              const other = getOtherParticipant(chat);
+              const search = chatSearchQuery.toLowerCase();
+              return (
+                other?.profile?.username?.toLowerCase().includes(search) ||
+                other?.profile?.displayName?.toLowerCase().includes(search)
+              );
+            }) || [];
+
+            if (chatsLoading) {
+              return <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>;
+            }
+
+            if (chats?.length === 0) {
+              return (
+                <div className="flex flex-col items-center py-12 px-4 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center opacity-60">
+                    <MessageSquare className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">No conversations yet</p>
+                  <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => setNewChatOpen(true)}>
+                    <Plus className="h-3 w-3 mr-1" /> New Message
+                  </Button>
+                </div>
+              );
+            }
+
+            if (filteredChats.length === 0) {
+              return (
+                <p className="text-xs text-muted-foreground text-center py-12">
+                  No conversations match &quot;{chatSearchQuery}&quot;
+                </p>
+              );
+            }
+
+            return (
+              <div className="space-y-1">
+                {filteredChats.map((chat: any) => {
                 const other = getOtherParticipant(chat);
                 const isSelected = selectedChat === chat.id;
                 const online = other ? isOnline(other.id) : false;
@@ -710,7 +747,8 @@ function DiscordMessagesPage() {
                 );
               })}
             </div>
-          )}
+            );
+          })()}
         </div>
         <div className="p-3 border-t border-border/40 bg-muted/20">
           <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-card/40 border border-border/30 shadow-sm transition-colors">
@@ -755,28 +793,34 @@ function DiscordMessagesPage() {
                     >
                       <ChevronLeft className="h-6 w-6" />
                     </Button>
-                    <div className="relative shrink-0">
-                      <Avatar className="h-8 w-8"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(other?.profile?.username || 'U')}</AvatarFallback></Avatar>
-                      {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card animate-pulse" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-extrabold text-foreground truncate max-w-[150px] sm:max-w-[200px]">{other?.profile?.displayName || other?.profile?.username || 'User'}</p>
-                        <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 flex items-center gap-1 shrink-0">
-                          <Lock className="w-2.5 h-2.5 text-emerald-400" />
-                          E2EE
-                        </Badge>
+                    <button
+                      onClick={() => other?.profile?.username && router.push(`/profile/${other.profile.username}`)}
+                      className="flex items-center gap-2.5 text-left hover:opacity-85 transition-opacity min-w-0 flex-1 cursor-pointer"
+                      title="View Gamer Passport"
+                    >
+                      <div className="relative shrink-0">
+                        <Avatar className="h-8 w-8"><AvatarImage src={other?.profile?.avatar || ''} /><AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(other?.profile?.username || 'U')}</AvatarFallback></Avatar>
+                        {online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-card animate-pulse" />}
                       </div>
-                      <p className="text-[10px] font-medium flex items-center gap-1 truncate" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
-                        {online ? (
-                          <><span className="w-1.5 h-1.5 bg-success rounded-full inline-block shrink-0" /> Online</>
-                        ) : other?.presence === 'IDLE' ? (
-                          <><span className="w-1.5 h-1.5 bg-yellow-500 rounded-full inline-block shrink-0" /> Idle</>
-                        ) : (
-                          <span className="truncate">Last seen {formatLastSeen(other?.updatedAt)}</span>
-                        )}
-                      </p>
-                    </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-extrabold text-foreground truncate max-w-[120px] sm:max-w-[180px]">{other?.profile?.displayName || other?.profile?.username || 'User'}</p>
+                          <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 flex items-center gap-1 shrink-0">
+                            <Lock className="w-2.5 h-2.5 text-emerald-400" />
+                            E2EE
+                          </Badge>
+                        </div>
+                        <p className="text-[10px] font-medium flex items-center gap-1 truncate" style={{ color: online ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
+                          {online ? (
+                            <><span className="w-1.5 h-1.5 bg-success rounded-full inline-block shrink-0" /> Online</>
+                          ) : other?.presence === 'IDLE' ? (
+                            <><span className="w-1.5 h-1.5 bg-yellow-500 rounded-full inline-block shrink-0" /> Idle</>
+                          ) : (
+                            <span className="truncate font-normal">Last seen {formatLastSeen(other?.updatedAt)}</span>
+                          )}
+                        </p>
+                      </div>
+                    </button>
                     <div className="flex gap-1 shrink-0">
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => initiateCall('audio')} title="Start Voice Call"><Phone className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => initiateCall('video')} title="Start Video Call"><Video className="h-4 w-4" /></Button>

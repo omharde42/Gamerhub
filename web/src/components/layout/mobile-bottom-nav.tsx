@@ -2,18 +2,18 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Newspaper, MessageSquare, Users, Bell
+  Newspaper, Search, MessageSquare, Trophy, User
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
 const mobileNavItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { href: '/feed', icon: Newspaper, label: 'Feed' },
-  { href: '/messages', icon: MessageSquare, label: 'Chat' },
-  { href: '/friends', icon: Users, label: 'Network' },
-  { href: '/notifications', icon: Bell, label: 'Alerts' },
+  { href: '/search', icon: Search, label: 'Search' },
+  { href: '/messages', icon: MessageSquare, label: 'Messages' },
+  { href: '/tournaments', icon: Trophy, label: 'Tournaments' },
+  { href: '/profile', icon: User, label: 'Profile' },
 ];
 
 export function MobileBottomNav() {
@@ -35,11 +35,12 @@ export function MobileBottomNav() {
   });
 
   const totalChatUnread = Object.values(chatUnreadData || {}).reduce((sum: number, c: any) => sum + (c as number), 0);
-  const unreadNotifCount = notifData?.count || 0;
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') return pathname === '/dashboard';
-    return pathname?.startsWith(href) || pathname === href;
+    if (href === '/profile') {
+      return pathname?.startsWith('/profile/') && !pathname?.endsWith('/settings');
+    }
+    return pathname === href || pathname?.startsWith(href + '/');
   };
 
   return (
@@ -50,11 +51,17 @@ export function MobileBottomNav() {
             const Icon = item.icon;
             const active = isActive(item.href);
             const isChat = item.href === '/messages';
-            const isAlerts = item.href === '/notifications';
+            const isProfile = item.href === '/profile';
+
+            // Dynamically resolve /profile to current user's profile
+            const targetHref = isProfile && user?.profile?.username
+              ? `/profile/${user.profile.username}`
+              : item.href;
+
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={targetHref}
                 className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all duration-200 min-w-[56px] relative ${
                   active
                     ? 'text-primary'
@@ -68,11 +75,6 @@ export function MobileBottomNav() {
                   {isChat && totalChatUnread > 0 && (
                     <span className="absolute -top-1 -right-2 h-3.5 min-w-[14px] px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center shadow-sm">
                       {totalChatUnread > 9 ? '9+' : totalChatUnread}
-                    </span>
-                  )}
-                  {isAlerts && unreadNotifCount > 0 && (
-                    <span className="absolute -top-1 -right-2 h-3.5 min-w-[14px] px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center shadow-sm">
-                      {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
                     </span>
                   )}
                 </div>
