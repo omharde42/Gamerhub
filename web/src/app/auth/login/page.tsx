@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, isAuthenticated, login } = useAuthStore();
+  const { user, isAuthenticated, login, lastPath, setLastPath } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -27,6 +27,12 @@ export default function LoginPage() {
     return null;
   }
 
+  const goHome = () => {
+    const target = lastPath && lastPath !== '/' ? lastPath : '/feed';
+    setLastPath(null);
+    router.push(target);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) return;
@@ -35,7 +41,7 @@ export default function LoginPage() {
       const { data } = await api.post('/auth/login', { email: email.trim(), password });
       login(data.data.user, data.data.accessToken, data.data.refreshToken);
       toast.success(`Welcome back, ${data.data.user?.profile?.username || 'Gamer'}!`);
-      router.push('/feed');
+      goHome();
     } catch (err: any) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Invalid credentials';
       toast.error(msg);

@@ -20,6 +20,7 @@ import {
   Video, VideoOff, Monitor, PhoneOff, ShieldAlert
 } from 'lucide-react';
 import { getInitials, formatRelativeTime } from '@/lib/utils';
+import { PageBackButton } from '@/components/ui/page-back-button';
 import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = { 
@@ -352,6 +353,7 @@ export default function ServerPage() {
 
           <div className="relative z-10 flex items-center gap-2 justify-between">
             <div className="flex items-center gap-2 min-w-0">
+              <PageBackButton fallbackHref="/servers" className="text-white hover:bg-white/10 rounded-xl -ml-1" aria-label="Back to servers" />
               <Avatar className="h-7 w-7 rounded-lg border border-white/20">
                 <AvatarImage src={server?.avatar || ''} className="object-cover" />
                 <AvatarFallback className="bg-primary/20 text-primary font-bold text-xs">

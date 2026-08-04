@@ -30,6 +30,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://res.cloudinary.com" />
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+        <link rel="preload" as="image" href="/logo.jpg" />
+        {/* Restore the saved theme before first paint to prevent theme flicker */}
+        <script dangerouslySetInnerHTML={{
+          __html: `try{(function(){var t=localStorage.getItem('theme');var dark=t==='dark'||t==='gray'||!t||t==='system';if(dark){document.documentElement.classList.add('dark')}})()}catch(e){}`,
+        }} />
       </head>
       <body className={`${inter.className} ${inter.variable} ${plusJakarta.variable} ${orbitron.variable} ${rajdhani.variable} ${spaceGrotesk.variable}`}>
         <Providers>

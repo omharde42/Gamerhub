@@ -35,10 +35,12 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
+  lastPath: string | null;
   setUser: (user: User | null) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
   login: (user: User, accessToken: string, refreshToken: string) => void;
   logout: () => void;
+  setLastPath: (path: string | null) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -48,6 +50,7 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      lastPath: null,
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
 
@@ -83,7 +86,11 @@ export const useAuthStore = create<AuthState>()(
             localStorage.removeItem('refreshToken');
           } catch {}
         }
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
+        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, lastPath: null });
+      },
+
+      setLastPath: (path) => {
+        set({ lastPath: path });
       },
     }),
     {
