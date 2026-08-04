@@ -29,12 +29,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   // Hydration of zustand's persist store is synchronous with localStorage, so
   // this resolves within the first render cycle — no artificial delay needed.
   useEffect(() => {
-    const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
-      setHasHydrated(true);
-    });
-
+    // Check if the auth store is already hydrated from localStorage
     if (useAuthStore.persist.hasHydrated()) {
       setHasHydrated(true);
+      return;
     }
     return () => unsubscribe();
   }, []);
@@ -102,7 +100,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
-            <span>Initializing GamerZ Hub...</span>
+            <span>Loading GamerZ Hub...</span>
           </div>
         </div>
       </div>
