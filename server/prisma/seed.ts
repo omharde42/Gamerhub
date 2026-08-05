@@ -1,77 +1,95 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding database...');
+  const args = process.argv.slice(2);
+  let targetUserCount = 50;
+  const userArg = args.find(a => a.startsWith('--users='));
+  if (userArg) {
+    targetUserCount = parseInt(userArg.split('=')[1], 10) || 50;
+  }
 
-  // Clean existing data
-  await prisma.$transaction([
-    prisma.matchHistory.deleteMany(),
-    prisma.auditLog.deleteMany(),
-    prisma.notification.deleteMany(),
-    prisma.message.deleteMany(),
-    prisma.chat.deleteMany(),
-    prisma.postHashtag.deleteMany(),
-    prisma.hashtag.deleteMany(),
-    prisma.comment.deleteMany(),
-    prisma.like.deleteMany(),
-    prisma.follow.deleteMany(),
-    prisma.pollVoter.deleteMany(),
-    prisma.pollOption.deleteMany(),
-    prisma.poll.deleteMany(),
-    prisma.post.deleteMany(),
-    prisma.tournamentTeamMember.deleteMany(),
-    prisma.tournamentTeam.deleteMany(),
-    prisma.tournamentParticipant.deleteMany(),
-    prisma.match.deleteMany(),
-    prisma.tournament.deleteMany(),
-    prisma.scrim.deleteMany(),
-    prisma.practiceSchedule.deleteMany(),
-    prisma.teamApplication.deleteMany(),
-    prisma.teamInvite.deleteMany(),
-    prisma.teamMember.deleteMany(),
-    prisma.team.deleteMany(),
-    prisma.savedJob.deleteMany(),
-    prisma.jobApplication.deleteMany(),
-    prisma.job.deleteMany(),
-    prisma.organizationMember.deleteMany(),
-    prisma.organization.deleteMany(),
-    prisma.subscription.deleteMany(),
-    prisma.report.deleteMany(),
-    prisma.achievement.deleteMany(),
-    prisma.certification.deleteMany(),
-    prisma.tournamentHistory.deleteMany(),
-    prisma.profile.deleteMany(),
-    prisma.device.deleteMany(),
-    prisma.session.deleteMany(),
-    prisma.passwordResetToken.deleteMany(),
-    prisma.emailVerificationToken.deleteMany(),
-    prisma.account.deleteMany(),
-    prisma.notificationSettings.deleteMany(),
-    prisma.user.deleteMany(),
-  ]);
+  console.log(`🌱 Seeding database with target ${targetUserCount} users...`);
 
-  const password = await bcrypt.hash('Password123!', 12);
+  // Clean existing data sequentially to avoid foreign key deadlocks
+  console.log('🧹 Cleaning existing data...');
+  await prisma.postHashtag.deleteMany().catch(() => {});
+  await prisma.hashtag.deleteMany().catch(() => {});
+  await prisma.pollVoter.deleteMany().catch(() => {});
+  await prisma.pollOption.deleteMany().catch(() => {});
+  await prisma.poll.deleteMany().catch(() => {});
+  await prisma.like.deleteMany().catch(() => {});
+  await prisma.comment.deleteMany().catch(() => {});
+  await prisma.post.deleteMany().catch(() => {});
+  await prisma.messageRead.deleteMany().catch(() => {});
+  await prisma.messageReaction.deleteMany().catch(() => {});
+  await prisma.typingIndicator.deleteMany().catch(() => {});
+  await prisma.chatParticipant.deleteMany().catch(() => {});
+  await prisma.message.deleteMany().catch(() => {});
+  await prisma.chat.deleteMany().catch(() => {});
+  await prisma.matchHistory.deleteMany().catch(() => {});
+  await prisma.match.deleteMany().catch(() => {});
+  await prisma.tournamentTeamMember.deleteMany().catch(() => {});
+  await prisma.tournamentTeam.deleteMany().catch(() => {});
+  await prisma.tournamentParticipant.deleteMany().catch(() => {});
+  await prisma.tournamentHistory.deleteMany().catch(() => {});
+  await prisma.tournament.deleteMany().catch(() => {});
+  await prisma.scrim.deleteMany().catch(() => {});
+  await prisma.practiceSchedule.deleteMany().catch(() => {});
+  await prisma.teamApplication.deleteMany().catch(() => {});
+  await prisma.teamInvite.deleteMany().catch(() => {});
+  await prisma.teamMember.deleteMany().catch(() => {});
+  await prisma.team.deleteMany().catch(() => {});
+  await prisma.savedJob.deleteMany().catch(() => {});
+  await prisma.jobApplication.deleteMany().catch(() => {});
+  await prisma.job.deleteMany().catch(() => {});
+  await prisma.organizationMember.deleteMany().catch(() => {});
+  await prisma.organization.deleteMany().catch(() => {});
+  await prisma.subscription.deleteMany().catch(() => {});
+  await prisma.report.deleteMany().catch(() => {});
+  await prisma.gameAccount.deleteMany().catch(() => {});
+  await prisma.profile.deleteMany().catch(() => {});
+  await prisma.device.deleteMany().catch(() => {});
+  await prisma.session.deleteMany().catch(() => {});
+  await prisma.passwordResetToken.deleteMany().catch(() => {});
+  await prisma.emailVerificationToken.deleteMany().catch(() => {});
+  await prisma.account.deleteMany().catch(() => {});
+  await prisma.notification.deleteMany().catch(() => {});
+  await prisma.notificationSettings.deleteMany().catch(() => {});
+  await prisma.auditLog.deleteMany().catch(() => {});
+  await prisma.friendRequest.deleteMany().catch(() => {});
+  await prisma.follow.deleteMany().catch(() => {});
+  await prisma.user.deleteMany().catch(() => {});
 
-  // Create admin
-  const admin = await prisma.user.create({
+  console.log('🧹 Database cleaned');
+
+  const passwordHash = await bcrypt.hash('Password123!', 10);
+
+  // 1. Ensure Admin User
+  const adminId = crypto.randomUUID();
+  const adminProfileId = crypto.randomUUID();
+  await prisma.user.create({
     data: {
+      id: adminId,
       email: 'admin@gamerhub.com',
-      password,
-      role: 'SUPER_ADMIN',
+      password: passwordHash,
+      role: 'ADMIN',
       emailVerified: new Date(),
       profile: {
         create: {
+          id: adminProfileId,
           username: 'admin',
-          displayName: 'Admin',
-          bio: 'GamerHub platform administrator',
+          displayName: 'GamerZ Admin',
+          bio: 'GamerZ Hub Platform Administrator & Tournament Director',
           country: 'US',
           rank: 'Challenger',
           role: 'IGL',
-          winRate: 85,
+          winRate: 85.0,
           kd: 3.5,
-          accuracy: 78,
+          accuracy: 78.0,
           totalMatches: 1500,
           wins: 1275,
           losses: 225,
@@ -86,80 +104,128 @@ async function main() {
     },
   });
 
-  // Create users with diverse profiles
-  const users = [];
-  const userData = [
-    { username: 'pro-gamer', displayName: 'ProGamer', rank: 'Diamond', role: 'Entry Fragger', winRate: 72, kd: 2.1, games: ['Valorant', 'CS2'] },
-    { username: 'sniper-king', displayName: 'SniperKing', rank: 'Master', role: 'AWPer', winRate: 68, kd: 1.8, games: ['CS2', 'Valorant'] },
-    { username: 'support-main', displayName: 'SupportMain', rank: 'Gold', role: 'Support', winRate: 65, kd: 1.2, games: ['Overwatch 2', 'Valorant'] },
-    { username: 'jungle-master', displayName: 'JungleMaster', rank: 'Platinum', role: 'Jungler', winRate: 70, kd: 2.5, games: ['League of Legends'] },
-    { username: 'carry-player', displayName: 'CarryPlayer', rank: 'Diamond', role: 'Carry', winRate: 75, kd: 3.2, games: ['Dota 2'] },
-    { username: 'fragger-01', displayName: 'Fragger01', rank: 'Silver', role: 'Entry Fragger', winRate: 55, kd: 1.0, games: ['Valorant'] },
-    { username: 'strat-caller', displayName: 'StratCaller', rank: 'Platinum', role: 'IGL', winRate: 67, kd: 1.5, games: ['CS2', 'Rainbow Six Siege'] },
-    { username: 'flex-player', displayName: 'FlexPlayer', rank: 'Gold', role: 'Flex', winRate: 60, kd: 1.3, games: ['Valorant', 'Apex Legends', 'Fortnite'] },
-    { username: 'rookie-rising', displayName: 'RookieRising', rank: 'Bronze', role: 'Support', winRate: 45, kd: 0.8, games: ['League of Legends'] },
-    { username: 'aim-labs', displayName: 'AimLabs', rank: 'Master', role: 'AWPer', winRate: 80, kd: 3.8, games: ['CS2', 'Valorant'] },
-  ];
+  console.log('👤 Admin ensured');
 
-  for (const u of userData) {
-    const user = await prisma.user.create({
-      data: {
-        email: `${u.username}@gamerhub.com`,
-        password,
+  // 2. High-Performance Chunked Seeding for Scaled Users
+  const ranks = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Challenger'];
+  const roles = ['Entry Fragger', 'Support', 'AWPer', 'IGL', 'Lurker', 'Flex', 'Carry', 'Jungler', 'Mid Laner'];
+  const countries = ['US', 'UK', 'DE', 'KR', 'BR', 'SG', 'IN', 'JP', 'FR', 'CA'];
+  const gamePool = ['Valorant', 'CS2', 'League of Legends', 'Dota 2', 'Overwatch 2', 'Apex Legends', 'Fortnite', 'PUBG / BGMI', 'Free Fire', 'Clash Royale'];
+  const playStyles = ['Aggressive', 'Passive', 'Balanced', 'Strategic', 'Technical'];
+  const commStyles = ['Shotcaller', 'Supportive', 'Analytical', 'Motivational', 'Quiet'];
+
+  const userBatchSize = 250;
+  const createdUserIds: string[] = [adminId];
+
+  console.log(`🚀 Starting bulk generation of ${targetUserCount} users in batches of ${userBatchSize}...`);
+
+  for (let b = 0; b < targetUserCount; b += userBatchSize) {
+    const currentBatchCount = Math.min(userBatchSize, targetUserCount - b);
+    const userRecords = [];
+    const profileRecords = [];
+    const gameAccountRecords = [];
+    const notificationSettingRecords = [];
+
+    for (let i = 0; i < currentBatchCount; i++) {
+      const globalIdx = b + i + 1;
+      const uId = crypto.randomUUID();
+      const pId = crypto.randomUUID();
+      const username = `gamer_${globalIdx}`;
+      const email = `gamer_${globalIdx}@gamerhub.com`;
+      const rank = ranks[globalIdx % ranks.length];
+      const role = roles[globalIdx % roles.length];
+      const country = countries[globalIdx % countries.length];
+      const primaryGame = gamePool[globalIdx % gamePool.length];
+
+      createdUserIds.push(uId);
+
+      userRecords.push({
+        id: uId,
+        email,
+        password: passwordHash,
+        role: 'USER' as const,
         emailVerified: new Date(),
-        role: 'USER',
-        profile: {
-          create: {
-            username: u.username,
-            displayName: u.displayName,
-            bio: `Professional ${u.role} player. Rank: ${u.rank}. Aiming for Challenger!`,
-            country: ['US', 'UK', 'DE', 'KR', 'BR', 'SG'][Math.floor(Math.random() * 6)],
-            rank: u.rank,
-            role: u.role,
-            winRate: u.winRate,
-            kd: u.kd,
-            accuracy: Math.floor(Math.random() * 30) + 50,
-            totalMatches: Math.floor(Math.random() * 500) + 100,
-            wins: Math.floor(Math.random() * 300) + 50,
-            losses: Math.floor(Math.random() * 200) + 50,
-            mainGames: u.games,
-            languages: ['English'],
-            playStyle: ['Aggressive', 'Passive', 'Balanced', 'Strategic', 'Technical'][Math.floor(Math.random() * 5)],
-            communicationStyle: ['Shotcaller', 'Supportive', 'Analytical', 'Motivational', 'Quiet'][Math.floor(Math.random() * 5)],
-            activeTime: ['Mornings', 'Afternoons', 'Evenings', 'Nights'][Math.floor(Math.random() * 4)],
-            toxicityScore: Math.random() * 0.3,
-            achievements: {
-              create: [
-                { title: 'First Win', description: 'Won your first match', icon: 'trophy', rarity: 'Common' },
-                { title: '10 Wins Streak', description: 'Won 10 matches in a row', icon: 'fire', rarity: 'Rare' },
-                { title: 'Top Fragger', description: 'Most kills in a tournament', icon: 'skull', rarity: 'Epic' },
-              ],
-            },
-          },
-        },
-        notificationSettings: { create: {} },
-      },
-    });
-    users.push(user);
+        createdAt: new Date(Date.now() - Math.floor(Math.random() * 90 * 86400000)),
+      });
+
+      profileRecords.push({
+        id: pId,
+        userId: uId,
+        username,
+        displayName: `Gamer ${globalIdx}`,
+        bio: `Competitive ${role} main specializing in ${primaryGame}. Aiming for ${rank}!`,
+        country,
+        rank,
+        role,
+        winRate: parseFloat((45 + (globalIdx % 45) + Math.random() * 5).toFixed(1)),
+        kd: parseFloat((0.8 + (globalIdx % 3) + Math.random() * 0.5).toFixed(2)),
+        accuracy: Math.floor(45 + Math.random() * 35),
+        totalMatches: Math.floor(100 + Math.random() * 800),
+        wins: Math.floor(50 + Math.random() * 400),
+        losses: Math.floor(30 + Math.random() * 300),
+        mainGames: [primaryGame],
+        languages: ['English'],
+        playStyle: playStyles[globalIdx % playStyles.length],
+        communicationStyle: commStyles[globalIdx % commStyles.length],
+        activeTime: 'Evenings',
+        toxicityScore: parseFloat((Math.random() * 0.15).toFixed(3)),
+      });
+
+      // Create linked verified GameAccount
+      gameAccountRecords.push({
+        id: crypto.randomUUID(),
+        userId: uId,
+        game: primaryGame.toUpperCase().replace(/\s*\/\s*/g, '_'),
+        inGameUid: `UID_${100000 + globalIdx}`,
+        inGameName: `${username}_IGN`,
+        rank,
+        level: Math.floor(10 + Math.random() * 200),
+        kdRatio: parseFloat((0.9 + Math.random() * 1.5).toFixed(2)),
+        winRate: parseFloat((50 + Math.random() * 25).toFixed(1)),
+        verified: true,
+        syncStatus: 'SUCCESS',
+        lastSyncedAt: new Date(),
+      });
+
+      notificationSettingRecords.push({
+        id: crypto.randomUUID(),
+        userId: uId,
+      });
+    }
+
+    await prisma.user.createMany({ data: userRecords, skipDuplicates: true });
+    await prisma.profile.createMany({ data: profileRecords, skipDuplicates: true });
+    await prisma.gameAccount.createMany({ data: gameAccountRecords, skipDuplicates: true });
+    await prisma.notificationSettings.createMany({ data: notificationSettingRecords, skipDuplicates: true });
+
+    console.log(`   ✔ Batch ${Math.floor(b / userBatchSize) + 1} (${b + currentBatchCount}/${targetUserCount}) users created`);
   }
 
-  // Create teams
-  const teams = await Promise.all([
-    prisma.team.create({
-      data: { name: 'Phoenix Rising', tag: 'PR', description: 'Competitive Valorant team looking for dedicated players', rank: 'Diamond', region: 'NA', wins: 45, losses: 12, members: { create: [{ userId: users[0].id, role: 'CAPTAIN' }, { userId: users[1].id, role: 'MEMBER' }, { userId: users[2].id, role: 'MEMBER' }] } },
-    }),
-    prisma.team.create({
-      data: { name: 'Shadow Wolves', tag: 'SW', description: 'CS2 team with tournament experience', rank: 'Master', region: 'EU', wins: 78, losses: 23, members: { create: [{ userId: users[3].id, role: 'CAPTAIN' }, { userId: users[4].id, role: 'MEMBER' }] } },
-    }),
-    prisma.team.create({
-      data: { name: 'Cyber Knights', tag: 'CK', description: 'League of Legends competitive team', rank: 'Platinum', region: 'KR', wins: 32, losses: 15, members: { create: [{ userId: users[5].id, role: 'CAPTAIN' }, { userId: users[6].id, role: 'MANAGER' }] } },
-    }),
-    prisma.team.create({
-      data: { name: 'Elite Squad', tag: 'ES', description: 'Multi-gaming organization recruiting talent', rank: 'Gold', region: 'NA', wins: 56, losses: 34, members: { create: [{ userId: users[7].id, role: 'CAPTAIN' }, { userId: users[8].id, role: 'COACH' }, { userId: users[9].id, role: 'MEMBER' }] } },
-    }),
-  ]);
+  console.log(`👥 Successfully created ${createdUserIds.length} users!`);
 
-  // Create organization
+  // 3. Create Teams
+  console.log('🏷️ Generating Teams & Squad Memberships...');
+  const teams = [
+    await prisma.team.create({ data: { name: 'Phoenix Rising', tag: 'PR', description: 'Competitive Valorant squad looking for dedicated entry fraggers.', rank: 'Diamond', region: 'NA', wins: 45, losses: 12 } }),
+    await prisma.team.create({ data: { name: 'Shadow Wolves', tag: 'SW', description: 'CS2 tournament team with active ELO ladder grinding.', rank: 'Master', region: 'EU', wins: 78, losses: 23 } }),
+    await prisma.team.create({ data: { name: 'Cyber Knights', tag: 'CK', description: 'League of Legends competitive scrim team.', rank: 'Platinum', region: 'KR', wins: 32, losses: 15 } }),
+    await prisma.team.create({ data: { name: 'Elite Squad', tag: 'ES', description: 'Multi-gaming organization scouting talent worldwide.', rank: 'Gold', region: 'NA', wins: 56, losses: 34 } }),
+  ];
+
+  const teamMemberRecords = [];
+  for (let i = 0; i < Math.min(20, createdUserIds.length); i++) {
+    const t = teams[i % teams.length];
+    teamMemberRecords.push({
+      id: crypto.randomUUID(),
+      teamId: t.id,
+      userId: createdUserIds[i],
+      role: i === 0 ? 'CAPTAIN' : 'MEMBER',
+    });
+  }
+  await prisma.teamMember.createMany({ data: teamMemberRecords, skipDuplicates: true });
+
+  // 4. Create Organization & Tournament
+  console.log('🏆 Generating Organization & Championship Tournament...');
   const org = await prisma.organization.create({
     data: {
       name: 'GamerHub Esports',
@@ -168,16 +234,15 @@ async function main() {
       website: 'https://gamerhub.com',
       verified: true,
       location: 'Global',
-      ownerId: admin.id,
-      members: { create: [{ userId: admin.id, role: 'OWNER' }, { userId: users[0].id, role: 'SCOUT' }] },
+      ownerId: adminId,
+      members: { create: [{ userId: adminId, role: 'OWNER' }] },
     },
   });
 
-  // Create tournaments
-  const tournament = await prisma.tournament.create({
+  await prisma.tournament.create({
     data: {
       title: 'GamerHub Championship Series S1',
-      description: 'The premier tournament hosted by GamerHub. Compete against the best teams for glory and prizes!',
+      description: 'The premier tournament hosted by GamerHub. Compete against top teams for glory and prize pools!',
       game: 'Valorant',
       type: 'SINGLE_ELIMINATION',
       status: 'REGISTRATION_OPEN',
@@ -185,105 +250,82 @@ async function main() {
       maxTeamSize: 5,
       prizePool: 10000,
       entryFee: 0,
-      startDate: new Date('2026-08-01'),
-      registrationEnd: new Date('2026-07-25'),
+      startDate: new Date(Date.now() + 7 * 86400000),
+      registrationEnd: new Date(Date.now() + 3 * 86400000),
       organizerId: org.id,
     },
   });
 
-  // Create jobs
-  await Promise.all([
-    prisma.job.create({
-      data: { title: 'Professional Valorant Player', description: 'Join Phoenix Rising as a full-time Valorant player. Must be Diamond+ with tournament experience.', type: 'PLAYER', status: 'OPEN', location: 'Remote', salary: '$2,000-$5,000/mo', game: 'Valorant', rankRequired: 'Diamond', organizationId: org.id },
-    }),
-    prisma.job.create({
-      data: { title: 'Head Coach - CS2', description: 'Looking for an experienced CS2 coach to lead our competitive team. Must have coaching experience at Master+ level.', type: 'COACH', status: 'OPEN', location: 'Berlin, Germany', salary: '$3,000-$6,000/mo', game: 'CS2', rankRequired: 'Master', organizationId: org.id },
-    }),
-    prisma.job.create({
-      data: { title: 'Esports Analyst', description: 'Analyze match data and provide insights for our tournament teams. Background in data analysis preferred.', type: 'ANALYST', status: 'OPEN', location: 'Remote', salary: '$2,500-$4,500/mo', game: 'Valorant', organizationId: org.id },
-    }),
-    prisma.job.create({
-      data: { title: 'Team Manager', description: 'Manage day-to-day operations of our League of Legends team. Coordinate schedules, travel, and team activities.', type: 'MANAGER', status: 'OPEN', location: 'Seoul, South Korea', salary: '$3,500-$5,500/mo', game: 'League of Legends', organizationId: org.id },
-    }),
-  ]);
-
-  // Create sample posts
-  const postContents = [
-    'Just hit Diamond rank in Valorant! Finally made it after 3 months of grinding. Huge shoutout to my team @PhoenixRising for the support! 🎉 #Valorant #Diamond #Gaming',
-    'Looking for a CS2 team for the upcoming GamerHub Championship. I\'m a Master-ranked AWPer with tournament experience. DM me if interested!',
-    'New personal best - 42 kills in a single match! The aim was on fire today. Check out the clip in my profile. 🔥 #CS2 #Highlight',
-    'Team practice went amazing today. Our new strategy for Split is looking clean. Can\'t wait for the tournament next month! #Valorant #Esports',
-    'Just finished reviewing VODs with the team. Found 3 major areas for improvement. That\'s why IGL is the most rewarding role. 🧠 #CS2 #IGL',
-    'Anyone else having trouble with the new patch? The meta shift is wild. Adapt or die I guess. #LeagueOfLegends',
-    'Proud of my team for making it to the semifinals! We may not have won it all, but the growth is real. See you next season. 💪 #Esports #Tournament',
-    'Hot take: Aim trainers are overrated. Stop spending hours in aim labs and play more actual matches. Game sense > raw aim. Thoughts?',
-    'Looking for a dedicated duo partner for ranked. Platinum+ in Valorant. I play Controller/Flex. Must have good comms and positive attitude.',
-    'Big announcement coming soon! Stay tuned... 👀 #ComingSoon',
+  // 5. Bulk Generation of Posts, Comments & Likes
+  console.log('📝 Generating Feed Posts, Comments & Likes...');
+  const postTemplates = [
+    'Just hit Radiant rank in Valorant! 3 months of hard grind finally paid off. Huge shoutout to my squad! 🎉 #Valorant #Radiant',
+    'Looking for a CS2 team for the upcoming GamerHub Championship Series. Master AWPer with tournament VODs ready. DM me!',
+    'New personal best — 42 kills in a single competitive match! Check out the highlight clip. 🔥 #CS2 #ACE',
+    'Team practice went amazing today. Our execute strategies for Ascent and Haven are looking clean. #Valorant #Esports',
+    'Just finished reviewing match VODs with the coach. Analyzing positioning and utility usage is how you rank up! 🧠 #Gaming',
+    'Anyone else grinding the new season update? The weapon meta shift is insane. Adapt or lose! #Gaming',
+    'Proud of the squad for making it to the semifinals in today\'s tournament scrims! Progress is real. 💪 #Esports',
+    'Aim labs vs actual competitive matches — what yields better crosshair placement? Drop your thoughts below!',
   ];
 
-  for (let i = 0; i < 10; i++) {
-    const post = await prisma.post.create({
-      data: {
-        content: postContents[i],
-        userId: users[i % users.length].id,
-        tags: postContents[i].match(/#\w+/g)?.map(t => t.slice(1)) || [],
-      },
+  const postCount = Math.min(targetUserCount * 2, 1000);
+  const postRecords = [];
+  for (let p = 0; p < postCount; p++) {
+    const authorId = createdUserIds[p % createdUserIds.length];
+    const template = postTemplates[p % postTemplates.length];
+    postRecords.push({
+      id: crypto.randomUUID(),
+      content: `${template} (Match #${p + 101})`,
+      userId: authorId,
+      tags: ['Gaming', 'Esports', 'Competitive'],
+      createdAt: new Date(Date.now() - Math.floor(Math.random() * 30 * 86400000)),
     });
-    
-    // Create hashtags
-    const tags = postContents[i].match(/#\w+/g)?.map(t => t.slice(1).toLowerCase()) || [];
-    for (const tag of tags) {
-      await prisma.hashtag.upsert({
-        where: { name: tag },
-        update: { count: { increment: 1 } },
-        create: { name: tag, count: 1 },
-      });
-      await prisma.postHashtag.create({
-        data: { postId: post.id, hashtagId: (await prisma.hashtag.findUnique({ where: { name: tag } }))!.id },
-      }).catch(() => {});
-    }
   }
+  await prisma.post.createMany({ data: postRecords, skipDuplicates: true });
 
-  // Create match history for analytics
-  const results = ['WIN', 'LOSS'];
-  const games = ['Valorant', 'CS2', 'League of Legends', 'Apex Legends'];
-  const maps = ['Ascent', 'Bind', 'Haven', 'Split', 'Mirage', 'Inferno', 'Summoners Rift', 'Kings Canyon'];
+  // 6. Bulk Generation of Match Histories
+  console.log('📊 Generating Match History & Analytics Data...');
+  const matchHistoryRecords = [];
+  const sampleGames = ['Valorant', 'CS2', 'League of Legends', 'Apex Legends'];
+  const sampleMaps = ['Ascent', 'Haven', 'Bind', 'Split', 'Mirage', 'Inferno'];
+  const matchCount = Math.min(targetUserCount * 5, 2500);
 
-  for (const user of users) {
-    for (let i = 0; i < 20; i++) {
-      const kills = Math.floor(Math.random() * 30) + 5;
-      const deaths = Math.floor(Math.random() * 20) + 5;
-      const result = results[Math.floor(Math.random() * results.length)];
-      await prisma.matchHistory.create({
-        data: {
-          game: games[Math.floor(Math.random() * games.length)],
-          result,
-          kills,
-          deaths,
-          assists: Math.floor(Math.random() * 15),
-          damage: Math.floor(Math.random() * 5000) + 1000,
-          accuracy: Math.floor(Math.random() * 30) + 40,
-          duration: Math.floor(Math.random() * 30) + 15,
-          map: maps[Math.floor(Math.random() * maps.length)],
-          mode: 'Competitive',
-          playedAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
-          userId: user.id,
-        },
-      });
-    }
+  for (let m = 0; m < matchCount; m++) {
+    const uId = createdUserIds[m % createdUserIds.length];
+    const kills = Math.floor(Math.random() * 25) + 5;
+    const deaths = Math.floor(Math.random() * 18) + 4;
+    matchHistoryRecords.push({
+      id: crypto.randomUUID(),
+      userId: uId,
+      game: sampleGames[m % sampleGames.length],
+      result: m % 2 === 0 ? 'WIN' : 'LOSS',
+      kills,
+      deaths,
+      assists: Math.floor(Math.random() * 12),
+      damage: Math.floor(1000 + Math.random() * 4000),
+      accuracy: Math.floor(40 + Math.random() * 35),
+      duration: Math.floor(15 + Math.random() * 30),
+      map: sampleMaps[m % sampleMaps.length],
+      mode: 'Competitive',
+      playedAt: new Date(Date.now() - Math.floor(Math.random() * 60 * 86400000)),
+    });
   }
+  await prisma.matchHistory.createMany({ data: matchHistoryRecords, skipDuplicates: true });
 
-  console.log('✅ Seeding complete!');
-  console.log(`   - ${users.length + 1} users (including admin)`);
-  console.log(`   - ${teams.length} teams`);
-  console.log(`   - 1 organization`);
-  console.log(`   - 1 tournament`);
-  console.log(`   - 4 jobs`);
-  console.log(`   - 10 posts with hashtags`);
-  console.log(`   - ${users.length * 20} match history entries`);
-  console.log(`\n📧 Admin login: admin@gamerhub.com / Password123!`);
+  console.log('\n✅ Data Scaling Complete!');
+  console.log(`   - ${createdUserIds.length} Total Users Seeded`);
+  console.log(`   - ${postRecords.length} Posts Generated`);
+  console.log(`   - ${matchHistoryRecords.length} Match History Logs Created`);
+  console.log(`   - 4 Competitive Teams & 1 Championship Tournament`);
+  console.log(`\n📧 Admin Login: admin@gamerhub.com / Password123!`);
 }
 
 main()
-  .catch((e) => { console.error('❌ Seed error:', e); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); });
+  .catch((e) => {
+    console.error('❌ Seed error:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
