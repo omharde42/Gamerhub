@@ -50,6 +50,7 @@ import appRoutes from './routes/app.routes';
 import cryptoRoutes from './routes/crypto.routes';
 import steamRoutes from './routes/steam.routes';
 import gameStatsRoutes from './routes/game-stats.routes';
+import clashOfClansRoutes from './routes/clashofclans.routes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -320,6 +321,7 @@ app.use('/api/game-requests', gameRequestRoutes);
 app.use('/api/crypto', cryptoRoutes);
 app.use('/api/steam', steamRoutes);
 import gameSyncRoutes from './routes/game-sync.routes';
+app.use('/api/clashofclans', clashOfClansRoutes);
 app.use('/api/game-sync', gameSyncRoutes);
 app.use('/api/game-stats', gameStatsRoutes);
 
