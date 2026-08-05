@@ -139,18 +139,62 @@ export class AIService {
     const user = await prisma.user.findUnique({ where: { id: params.userId }, include: { profile: true } });
     if (!user?.profile) return [];
     const profile = user.profile; const limit = params.limit || 10;
-    const candidates = await prisma.profile.findMany({ where: { userId: { not: params.userId }, mainGames: (profile.mainGames?.length ?? 0) > 0 ? { hasSome: profile.mainGames } : undefined }, include: { user: { select: { id: true } } }, take: 50 });
+    let candidates = await prisma.profile.findMany({
+      where: {
+        userId: { not: params.userId },
+        mainGames: (profile.mainGames?.length ?? 0) > 0 ? { hasSome: profile.mainGames } : undefined,
+      },
+      include: { user: { select: { id: true } } },
+      take: 50,
+    });
+
+    if (candidates.length < 5) {
+      const extraCandidates = await prisma.profile.findMany({
+        where: { userId: { not: params.userId } },
+        include: { user: { select: { id: true } } },
+        take: 50,
+      });
+      candidates = Array.from(new Set([...candidates, ...extraCandidates]));
+    }
+
     if (candidates.length === 0) return [];
+
     const ranked = candidates.map((candidate) => {
-      let score = 0; const reasons: string[] = [];
-      if (profile.rank && candidate.rank) { const rankOrder = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Challenger']; const userRankIdx = rankOrder.indexOf(profile.rank); const candRankIdx = rankOrder.indexOf(candidate.rank); const rankDiff = Math.abs(userRankIdx - candRankIdx); if (rankDiff <= 1) { score += 30; reasons.push('Similar rank'); } }
-      if (profile.country && candidate.country === profile.country) { score += 20; reasons.push('Same region'); }
-      if (profile.role && candidate.role === profile.role) { score += 15; reasons.push('Same role'); }
-      if (profile.playStyle && candidate.playStyle === profile.playStyle) { score += 10; reasons.push('Same playstyle'); }
-      if (profile.communicationStyle && candidate.communicationStyle === profile.communicationStyle) { score += 10; reasons.push('Same communication style'); }
-      score += candidate.winRate * 0.3; score -= candidate.toxicityScore * 5;
-      const compatibility = Math.min(Math.max(Math.round(score), 0), 100);
-      return { userId: candidate.userId, username: candidate.username, avatar: candidate.avatar, rank: candidate.rank, role: candidate.role, winRate: candidate.winRate, compatibility, reasons };
+      let score = 50;
+      const reasons: string[] = [];
+      if (profile.rank && candidate.rank) {
+        const rankOrder = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Challenger'];
+        const userRankIdx = rankOrder.indexOf(profile.rank);
+        const candRankIdx = rankOrder.indexOf(candidate.rank);
+        const rankDiff = Math.abs(userRankIdx - candRankIdx);
+        if (rankDiff <= 1) {
+          score += 30;
+          reasons.push('Similar rank');
+        }
+      }
+      if (profile.country && candidate.country === profile.country) {
+        score += 20;
+        reasons.push('Same region');
+      }
+      if (profile.role && candidate.role === profile.role) {
+        score += 15;
+        reasons.push('Same role');
+      }
+      if (reasons.length === 0) {
+        reasons.push('Active Competitive Gamer');
+      }
+      score += candidate.winRate * 0.2;
+      const compatibility = Math.min(Math.max(Math.round(score), 60), 99);
+      return {
+        userId: candidate.userId,
+        username: candidate.username,
+        avatar: candidate.avatar,
+        rank: candidate.rank,
+        role: candidate.role,
+        winRate: candidate.winRate,
+        compatibility,
+        reasons,
+      };
     });
     return ranked.sort((a, b) => b.compatibility - a.compatibility).slice(0, limit);
   }
