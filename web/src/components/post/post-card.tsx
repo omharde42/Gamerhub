@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface PostCardProps {
   post: any;
   onDelete?: (id: string) => void;
+  priority?: boolean;
 }
 
 function LikeButton({ post }: { post: any }) {
@@ -135,7 +136,7 @@ function PollDisplay({ poll }: { poll: any }) {
   );
 }
 
-export function PostCard({ post, onDelete }: PostCardProps) {
+export function PostCard({ post, onDelete, priority }: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -182,7 +183,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
           <div className="flex items-center gap-3.5">
             <Link href={`/profile/${post.user?.profile?.username}`}>
               <Avatar className="h-12 w-12 border-2 border-white/10 shadow-md transition-transform duration-200 group-hover:scale-105">
-                <AvatarImage src={post.user?.profile?.avatar || ''} />
+                <AvatarImage src={post.user?.profile?.avatar || ''} loading={priority ? 'eager' : 'lazy'} />
                 <AvatarFallback className="bg-gradient-to-br from-[#7C3AED] to-[#FF6B00] text-white font-bold text-base">
                   {getInitials(post.user?.profile?.username || 'U')}
                 </AvatarFallback>
@@ -242,7 +243,8 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                       <img 
                         src={getOptimizedMediaUrl(imgUrl, 1080)} 
                         alt="Post media" 
-                        loading="lazy"
+                        loading={priority && imgIdx === 0 ? 'eager' : 'lazy'}
+                        {...(priority && imgIdx === 0 ? { fetchPriority: 'high' } : {})}
                         className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.02] transition-transform duration-300 rounded-xl" 
                         onClick={() => {
                           setSelectedImageIndex(imgIdx);

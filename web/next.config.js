@@ -1,8 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  compress: true,
   images: {
     formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 31536000,
     remotePatterns: [
       { protocol: 'https', hostname: 'res.cloudinary.com' },
       { protocol: 'https', hostname: 'cdn.cloudflare.steamstatic.com' },
@@ -20,7 +22,7 @@ const nextConfig = {
       '@radix-ui/react-avatar',
       '@radix-ui/react-dialog',
       '@radix-ui/react-select',
-      '@radix-ui/react-[#7C3AED]',
+      '@radix-ui/react-dropdown-menu',
       '@radix-ui/react-tabs',
       '@tanstack/react-query',
     ],

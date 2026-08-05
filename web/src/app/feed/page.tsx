@@ -47,6 +47,8 @@ export default function FeedPage() {
       return meta?.hasNext ? meta.page + 1 : undefined;
     },
     initialPageParam: 1,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 
   const posts = data?.pages.flatMap((page: any) => page.data || []) || [];
@@ -141,7 +143,7 @@ export default function FeedPage() {
             <>
               {posts.map((post: any, i: number) => (
                 <motion.div key={post.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-                  <PostCard post={post} onDelete={(id) => refetch()} />
+                  <PostCard post={post} onDelete={(id) => refetch()} priority={i < 2} />
                 </motion.div>
               ))}
               
