@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PostCard } from '@/components/post/post-card';
 import { SteamShowcase } from '@/components/profile/steam-showcase';
+import { ClashOfClansCard } from '@/components/game-sync/clash-of-clans-card';
 import { BackHeader } from '@/components/common/back-header';
 
 function StatCard({ value, label, color, delay = 0 }: { value: string | number; label: string; color: string; delay?: number }) {
@@ -433,6 +434,14 @@ export default function ProfilePage() {
 
       {/* Steam Gaming Integration Showcase */}
       <SteamShowcase userId={profile.userId || profile.user?.id || profile.id} />
+
+      {/* Clash of Clans Supercell Live Integration Card */}
+      {(profile.mainGames?.some((g: string) => g.toLowerCase().includes('clash of clans')) || isOwn) && (
+        <ClashOfClansCard 
+          initialTag={(profile.user as any)?.gameAccounts?.find((g: any) => g.game === 'CLASH_OF_CLANS')?.inGameUid}
+          isOwner={isOwn}
+        />
+      )}
 
       {/* Content tabs */}
       <Tabs defaultValue="achievements" className="w-full">
