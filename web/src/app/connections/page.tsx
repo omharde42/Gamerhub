@@ -1,382 +1,236 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { useAuthStore } from '@/store/authStore';
-import { useSocket } from '@/hooks/useSocket';
-import {
-  Shield, RefreshCw, Trash2, ExternalLink, Check, Sparkles,
-  Gamepad2, Zap, Trophy, Clock, Lock, Star, ChevronRight, Loader2
-} from 'lucide-react';
-import { formatRelativeTime } from '@/lib/utils';
+import { GAMES_CONFIG, GameConfig } from '@/config/gamesConfig';
+import { Shield, Check, Trash2, Loader2, Sparkles, Gamepad2, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type PlatformConfig = {
-  id: string;
-  name: string;
-  category: 'Gaming' | 'Esports' | 'Social';
-  brandColor: string;
-  bgGradient: string;
-  borderColor: string;
-  icon: string;
-  description: string;
-  defaultIdPlaceholder: string;
-};
-
-const PLATFORMS: PlatformConfig[] = [
-  {
-    id: 'STEAM',
-    name: 'Steam',
-    category: 'Gaming',
-    brandColor: '#171A21',
-    bgGradient: 'from-[#171A21] via-[#1B2838] to-[#2A475E]',
-    borderColor: 'border-[#66C0F4]/40',
-    icon: '🎮',
-    description: 'Sync Steam Level, Owned Games, Playtime & CS2 Achievements',
-    defaultIdPlaceholder: 'Steam ID 64 (e.g. 76561198012345678)',
-  },
-  {
-    id: 'VALORANT',
-    name: 'Riot Games (Valorant / LoL)',
-    category: 'Gaming',
-    brandColor: '#FF4655',
-    bgGradient: 'from-[#FF4655]/20 via-[#0F1923] to-[#111827]',
-    borderColor: 'border-[#FF4655]/50',
-    icon: '👑',
-    description: 'Sync Valorant Radiant/Immortal Rank, K/D, Win Rate & Headshot %',
-    defaultIdPlaceholder: 'Riot ID (e.g. TenZ#NA1)',
-  },
-  {
-    id: 'FACEIT',
-    name: 'FACEIT Esports',
-    category: 'Esports',
-    brandColor: '#FF5500',
-    bgGradient: 'from-[#FF5500]/20 via-[#111827] to-[#0B1220]',
-    borderColor: 'border-[#FF5500]/50',
-    icon: '⚡',
-    description: 'Sync FACEIT Level 1-10, ELO, Win Rate & Pro Scrim Stats',
-    defaultIdPlaceholder: 'FACEIT Username (e.g. s1mple)',
-  },
-  {
-    id: 'DISCORD',
-    name: 'Discord',
-    category: 'Social',
-    brandColor: '#5865F2',
-    bgGradient: 'from-[#5865F2]/20 via-[#111827] to-[#0B1220]',
-    borderColor: 'border-[#5865F2]/50',
-    icon: '💬',
-    description: 'Connect Discord Tag for instant voice channels and community badges',
-    defaultIdPlaceholder: 'Discord Tag (e.g. GamerZ#0001)',
-  },
-  {
-    id: 'CLASH_ROYALE',
-    name: 'Clash Royale',
-    category: 'Gaming',
-    brandColor: '#3B82F6',
-    bgGradient: 'from-[#3B82F6]/20 via-[#111827] to-[#0B1220]',
-    borderColor: 'border-[#3B82F6]/50',
-    icon: '👑',
-    description: 'Sync King Level, Trophies, Clan, Win Stats & Current Deck',
-    defaultIdPlaceholder: 'Player Tag (e.g. #2PP820CG)',
-  },
-  {
-    id: 'CLASH_OF_CLANS',
-    name: 'Clash of Clans',
-    category: 'Gaming',
-    brandColor: '#EAB308',
-    bgGradient: 'from-[#EAB308]/20 via-[#111827] to-[#0B1220]',
-    borderColor: 'border-[#EAB308]/50',
-    icon: '🛡️',
-    description: 'Sync Town Hall Level, League, Trophies, War Stars & Clan',
-    defaultIdPlaceholder: 'Player Tag (e.g. #8L90URG)',
-  },
-  {
-    id: 'BRAWL_STARS',
-    name: 'Brawl Stars',
-    category: 'Gaming',
-    brandColor: '#EC4899',
-    bgGradient: 'from-[#EC4899]/20 via-[#111827] to-[#0B1220]',
-    borderColor: 'border-[#EC4899]/50',
-    icon: '🌟',
-    description: 'Sync Player Level, Highest Trophies, Club, Brawlers & Victories',
-    defaultIdPlaceholder: 'Player Tag (e.g. #90UJLY2)',
-  },
-];
-
-const UPCOMING_PLATFORMS = [
-  { name: 'Clash of Clans / Royale', icon: '🛡️', tag: 'Supercell' },
-  { name: 'Xbox Live', icon: '🟢', tag: 'Microsoft' },
-  { name: 'PlayStation Network', icon: '🔵', tag: 'Sony' },
-  { name: 'Ubisoft Connect', icon: '🌀', tag: 'Ubisoft' },
-  { name: 'Twitch Gaming', icon: '💜', tag: 'Amazon' },
-];
-
-export default function ConnectedAccountsPage() {
-  const { user } = useAuthStore();
+export default function ConnectionsPage() {
   const queryClient = useQueryClient();
-  const socket = useSocket();
+  const [selectedGame, setSelectedGame] = useState<GameConfig | null>(null);
+  const [formData, setFormData] = useState<Record<string, string>>({});
 
-  const [connectModalPlatform, setConnectModalPlatform] = useState<PlatformConfig | null>(null);
-  const [inputIdentifier, setInputIdentifier] = useState('');
-  const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null);
-
-  const { data: connectedAccounts, isLoading } = useQuery({
-    queryKey: ['connected-accounts'],
-    queryFn: () => api.get('/game-sync/connected-accounts').then(r => r.data.data).catch(() => []),
-    enabled: !!user,
+  // Fetch connected game accounts
+  const { data: userAccounts = [], isLoading } = useQuery({
+    queryKey: ['user-game-connections'],
+    queryFn: async () => {
+      const res = await api.get('/game/user-connections');
+      return res.data.data || [];
+    },
   });
 
-  // Listen to live WebSocket updates from the sync engine
-  useEffect(() => {
-    if (!socket) return;
-    const handleStatsUpdated = (payload: any) => {
-      if (payload.userId === user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['connected-accounts'] });
-        queryClient.invalidateQueries({ queryKey: ['passport'] });
-        queryClient.invalidateQueries({ queryKey: ['profile'] });
-        toast.success(`Live ${payload.platform} stats updated!`, { icon: '⚡' });
-      }
-    };
-    socket.on('game-stats:updated', handleStatsUpdated);
-    return () => {
-      socket.off('game-stats:updated', handleStatsUpdated);
-    };
-  }, [socket, user?.id, queryClient]);
+  const connectedMap = new Map<string, any>();
+  userAccounts.forEach((acc: any) => {
+    const key = (acc.game || '').toLowerCase().replace(/_/g, '');
+    connectedMap.set(key, acc);
+  });
 
-  const syncMutation = useMutation({
-    mutationFn: ({ platform, identifier }: { platform: string; identifier?: string }) =>
-      api.post(`/game-sync/sync/${platform}`, { identifier }),
-    onSuccess: (res, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['connected-accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['passport'] });
+  // Dynamic Connect Mutation
+  const connectMutation = useMutation({
+    mutationFn: async ({ gameKey, payload }: { gameKey: string; payload: Record<string, any> }) => {
+      const res = await api.post(`/game/${gameKey}/connect`, payload);
+      return res.data;
+    },
+    onSuccess: (data, variables) => {
+      toast.success(`Successfully connected ${GAMES_CONFIG[variables.gameKey]?.name || variables.gameKey}!`);
+      setSelectedGame(null);
+      setFormData({});
+      queryClient.invalidateQueries({ queryKey: ['user-game-connections'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
-      setSyncingPlatform(null);
-      setConnectModalPlatform(null);
-      setInputIdentifier('');
-      toast.success(`${vars.platform} connected & synchronized!`, { icon: '✅' });
     },
     onError: (err: any) => {
-      setSyncingPlatform(null);
-      toast.error(err.response?.data?.message || 'Sync failed. Please try again.');
+      toast.error(err.response?.data?.message || 'Failed to connect game account. Please check fields.');
     },
   });
 
+  // Dynamic Disconnect Mutation
   const disconnectMutation = useMutation({
-    mutationFn: (platform: string) => api.delete(`/game-sync/disconnect/${platform}`),
-    onSuccess: (_, platform) => {
-      queryClient.invalidateQueries({ queryKey: ['connected-accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['passport'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
-      toast.success(`${platform} account disconnected.`);
+    mutationFn: async (gameKey: string) => {
+      const res = await api.post(`/game/${gameKey}/disconnect`);
+      return res.data;
     },
-    onError: () => toast.error('Failed to disconnect account.'),
+    onSuccess: (_, gameKey) => {
+      toast.success(`Disconnected ${GAMES_CONFIG[gameKey]?.name || gameKey}`);
+      queryClient.invalidateQueries({ queryKey: ['user-game-connections'] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to disconnect account');
+    },
   });
 
-  const handleTriggerSync = (platform: PlatformConfig) => {
-    setSyncingPlatform(platform.id);
-    const existing = connectedAccounts?.find((a: any) => a.game.toUpperCase() === platform.id);
-    syncMutation.mutate({ platform: platform.id, identifier: existing?.inGameUid });
-  };
+  const handleConnectSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGame) return;
 
-  const handleConnectSubmit = () => {
-    if (!connectModalPlatform || !inputIdentifier.trim()) {
-      return toast.error('Please enter a valid in-game ID or username');
+    for (const field of selectedGame.fields) {
+      if (field.required && !formData[field.name]?.trim()) {
+        toast.error(`Please fill out ${field.label}`);
+        return;
+      }
     }
-    setSyncingPlatform(connectModalPlatform.id);
-    syncMutation.mutate({ platform: connectModalPlatform.id, identifier: inputIdentifier.trim() });
+
+    connectMutation.mutate({
+      gameKey: selectedGame.id,
+      payload: formData,
+    });
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* Header Banner */}
-      <div className="relative rounded-3xl bg-gradient-to-r from-[#0B1220] via-[#111827] to-[#0B1220] border border-[#7C3AED]/30 p-6 md:p-8 shadow-2xl overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-[#7C3AED]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-gradient-to-r from-[#7C3AED] to-[#FF6B00] text-white font-extrabold text-[10px] uppercase px-3 py-0.5 tracking-wider">
-                Universal Identity Engine
-              </Badge>
-              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 font-bold gap-1">
-                <Shield className="h-3 w-3" /> Live OAuth Sync
-              </Badge>
-            </div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Connected Gaming Accounts</h1>
-            <p className="text-sm text-gray-300 max-w-xl leading-relaxed">
-              Connect your official game accounts. GamerZ Hub automatically retrieves and updates your live ranks, levels, win rates, and match history directly from official servers.
-            </p>
+      <Card variant="glass" className="overflow-hidden border-border/60">
+        <CardContent className="p-6 md:p-8 relative">
+          <div className="flex items-center gap-3 mb-2">
+            <Badge className="bg-primary/20 text-primary border-primary/40 text-xs font-mono font-bold">
+              MODULAR GAME CONNECTORS
+            </Badge>
+            <span className="text-xs text-muted-foreground">• Auto-Sync Platform Identity</span>
           </div>
-        </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
+            Connected Games & Identity Hub <Sparkles className="h-5 w-5 text-amber-400" />
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+            Connect your esports profiles across Clash of Clans, Valorant, Steam, Free Fire, and BGMI. Your stats, ranks, and achievements render dynamically on your Gamer Passport!
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Connected Games Grid */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {Object.values(GAMES_CONFIG).map((game) => {
+          const connectedAccount = connectedMap.get(game.id) || connectedMap.get(game.id.replace(/[^a-z]/g, ''));
+          const isConnected = Boolean(connectedAccount);
+
+          return (
+            <motion.div key={game.id} whileHover={{ y: -2 }} transition={{ duration: 0.2 }}>
+              <Card variant="glass" className={`border ${game.borderColor} bg-gradient-to-br ${game.bgGradient} relative overflow-hidden`}>
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-center text-2xl shadow-lg">
+                        {game.icon}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-white flex items-center gap-2">
+                          {game.name}
+                        </h3>
+                        <p className="text-xs text-gray-300 mt-0.5">{game.description}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Connected Status or Connect Form Button */}
+                  {isConnected ? (
+                    <div className="p-3 rounded-xl bg-black/60 border border-emerald-500/30 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold">
+                          <Check className="h-3 w-3 mr-0.5" /> CONNECTED
+                        </Badge>
+                        <span className="text-xs font-mono font-bold text-white truncate max-w-[140px]">
+                          {connectedAccount?.inGameName || connectedAccount?.inGameUid}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => disconnectMutation.mutate(game.id)}
+                        disabled={disconnectMutation.isPending}
+                        className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 px-2.5 rounded-lg gap-1"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Disconnect
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedGame(game);
+                        setFormData({});
+                      }}
+                      className="w-full bg-black/40 border-white/10 hover:bg-white/10 text-white font-bold text-xs rounded-xl h-10 gap-1.5 justify-between"
+                    >
+                      <span>Connect {game.name}</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
 
-      {/* Primary Supported Platforms Grid */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Zap className="h-5 w-5 text-[#7C3AED]" /> Official Game API Integrations
-        </h2>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          {PLATFORMS.map((platform) => {
-            const connected = connectedAccounts?.find((a: any) => a.game.toUpperCase() === platform.id);
-            const isSyncingThis = syncingPlatform === platform.id;
-
-            return (
-              <motion.div key={platform.id} whileHover={{ y: -2 }} transition={{ duration: 0.2 }}>
-                <Card className={`bg-gradient-to-br ${platform.bgGradient} border ${platform.borderColor} shadow-xl relative overflow-hidden`}>
-                  <CardContent className="p-6 space-y-4 relative z-10">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-black/40 border border-white/20 flex items-center justify-center text-2xl shadow-inner shrink-0">
-                          {platform.icon}
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg text-white flex items-center gap-2">
-                            {platform.name}
-                            {connected && <Check className="h-4 w-4 text-emerald-400 fill-emerald-400/20" />}
-                          </h3>
-                          <p className="text-xs text-gray-300">{platform.description}</p>
-                        </div>
-                      </div>
-
-                      <Badge className={connected ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold" : "bg-white/10 text-gray-300 border border-white/10"}>
-                        {connected ? "CONNECTED" : "DISCONNECTED"}
-                      </Badge>
-                    </div>
-
-                    {/* Connected Account Details */}
-                    {connected ? (
-                      <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">In-Game Identity:</span>
-                          <span className="font-bold text-white font-mono">{connected.inGameName} ({connected.inGameUid})</span>
-                        </div>
-                        {connected.rank && (
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-gray-400">Verified Rank / Level:</span>
-                            <span className="font-bold text-[#00E676]">{connected.rank} • Lvl {connected.level || 1}</span>
-                          </div>
+      {/* Dynamic Connection Modal */}
+      <AnimatePresence>
+        {selectedGame && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full max-w-md">
+              <Card variant="glass" className={`border ${selectedGame.borderColor} bg-gradient-to-br ${selectedGame.bgGradient}`}>
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                    <span>{selectedGame.icon}</span> Connect {selectedGame.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <form onSubmit={handleConnectSubmit} className="space-y-4">
+                    {selectedGame.fields.map((field) => (
+                      <div key={field.name} className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-300">{field.label}</label>
+                        {field.type === 'select' ? (
+                          <select
+                            value={formData[field.name] || ''}
+                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                            className="w-full h-11 bg-black/60 border border-white/15 rounded-xl px-3 text-sm text-white focus:border-primary outline-none"
+                          >
+                            <option value="">{field.placeholder}</option>
+                            {field.options?.map((opt) => (
+                              <option key={opt.value} value={opt.value} className="bg-slate-900 text-white">
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <Input
+                            placeholder={field.placeholder}
+                            value={formData[field.name] || ''}
+                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                            className="bg-black/60 border-white/15 text-white placeholder:text-gray-500 h-11 rounded-xl"
+                          />
                         )}
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-white/10">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> Last Synced: {formatRelativeTime(connected.lastSyncedAt || connected.updatedAt)}
-                          </span>
-                          <span className="text-emerald-400 font-semibold text-[10px]">AUTO-SYNC ACTIVE</span>
-                        </div>
                       </div>
-                    ) : null}
+                    ))}
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-2 pt-1">
-                      {connected ? (
-                        <>
-                          <Button
-                            variant="gradient"
-                            size="sm"
-                            className="flex-1 gap-1.5 font-bold text-xs"
-                            onClick={() => handleTriggerSync(platform)}
-                            disabled={isSyncingThis}
-                            animate
-                          >
-                            <RefreshCw className={`h-3.5 w-3.5 ${isSyncingThis ? 'animate-spin' : ''}`} />
-                            {isSyncingThis ? 'Syncing Live Data...' : 'Sync Now'}
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1.5 text-xs text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
-                            onClick={() => disconnectMutation.mutate(platform.id)}
-                            disabled={disconnectMutation.isPending}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" /> Disconnect
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full gap-2 font-bold text-xs bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white/40"
-                          onClick={() => {
-                            setConnectModalPlatform(platform);
-                            setInputIdentifier('');
-                          }}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" /> Connect {platform.name}
-                        </Button>
-                      )}
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setSelectedGame(null)}
+                        className="flex-1 text-gray-400 hover:text-white rounded-xl h-11"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={connectMutation.isPending}
+                        className="flex-1 bg-gradient-to-r from-primary to-indigo-600 font-bold text-white rounded-xl h-11"
+                      >
+                        {connectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Connect Account'}
+                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Connect Account Modal */}
-      <Dialog open={!!connectModalPlatform} onOpenChange={(open) => !open && setConnectModalPlatform(null)}>
-        <DialogContent className="bg-[#0B1220] border-white/20 text-white max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <span>{connectModalPlatform?.icon}</span> Connect {connectModalPlatform?.name}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 pt-2">
-            <p className="text-xs text-gray-300 leading-relaxed">
-              Enter your official in-game UID or account tag. GamerZ Hub will verify and retrieve live statistics directly from official API servers.
-            </p>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Account Identifier / Tag</label>
-              <Input
-                placeholder={connectModalPlatform?.defaultIdPlaceholder}
-                value={inputIdentifier}
-                onChange={(e) => setInputIdentifier(e.target.value)}
-                className="bg-[#111827] border-white/20 text-white text-sm focus:border-[#7C3AED]"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 pt-2">
-              <Button
-                variant="gradient"
-                className="flex-1 font-bold text-xs h-10 gap-2"
-                onClick={handleConnectSubmit}
-                disabled={syncMutation.isPending}
-              >
-                {syncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {syncMutation.isPending ? 'Verifying & Syncing...' : 'Authorize & Connect Account'}
-              </Button>
-            </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Upcoming Scalable API Integrations */}
-      <div className="space-y-3 pt-4">
-        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-          <Lock className="h-4 w-4 text-primary" /> Scalable Integrations Queue (Phase 2)
-        </h3>
-
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {UPCOMING_PLATFORMS.map((item, i) => (
-            <div key={i} className="p-3 rounded-xl bg-[#111827]/60 border border-white/5 flex items-center gap-2.5">
-              <span className="text-xl">{item.icon}</span>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-white truncate">{item.name}</p>
-                <p className="text-[9px] text-muted-foreground">{item.tag}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

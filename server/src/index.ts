@@ -321,9 +321,11 @@ app.use('/api/game-requests', gameRequestRoutes);
 app.use('/api/crypto', cryptoRoutes);
 app.use('/api/steam', steamRoutes);
 import gameSyncRoutes from './routes/game-sync.routes';
+import gameModularRoutes from './routes/game-modular.routes';
 app.use('/api/clashofclans', clashOfClansRoutes);
 app.use('/api/game-sync', gameSyncRoutes);
 app.use('/api/game-stats', gameStatsRoutes);
+app.use('/api/game', gameModularRoutes);
 
 // Error handling
 app.use(notFoundHandler);
