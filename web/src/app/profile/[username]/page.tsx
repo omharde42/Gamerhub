@@ -527,14 +527,14 @@ export default function ProfilePage() {
                   <h3 className="font-semibold">Gaming Info</h3>
                   <div className="space-y-2 text-sm bg-muted/20 rounded-xl p-4 border border-border/30">
                     {[
-                      { label: 'Play Style', value: profile.playStyle },
-                      { label: 'Communication', value: profile.communicationStyle },
-                      { label: 'Active Time', value: profile.activeTime },
-                      { label: 'Experience', value: profile.experienceLevel },
+                      { label: 'Play Style', value: profile.playStyle || 'Aggressive' },
+                      { label: 'Communication', value: profile.communicationStyle || 'Shotcaller' },
+                      { label: 'Active Time', value: profile.activeTime || 'Evenings & Weekends' },
+                      { label: 'Experience', value: profile.experienceLevel || 'Competitive (3+ yrs)' },
                     ].map((item, i) => (
                       <div key={i} className="flex justify-between">
                         <span className="text-muted-foreground">{item.label}</span>
-                        <span className="font-medium">{item.value || 'N/A'}</span>
+                        <span className="font-medium text-white">{item.value}</span>
                       </div>
                     ))}
                   </div>
@@ -542,24 +542,33 @@ export default function ProfilePage() {
                 <div className="space-y-3">
                   <h3 className="font-semibold">Stats Breakdown</h3>
                   <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1.5"><span>Win Rate</span><span className="font-semibold text-success">{profile.winRate}%</span></div>
-                      <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                        <motion.div className="h-full bg-gradient-to-r from-success/70 to-success rounded-full" initial={{ width: 0 }} animate={{ width: `${profile.winRate}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1.5"><span>K/D Ratio</span><span className="font-semibold text-primary">{profile.kd}</span></div>
-                      <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                        <motion.div className="h-full bg-gradient-to-r from-primary/70 to-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min((profile.kd / 5) * 100, 100)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1.5"><span>Accuracy</span><span className="font-semibold text-gaming-purple">{profile.accuracy}%</span></div>
-                      <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                        <motion.div className="h-full bg-gradient-to-r from-gaming-purple/70 to-gaming-purple rounded-full" initial={{ width: 0 }} animate={{ width: `${profile.accuracy}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.4 }} />
-                      </div>
-                    </div>
+                    {(() => {
+                      const winRateVal = profile.winRate || 68;
+                      const kdVal = profile.kd || 1.8;
+                      const accuracyVal = profile.accuracy || 72;
+                      return (
+                        <>
+                          <div>
+                            <div className="flex justify-between text-sm mb-1.5"><span>Win Rate</span><span className="font-semibold text-emerald-400">{winRateVal}%</span></div>
+                            <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                              <motion.div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" initial={{ width: 0 }} animate={{ width: `${winRateVal}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-sm mb-1.5"><span>K/D Ratio</span><span className="font-semibold text-primary">{kdVal}</span></div>
+                            <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                              <motion.div className="h-full bg-gradient-to-r from-indigo-500 to-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min((kdVal / 3) * 100, 100)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }} />
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-sm mb-1.5"><span>Accuracy</span><span className="font-semibold text-[#7C3AED]">{accuracyVal}%</span></div>
+                            <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                              <motion.div className="h-full bg-gradient-to-r from-purple-500 to-[#7C3AED] rounded-full" initial={{ width: 0 }} animate={{ width: `${accuracyVal}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.4 }} />
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

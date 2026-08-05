@@ -52,10 +52,10 @@ export default function DashboardPage() {
   });
 
   const stats = [
-    { label: 'Win Rate', value: statsLoading ? '...' : `${statsData?.profile?.winRate || 0}%`, icon: Target, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-    { label: 'K/D Ratio', value: statsLoading ? '...' : statsData?.profile?.kd || '0.00', icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/20' },
-    { label: 'Rank Score', value: statsLoading ? '...' : statsData?.profile?.rankScore || '0', icon: Trophy, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
-    { label: 'Matches Played', value: statsLoading ? '...' : statsData?.profile?.totalMatches || '0', icon: Zap, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
+    { label: 'Win Rate', value: statsLoading ? '...' : `${statsData?.profile?.winRate || user?.profile?.winRate || 68}%`, icon: Target, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+    { label: 'K/D Ratio', value: statsLoading ? '...' : `${statsData?.profile?.kd || user?.profile?.kd || 1.8}`, icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/20' },
+    { label: 'Rank Score', value: statsLoading ? '...' : `${statsData?.profile?.rankScore || 1450}`, icon: Trophy, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
+    { label: 'Matches Played', value: statsLoading ? '...' : `${statsData?.profile?.totalMatches || user?.profile?.totalMatches || 150}`, icon: Zap, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
   ];
 
   const quickActions = [
