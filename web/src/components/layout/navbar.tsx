@@ -189,7 +189,7 @@ export function Navbar() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
+                <button aria-label="Notifications" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
                   ${pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
                   <Bell className={`h-5 w-5 transition-all duration-200 ${unreadCount > 0 ? 'animate-pulse-glow' : ''}`} />
                   <span>Alerts</span>
@@ -241,7 +241,7 @@ export function Navbar() {
           <div className="hidden md:block">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground">
+                <Button aria-label="Switch theme" variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground">
                   {mounted && activeTheme === 'light' ? (
                     <Sun className="h-4.5 w-4.5" />
                   ) : mounted && activeTheme === 'gray' ? (
@@ -269,7 +269,7 @@ export function Navbar() {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-1.5 px-2 h-11 w-11 md:w-auto rounded-lg hover:bg-accent/50 shrink-0">
+                <Button aria-label="User account menu" variant="ghost" className="flex items-center gap-1.5 px-2 h-11 w-11 md:w-auto rounded-lg hover:bg-accent/50 shrink-0">
                   <Avatar className="h-8 w-8 md:h-7 md:w-7" ring status="online">
                     <AvatarImage src={user?.profile?.avatar || ''} />
                     <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-extrabold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
