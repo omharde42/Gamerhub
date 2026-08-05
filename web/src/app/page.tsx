@@ -141,10 +141,11 @@ export default function EnterPage() {
               <div className="w-20 h-20 rounded-2xl overflow-hidden border border-primary/20 flex items-center justify-center mx-auto shadow-xl relative shrink-0">
                 <Image
                   src="/logo.jpg"
-                  alt="GamerZ Hub"
+                  alt="GamerZ Hub Platform Logo"
                   width={80}
                   height={80}
                   priority
+                  {...({ fetchPriority: 'high' } as any)}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -179,16 +180,16 @@ export default function EnterPage() {
             >
               <div className="flex flex-col sm:flex-row items-center gap-3 justify-center w-full max-w-[280px] sm:max-w-none mx-auto">
                 <motion.div className="w-full sm:w-auto" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link href="/auth/register" className="w-full">
-                    <Button variant="gradient" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-10 text-base sm:text-lg rounded-2xl gap-2" animate>
+                  <Link href="/auth/register" aria-label="Create a new GamerZ Hub account" className="w-full">
+                    <Button aria-label="Create Account" variant="gradient" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-10 text-base sm:text-lg rounded-2xl gap-2" animate>
                       <UserPlus className="h-5 w-5" />
                       Create Account
                     </Button>
                   </Link>
                 </motion.div>
                 <motion.div className="w-full sm:w-auto" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link href="/auth/login" className="w-full">
-                    <Button variant="outline" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-8 text-base sm:text-lg rounded-2xl gap-2">
+                  <Link href="/auth/login" aria-label="Sign in to your GamerZ Hub account" className="w-full">
+                    <Button aria-label="Sign In" variant="outline" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-8 text-base sm:text-lg rounded-2xl gap-2">
                       <LogIn className="h-5 w-5" />
                       Sign In
                     </Button>
