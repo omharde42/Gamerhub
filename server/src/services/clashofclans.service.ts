@@ -30,6 +30,14 @@ export interface ClashOfClansPlayerStats {
     name: string;
     iconUrls: { small?: string; tiny?: string; medium?: string };
   };
+  heroes?: { name: string; level: number; maxLevel: number; village: string }[];
+  troops?: { name: string; level: number; maxLevel: number; village: string }[];
+  spells?: { name: string; level: number; maxLevel: number; village: string }[];
+  pets?: { name: string; level: number; maxLevel: number }[];
+  achievements?: { name: string; stars: number; value: number; target: number; info: string; completionInfo?: string }[];
+  labels?: { id: number; name: string; iconUrls: { small?: string; medium?: string } }[];
+  legendStatistics?: any;
+  warPreference?: string;
   cachedAt: string;
 }
 
@@ -119,6 +127,14 @@ export class ClashOfClansService {
         donations: raw.donations || 0,
         donationsReceived: raw.donationsReceived || 0,
         clanCapitalContributions: raw.clanCapitalContributions || 0,
+        heroes: raw.heroes || [],
+        troops: raw.troops || [],
+        spells: raw.spells || [],
+        pets: raw.pets || [],
+        achievements: raw.achievements || [],
+        labels: raw.labels || [],
+        legendStatistics: raw.legendStatistics,
+        warPreference: raw.warPreference,
         role: raw.role,
         clan: raw.clan
           ? {

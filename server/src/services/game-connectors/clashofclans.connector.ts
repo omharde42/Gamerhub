@@ -54,19 +54,10 @@ export class ClashOfClansConnector implements IGameConnector {
       },
     });
 
-    // Update Profile top stats
-    const attackWins = stats.attackWins || 0;
-    const defenseWins = stats.defenseWins || 0;
-    const totalMatches = Math.max(attackWins + defenseWins, stats.warStars * 2, 50);
-    const winRate = Math.min(Math.round((attackWins / Math.max(attackWins + defenseWins, 1)) * 100) || 70, 100);
-
+    // Update Profile rank in database
     await prisma.profile.updateMany({
       where: { userId },
       data: {
-        winRate,
-        kd: parseFloat((1.2 + (stats.townHallLevel * 0.15)).toFixed(2)),
-        accuracy: Math.min(Math.round(50 + (stats.warStars * 0.05)), 95),
-        totalMatches,
         rank: `Town Hall ${stats.townHallLevel}`,
       },
     });

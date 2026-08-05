@@ -427,10 +427,10 @@ export default function ProfilePage() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard value={`${profile.winRate || 68}%`} label="Win Rate" color="text-emerald-400" delay={0} />
-        <StatCard value={profile.kd || 1.8} label="K/D Ratio" color="text-primary" delay={0.1} />
-        <StatCard value={`${profile.accuracy || 72}%`} label="Accuracy" color="text-[#7C3AED]" delay={0.2} />
-        <StatCard value={profile.totalMatches || 150} label="Total Matches" color="text-yellow-400" delay={0.3} />
+        <StatCard value={profile.winRate ? `${profile.winRate}%` : '--'} label="Win Rate" color="text-emerald-400" delay={0} />
+        <StatCard value={profile.kd ? profile.kd : '--'} label="K/D Ratio" color="text-primary" delay={0.1} />
+        <StatCard value={profile.accuracy ? `${profile.accuracy}%` : '--'} label="Accuracy" color="text-[#7C3AED]" delay={0.2} />
+        <StatCard value={profile.totalMatches ? profile.totalMatches : '--'} label="Total Matches" color="text-yellow-400" delay={0.3} />
       </div>
 
       {/* Modular Multi-Game Platform Hub */}
@@ -536,27 +536,27 @@ export default function ProfilePage() {
                   <h3 className="font-semibold">Stats Breakdown</h3>
                   <div className="space-y-4">
                     {(() => {
-                      const winRateVal = profile.winRate || 68;
-                      const kdVal = profile.kd || 1.8;
-                      const accuracyVal = profile.accuracy || 72;
+                      const winRateVal = profile.winRate;
+                      const kdVal = profile.kd;
+                      const accuracyVal = profile.accuracy;
                       return (
                         <>
                           <div>
-                            <div className="flex justify-between text-sm mb-1.5"><span>Win Rate</span><span className="font-semibold text-emerald-400">{winRateVal}%</span></div>
+                            <div className="flex justify-between text-sm mb-1.5"><span>Win Rate</span><span className="font-semibold text-emerald-400">{winRateVal ? `${winRateVal}%` : 'Not Available'}</span></div>
                             <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                              <motion.div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" initial={{ width: 0 }} animate={{ width: `${winRateVal}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
+                              <motion.div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" initial={{ width: 0 }} animate={{ width: `${winRateVal || 0}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
                             </div>
                           </div>
                           <div>
-                            <div className="flex justify-between text-sm mb-1.5"><span>K/D Ratio</span><span className="font-semibold text-primary">{kdVal}</span></div>
+                            <div className="flex justify-between text-sm mb-1.5"><span>K/D Ratio</span><span className="font-semibold text-primary">{kdVal ? kdVal : 'Not Available'}</span></div>
                             <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                              <motion.div className="h-full bg-gradient-to-r from-indigo-500 to-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min((kdVal / 3) * 100, 100)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }} />
+                              <motion.div className="h-full bg-gradient-to-r from-indigo-500 to-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min(((kdVal || 0) / 3) * 100, 100)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }} />
                             </div>
                           </div>
                           <div>
-                            <div className="flex justify-between text-sm mb-1.5"><span>Accuracy</span><span className="font-semibold text-[#7C3AED]">{accuracyVal}%</span></div>
+                            <div className="flex justify-between text-sm mb-1.5"><span>Accuracy</span><span className="font-semibold text-[#7C3AED]">{accuracyVal ? `${accuracyVal}%` : 'Not Available'}</span></div>
                             <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                              <motion.div className="h-full bg-gradient-to-r from-purple-500 to-[#7C3AED] rounded-full" initial={{ width: 0 }} animate={{ width: `${accuracyVal}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.4 }} />
+                              <motion.div className="h-full bg-gradient-to-r from-purple-500 to-[#7C3AED] rounded-full" initial={{ width: 0 }} animate={{ width: `${accuracyVal || 0}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.4 }} />
                             </div>
                           </div>
                         </>
