@@ -3,6 +3,7 @@ const axios = require("axios");
 const cors = require("cors");
 const path = require("path");
 
+
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 console.log("API Key loaded:", process.env.CLASH_API_KEY ? "YES" : "NO");
 console.log("API Key length:", process.env.CLASH_API_KEY?.length);
@@ -34,6 +35,34 @@ app.get("/player/:tag", async (req, res) => {
         console.error("Clash API error status:", err.response?.status);
         console.error("Clash API error data:", err.response?.data || err.message);
         res.status(err.response?.status || 500).json(err.response?.data || err.message);
+    }
+});
+app.get("/pubg/player/:platform/:playerName", async (req, res) => {
+    try {
+        const { platform, playerName } = req.params;
+
+        const encodedPlayerName = encodeURIComponent(playerName);
+
+        const response = await axios.get(
+            `https://api.pubg.com/shards/${platform}/players?filter[playerNames]=${encodedPlayerName}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.PUBG_API_KEY}`,
+                    Accept: "application/vnd.api+json"
+                }
+            }
+        );
+
+        res.json(response.data);
+
+    } catch (err) {
+        console.error("PUBG API Error:", err.response?.data || err.message);
+
+        res.status(err.response?.status || 500).json(
+            err.response?.data || {
+                message: err.message
+            }
+        );
     }
 });
 

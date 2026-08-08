@@ -428,16 +428,17 @@ export default function ProfilePage() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {(() => {
-          const gameAccs = (profile.user as any)?.gameAccounts || [];
-          const cocAcc = gameAccs.find((g: any) => g.game === 'CLASH_OF_CLANS');
-          const hasFps = profile.winRate || profile.kd || profile.accuracy || profile.totalMatches;
+          const gameAccs = profile.gameAccounts || (profile.user as any)?.gameAccounts || profile.connectedGames || [];
+          const cocAcc = gameAccs.find((g: any) => (g.game || '').toUpperCase().includes('CLASH'));
+          const isCocConnected = Boolean(cocAcc) || profile.mainGames?.some((g: string) => g.toLowerCase().includes('clash')) || profile.rank?.includes('Town Hall');
+          const hasFpsStats = Boolean(profile.winRate || profile.kd || profile.accuracy || profile.totalMatches);
 
-          if (!hasFps && cocAcc) {
+          if (isCocConnected && !hasFpsStats) {
             return (
               <>
-                <StatCard value={profile.rank || `TH ${cocAcc.level}`} label="Town Hall" color="text-yellow-400" delay={0} />
-                <StatCard value={`Lvl ${cocAcc.level || 1}`} label="XP Level" color="text-emerald-400" delay={0.1} />
-                <StatCard value={cocAcc.inGameUid || '--'} label="Connected Tag" color="text-primary" delay={0.2} />
+                <StatCard value={profile.rank || (cocAcc ? `TH ${cocAcc.level}` : 'Town Hall')} label="Town Hall" color="text-yellow-400" delay={0} />
+                <StatCard value={cocAcc?.inGameUid || 'Connected'} label="Player Tag" color="text-emerald-400" delay={0.1} />
+                <StatCard value="Clash of Clans" label="Primary Game" color="text-primary" delay={0.2} />
                 <StatCard value="Verified" label="Live Supercell" color="text-[#7C3AED]" delay={0.3} />
               </>
             );
