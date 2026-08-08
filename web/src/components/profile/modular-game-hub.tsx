@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { GAMES_CONFIG, GameConfig } from '@/config/gamesConfig';
+import { GAMES_CATALOG } from '@/config/gamesCatalog';
 import { GameRenderer } from '@/components/games';
+import { PopularGamesModal } from '@/components/games/PopularGamesModal';
+import { GamerPassportEmptyState } from '@/components/games/GamerPassportEmptyState';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Gamepad2, Plus, Sparkles } from 'lucide-react';
+import { Plus, Sparkles, Gamepad2 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -19,6 +21,7 @@ interface ModularGameHubProps {
 
 export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
   const [activeGameKey, setActiveGameKey] = useState<string | null>(null);
+  const [isPopularGamesOpen, setIsPopularGamesOpen] = useState(false);
 
   // Fetch user's connected games
   const { data: userAccounts = [], isLoading } = useQuery({
@@ -31,26 +34,24 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
     enabled: Boolean(userId),
   });
 
-  // Map database enum/key to config keys
+  // Map database enum/key to catalog items
   const connectedGames = userAccounts.map((acc: any) => {
     let key = (acc.game || '').toLowerCase().replace(/_/g, '');
-    if (key === 'clashofclans' || key === 'coc') key = 'clashofclans';
-    if (key === 'pubg') key = 'pubg';
-    if (key === 'bgmi' || key === 'pubgmobile') key = 'bgmi';
+    if (key.includes('clash')) key = 'clash_of_clans';
+    if (key.includes('pubg')) key = 'pubg';
 
-    const config = GAMES_CONFIG[key] || {
+    const catalogItem = GAMES_CATALOG.find((g) => g.id === key) || {
       id: key,
       name: acc.game,
       icon: '🎮',
       color: '#3B82F6',
-      brandColor: '#3B82F6',
       bgGradient: 'from-slate-900 to-black',
       borderColor: 'border-white/20',
     };
 
     return {
       account: acc,
-      config,
+      config: catalogItem,
     };
   });
 
@@ -68,26 +69,14 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
   // If user has no connected games
   if (connectedGames.length === 0) {
     return (
-      <Card variant="glass" className="border-border/60">
-        <CardContent className="p-8 text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto text-2xl">
-            🎮
-          </div>
-          <div>
-            <h3 className="font-extrabold text-lg text-white">No Connected Games Yet</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-              Connect your Clash of Clans, Valorant, Steam, or Free Fire accounts to display live in-game statistics, ranks, and badges!
-            </p>
-          </div>
-          {isOwner && (
-            <Link href="/connections">
-              <Button variant="gradient" size="sm" className="font-bold gap-2 rounded-xl mt-2">
-                <Plus className="h-4 w-4" /> Connect Games
-              </Button>
-            </Link>
-          )}
-        </CardContent>
-      </Card>
+      <>
+        <GamerPassportEmptyState onOpenPopularGames={() => setIsPopularGamesOpen(true)} />
+        <PopularGamesModal
+          isOpen={isPopularGamesOpen}
+          onClose={() => setIsPopularGamesOpen(false)}
+          userConnections={userAccounts}
+        />
+      </>
     );
   }
 
@@ -98,7 +87,7 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
       {/* Horizontal Connected Games Bar */}
       <div className="flex items-center justify-between gap-3 overflow-x-auto pb-1 scrollbar-none">
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-          {connectedGames.map(({ config, account }: any) => {
+          {connectedGames.map(({ config }: any) => {
             const isActive = activeGameKey === config.id;
             return (
               <motion.button
@@ -119,13 +108,23 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
           })}
         </div>
 
-        {isOwner && (
-          <Link href="/connections" className="shrink-0">
-            <Button variant="outline" size="sm" className="text-xs font-bold gap-1.5 rounded-2xl h-10 border-white/15 hover:border-primary/40">
-              <Plus className="h-3.5 w-3.5" /> Manage
-            </Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsPopularGamesOpen(true)}
+            className="text-xs font-bold gap-1.5 rounded-2xl h-10 border-primary/30 hover:border-primary text-primary"
+          >
+            <Gamepad2 className="h-3.5 w-3.5" /> Popular Games
+          </Button>
+          {isOwner && (
+            <Link href="/connections">
+              <Button variant="outline" size="sm" className="text-xs font-bold gap-1.5 rounded-2xl h-10 border-white/15 hover:border-white/40">
+                <Plus className="h-3.5 w-3.5" /> Manage
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Selected Game Animated Stats View */}
@@ -146,6 +145,13 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Popular Games Catalog Modal */}
+      <PopularGamesModal
+        isOpen={isPopularGamesOpen}
+        onClose={() => setIsPopularGamesOpen(false)}
+        userConnections={userAccounts}
+      />
     </div>
   );
 }
