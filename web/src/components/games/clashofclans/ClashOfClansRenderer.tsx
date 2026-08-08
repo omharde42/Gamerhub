@@ -44,8 +44,13 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
     queryKey: ['game-profile', 'clashofclans', cleanTag],
     queryFn: async () => {
       if (!cleanTag) return null;
-      const res = await api.get(`/game/clashofclans/profile?uid=${encodeURIComponent(cleanTag)}`);
-      return res.data.data;
+      try {
+        const res = await api.get(`/player/${encodeURIComponent(cleanTag)}`);
+        return res.data.data || res.data;
+      } catch (err) {
+        const res = await api.get(`/api/clashofclans/player/${encodeURIComponent(cleanTag)}`);
+        return res.data.data || res.data;
+      }
     },
     enabled: Boolean(cleanTag),
     staleTime: 5 * 60 * 1000,

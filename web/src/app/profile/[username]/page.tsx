@@ -425,37 +425,7 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {(() => {
-          const gameAccs = profile.gameAccounts || (profile.user as any)?.gameAccounts || profile.connectedGames || [];
-          const cocAcc = gameAccs.find((g: any) => (g.game || '').toUpperCase().includes('CLASH'));
-          const isCocConnected = Boolean(cocAcc) || profile.mainGames?.some((g: string) => g.toLowerCase().includes('clash')) || profile.rank?.includes('Town Hall');
-          const hasFpsStats = Boolean(profile.winRate || profile.kd || profile.accuracy || profile.totalMatches);
-
-          if (isCocConnected && !hasFpsStats) {
-            return (
-              <>
-                <StatCard value={profile.rank || (cocAcc ? `TH ${cocAcc.level}` : 'Town Hall')} label="Town Hall" color="text-yellow-400" delay={0} />
-                <StatCard value={cocAcc?.inGameUid || 'Connected'} label="Player Tag" color="text-emerald-400" delay={0.1} />
-                <StatCard value="Clash of Clans" label="Primary Game" color="text-primary" delay={0.2} />
-                <StatCard value="Verified" label="Live Supercell" color="text-[#7C3AED]" delay={0.3} />
-              </>
-            );
-          }
-
-          return (
-            <>
-              <StatCard value={profile.winRate ? `${profile.winRate}%` : 'N/A'} label="Win Rate" color="text-emerald-400" delay={0} />
-              <StatCard value={profile.kd ? profile.kd : 'N/A'} label="K/D Ratio" color="text-primary" delay={0.1} />
-              <StatCard value={profile.accuracy ? `${profile.accuracy}%` : 'N/A'} label="Accuracy" color="text-[#7C3AED]" delay={0.2} />
-              <StatCard value={profile.totalMatches ? profile.totalMatches : 'N/A'} label="Total Matches" color="text-yellow-400" delay={0.3} />
-            </>
-          );
-        })()}
-      </div>
-
-      {/* Modular Multi-Game Platform Hub */}
+      {/* Modular Multi-Game Platform Hub with Dynamic Game Statistics */}
       <ModularGameHub userId={profile.userId || profile.user?.id || profile.id} isOwner={isOwn} />
 
       {/* Content tabs */}
