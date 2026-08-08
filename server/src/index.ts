@@ -324,12 +324,14 @@ app.get('/health', (req: any, res: any) => res.json({ success: true, message: 'G
 import gameSyncRoutes from './routes/game-sync.routes';
 import gameModularRoutes from './routes/game-modular.routes';
 import pubgRoutes from './routes/pubg.routes';
+import compareRoutes from './routes/compare.routes';
 import { clashOfClansController } from './controllers/clashofclans.controller';
 import { pubgController } from './controllers/pubg.controller';
 app.use('/api/clashofclans', clashOfClansRoutes);
 app.get('/player/:tag', clashOfClansController.getPlayer);
 app.get('/pubg/player/:platform/:playerName', pubgController.getPlayer);
 app.use('/api/pubg', pubgRoutes);
+app.use('/api/compare', compareRoutes);
 app.use('/api/game-sync', gameSyncRoutes);
 app.use('/api/game-stats', gameStatsRoutes);
 app.use('/api/game', gameModularRoutes);

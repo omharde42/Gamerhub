@@ -41,8 +41,26 @@ export default function ExplorePage() {
           <Compass className="h-5 w-5 text-primary" />
           Explore
         </h1>
-        <p className="text-xs text-muted-foreground">Discover games, players, and trending content</p>
       </div>
+
+      {/* Compare Yourself Feature Banner */}
+      <Card variant="glass" className="border-primary/40 bg-gradient-to-r from-indigo-950/50 via-purple-950/30 to-black overflow-hidden relative">
+        <CardContent className="p-4 flex items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-amber-400" />
+              <h3 className="font-extrabold text-sm text-white">Compare Yourself</h3>
+              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] px-2 py-0.5">NEW</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">Compete with your friends using your real gaming stats.</p>
+          </div>
+          <Link href="/explore/compare">
+            <Button variant="gradient" size="sm" className="font-extrabold text-xs rounded-xl gap-1.5 shrink-0">
+              <Sparkles className="h-3.5 w-3.5" /> Compare Now
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

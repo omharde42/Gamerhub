@@ -211,6 +211,7 @@ model Profile {
   improvementRate   Float    @default(0)
   aiSummary         String?
   verified          Boolean  @default(false)
+  allowComparison   Boolean  @default(true)
   twitch            String?
   youtube           String?
   discord           String?
