@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,8 +19,6 @@ export interface PubgRendererProps {
 }
 
 export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
-  const [nameInput, setNameInput] = useState(gameUid || '');
-  const [isEditing, setIsEditing] = useState(!gameUid);
   const queryClient = useQueryClient();
 
   // Fetch user accounts to check connection status
@@ -33,17 +31,30 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
   });
 
   const pubgAccount = userAccounts.find((a: any) => (a.game || '').toUpperCase().includes('PUBG'));
+  const effectiveUid = gameUid || pubgAccount?.inGameUid || '';
+
+  const [nameInput, setNameInput] = useState(effectiveUid);
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (effectiveUid) {
+      setIsEditing(false);
+      setNameInput(effectiveUid);
+    }
+  }, [effectiveUid]);
+
+  const isConnected = Boolean(effectiveUid);
 
   // Fetch Live PUBG Profile & Stats
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ['game-profile', 'pubg', gameUid || nameInput],
+    queryKey: ['game-profile', 'pubg', effectiveUid || nameInput],
     queryFn: async () => {
-      const targetName = gameUid || nameInput;
+      const targetName = effectiveUid || nameInput;
       if (!targetName) return null;
       const res = await api.get(`/pubg/player/steam/${encodeURIComponent(targetName.trim())}`);
       return res.data;
     },
-    enabled: Boolean(gameUid || nameInput),
+    enabled: Boolean(effectiveUid || nameInput),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -73,8 +84,6 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
     }
     connectMutation.mutate(nameInput.trim());
   };
-
-  const isConnected = Boolean(gameUid || pubgAccount);
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
@@ -133,7 +142,7 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
                     <CheckCircle2 className="h-4 w-4" /> ✓ PUBG Connected
                   </Badge>
                   <span className="text-xs text-amber-300 font-mono font-bold">
-                    Steam Player: {gameUid || nameInput}
+                    Steam Player: {effectiveUid}
                   </span>
                 </div>
 
@@ -166,7 +175,7 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
               {isLoading ? (
                 <div className="p-6 rounded-2xl bg-black/40 border border-white/10 animate-pulse space-y-4 text-center">
                   <p className="text-xs text-amber-400 font-mono font-bold animate-bounce">
-                    Syncing live PUBG PC statistics for {gameUid || nameInput}...
+                    🟡 Syncing live PUBG PC statistics for {effectiveUid}...
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="h-20 bg-white/5 rounded-2xl" />
@@ -179,7 +188,7 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
                 <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2.5 text-red-300 text-xs font-semibold">
                     <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
-                    <span>Unable to fetch live PUBG API data right now.</span>
+                    <span>🔴 Unable to fetch live PUBG API data right now.</span>
                   </div>
                   <Button
                     variant="outline"
