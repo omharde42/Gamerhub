@@ -427,10 +427,31 @@ export default function ProfilePage() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard value={profile.winRate ? `${profile.winRate}%` : '--'} label="Win Rate" color="text-emerald-400" delay={0} />
-        <StatCard value={profile.kd ? profile.kd : '--'} label="K/D Ratio" color="text-primary" delay={0.1} />
-        <StatCard value={profile.accuracy ? `${profile.accuracy}%` : '--'} label="Accuracy" color="text-[#7C3AED]" delay={0.2} />
-        <StatCard value={profile.totalMatches ? profile.totalMatches : '--'} label="Total Matches" color="text-yellow-400" delay={0.3} />
+        {(() => {
+          const gameAccs = (profile.user as any)?.gameAccounts || [];
+          const cocAcc = gameAccs.find((g: any) => g.game === 'CLASH_OF_CLANS');
+          const hasFps = profile.winRate || profile.kd || profile.accuracy || profile.totalMatches;
+
+          if (!hasFps && cocAcc) {
+            return (
+              <>
+                <StatCard value={profile.rank || `TH ${cocAcc.level}`} label="Town Hall" color="text-yellow-400" delay={0} />
+                <StatCard value={`Lvl ${cocAcc.level || 1}`} label="XP Level" color="text-emerald-400" delay={0.1} />
+                <StatCard value={cocAcc.inGameUid || '--'} label="Connected Tag" color="text-primary" delay={0.2} />
+                <StatCard value="Verified" label="Live Supercell" color="text-[#7C3AED]" delay={0.3} />
+              </>
+            );
+          }
+
+          return (
+            <>
+              <StatCard value={profile.winRate ? `${profile.winRate}%` : 'N/A'} label="Win Rate" color="text-emerald-400" delay={0} />
+              <StatCard value={profile.kd ? profile.kd : 'N/A'} label="K/D Ratio" color="text-primary" delay={0.1} />
+              <StatCard value={profile.accuracy ? `${profile.accuracy}%` : 'N/A'} label="Accuracy" color="text-[#7C3AED]" delay={0.2} />
+              <StatCard value={profile.totalMatches ? profile.totalMatches : 'N/A'} label="Total Matches" color="text-yellow-400" delay={0.3} />
+            </>
+          );
+        })()}
       </div>
 
       {/* Modular Multi-Game Platform Hub */}
