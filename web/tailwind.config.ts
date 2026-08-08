@@ -10,6 +10,13 @@ const config: Config = {
     container: { center: true, padding: '1rem', screens: { '2xl': '1400px' } },
     extend: {
       colors: {
+        // Brand gaming palette (used as `gaming-purple`, `gaming-cyan`, etc. across the app)
+        gaming: {
+          purple: '#7C3AED',
+          pink: '#EC4899',
+          cyan: '#22D3EE',
+          blue: '#3B82F6',
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

@@ -5,6 +5,7 @@ import {
   Newspaper, Search, MessageSquare, Trophy, User
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
@@ -16,7 +17,7 @@ const mobileNavItems = [
   { href: '/profile', icon: User, label: 'Profile' },
 ];
 
-export function MobileBottomNav() {
+export function MobileBottomNav({ hidden = false }: { hidden?: boolean }) {
   const pathname = usePathname();
   const { user } = useAuthStore();
 
@@ -44,7 +45,14 @@ export function MobileBottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
+    <motion.nav
+      initial={false}
+      animate={{ y: hidden ? '100%' : '0%', opacity: hidden ? 0 : 1 }}
+      transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+      className={`fixed bottom-0 left-0 right-0 z-50 md:hidden ${hidden ? 'pointer-events-none' : ''}`}
+      aria-hidden={hidden || undefined}
+      inert={hidden}
+    >
       <div className="bg-background/90 backdrop-blur-xl border-t border-primary/20 shadow-[0_-4px_20px_hsl(var(--background)/0.8)] safe-area-bottom">
         <div className="flex items-center justify-around px-1 py-1.5">
           {mobileNavItems.map((item) => {
@@ -87,6 +95,6 @@ export function MobileBottomNav() {
           })}
         </div>
       </div>
-    </nav>
+    </motion.nav>
   );
 }

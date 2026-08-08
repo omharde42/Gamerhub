@@ -28,7 +28,7 @@ const navIcons = [
   { href: '/servers', icon: Globe, label: 'Servers' },
 ];
 
-export function Navbar() {
+export function Navbar({ hidden = false }: { hidden?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
@@ -125,7 +125,17 @@ export function Navbar() {
   };
 
   return (
-    <header className={`fixed top-0 z-40 w-full transition-all duration-300 ${scrolled ? 'glass-strong border-border/60' : 'bg-background/80 backdrop-blur-md border-b border-border/60'}`}>
+    <motion.header
+      className={`fixed top-0 z-40 w-full ${hidden ? 'pointer-events-none' : ''}`}
+      aria-hidden={hidden || undefined}
+      inert={hidden}
+    >
+      <motion.div
+        initial={false}
+        animate={{ y: hidden ? '-100%' : '0%', opacity: hidden ? 0 : 1 }}
+        transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+        className={`w-full ${scrolled ? 'glass-strong border-border/60' : 'bg-background/80 backdrop-blur-md border-b border-border/60'} transition-colors duration-300`}
+      >
       <div className="w-full mx-auto flex h-16 items-center px-4 md:px-6 gap-2 md:gap-3">
 
         {/* Left Side Menu Button: Trigger side drawer on mobile, brand on desktop */}
@@ -323,6 +333,7 @@ export function Navbar() {
           )}
         </div>
       </div>
+      </motion.div>
 
       {/* Mobile Left Side Drawer */}
       <AnimatePresence>
@@ -384,6 +395,6 @@ export function Navbar() {
           </>
         )}
       </AnimatePresence>
-    </header>
+    </motion.header>
   );
 }
