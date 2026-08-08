@@ -35,8 +35,8 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
   const connectedGames = userAccounts.map((acc: any) => {
     let key = (acc.game || '').toLowerCase().replace(/_/g, '');
     if (key === 'clashofclans' || key === 'coc') key = 'clashofclans';
-    if (key === 'pubg') key = 'bgmi';
-    if (key === 'freefire') key = 'freefire';
+    if (key === 'pubg') key = 'pubg';
+    if (key === 'bgmi' || key === 'pubgmobile') key = 'bgmi';
 
     const config = GAMES_CONFIG[key] || {
       id: key,

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ClashOfClansRenderer, GameRendererProps } from './clashofclans/ClashOfClansRenderer';
+import { PubgRenderer } from './pubg/PubgRenderer';
 import { ValorantRenderer } from './valorant/ValorantRenderer';
 import { SteamRenderer } from './steam/SteamRenderer';
 import { FreeFireRenderer } from './freefire/FreeFireRenderer';
@@ -11,6 +12,7 @@ import { GenericGameRenderer } from './GenericGameRenderer';
 // Registry mapping gameKey -> Component
 const GAME_RENDERERS: Record<string, React.ComponentType<GameRendererProps>> = {
   clashofclans: ClashOfClansRenderer,
+  pubg: PubgRenderer,
   valorant: ValorantRenderer,
   steam: SteamRenderer,
   freefire: FreeFireRenderer,
