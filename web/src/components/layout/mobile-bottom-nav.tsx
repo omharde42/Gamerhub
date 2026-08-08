@@ -1,8 +1,9 @@
 'use client';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Newspaper, Search, MessageSquare, Trophy, User
+  Newspaper, MessageSquare, Trophy, User
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -11,7 +12,6 @@ import { useAuthStore } from '@/store/authStore';
 
 const mobileNavItems = [
   { href: '/feed', icon: Newspaper, label: 'Feed' },
-  { href: '/search', icon: Search, label: 'Search' },
   { href: '/messages', icon: MessageSquare, label: 'Messages' },
   { href: '/tournaments', icon: Trophy, label: 'Tournaments' },
   { href: '/profile', icon: User, label: 'Profile' },
