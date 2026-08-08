@@ -25,6 +25,26 @@ export class ClashOfClansConnector implements IGameConnector {
     const stats = await this.fetchProfile(tag);
     const normalizedTag = `#${clashOfClansService.normalizeTag(tag)}`;
 
+    // Check tag lock rules
+    const existingAccount = await prisma.gameAccount.findUnique({
+      where: {
+        userId_game: { userId, game: 'CLASH_OF_CLANS' },
+      },
+    });
+
+    if (existingAccount) {
+      const isSameTag = existingAccount.inGameUid.toUpperCase() === normalizedTag.toUpperCase();
+      if (!isSameTag) {
+        if (existingAccount.changeCount >= 1) {
+          throw new AppError('Player Tag Locked: You have used your one allowed Player Tag change.', 403);
+        }
+      }
+    }
+
+    const nextChangeCount = existingAccount 
+      ? (existingAccount.inGameUid.toUpperCase() !== normalizedTag.toUpperCase() ? existingAccount.changeCount + 1 : existingAccount.changeCount) 
+      : 0;
+
     const gameAccount = await prisma.gameAccount.upsert({
       where: {
         userId_game: {
@@ -37,6 +57,7 @@ export class ClashOfClansConnector implements IGameConnector {
         inGameName: stats.name,
         rank: `Town Hall ${stats.townHallLevel}`,
         level: stats.expLevel,
+        changeCount: nextChangeCount,
         verified: true,
         syncStatus: 'SUCCESS',
         lastSyncedAt: new Date(),
@@ -48,6 +69,7 @@ export class ClashOfClansConnector implements IGameConnector {
         inGameName: stats.name,
         rank: `Town Hall ${stats.townHallLevel}`,
         level: stats.expLevel,
+        changeCount: 0,
         verified: true,
         syncStatus: 'SUCCESS',
         lastSyncedAt: new Date(),

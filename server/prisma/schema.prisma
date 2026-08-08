@@ -88,6 +88,7 @@ model GameAccount {
   game           String
   inGameUid      String
   inGameName     String
+  changeCount    Int       @default(0)
   region         String?
   rank           String?
   level          Int?      @default(1)
