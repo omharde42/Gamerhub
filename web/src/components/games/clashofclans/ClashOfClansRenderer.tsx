@@ -52,7 +52,7 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
   const isConnected = Boolean(effectiveTag);
 
   // Fetch Live Supercell Player Profile
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['game-profile', 'clashofclans', cleanTag],
     queryFn: async () => {
       if (!cleanTag) return null;
@@ -230,7 +230,7 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
                 <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2.5 text-red-300 text-xs font-semibold">
                     <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
-                    <span>🔴 Unable to fetch live Supercell API data right now.</span>
+                    <span>{(error as any)?.response?.data?.message || '🔴 Unable to fetch live Supercell API data right now.'}</span>
                   </div>
                   <Button
                     variant="outline"
