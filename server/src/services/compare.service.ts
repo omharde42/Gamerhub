@@ -3,7 +3,39 @@ import { clashOfClansService } from './clashofclans.service';
 import { pubgService } from './pubg.service';
 import { AppError } from '../utils/errors';
 
-// 15-minute server-side cache for third-party API stats
+// Canonical Game Identifier Normalization
+export function normalizeGameId(rawGame: string): string {
+  if (!rawGame) return '';
+  const s = rawGame.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (s.includes('clash') || s === 'coc') return 'clash_of_clans';
+  if (s.includes('pubg') && !s.includes('mobile') && !s.includes('bgmi')) return 'pubg_pc';
+  if (s.includes('bgmi') || (s.includes('pubg') && s.includes('mobile'))) return 'bgmi';
+  if (s.includes('valorant')) return 'valorant';
+  if (s.includes('freefire')) return 'free_fire';
+  if (s.includes('steam')) return 'steam';
+  return s;
+}
+
+export function getGameMetaData(normId: string) {
+  switch (normId) {
+    case 'clash_of_clans':
+      return { id: 'clash_of_clans', name: 'Clash of Clans', icon: '🏰' };
+    case 'pubg_pc':
+      return { id: 'pubg_pc', name: 'PUBG (PC / Steam)', icon: '🪖' };
+    case 'valorant':
+      return { id: 'valorant', name: 'Valorant', icon: '🎯' };
+    case 'free_fire':
+      return { id: 'free_fire', name: 'Free Fire', icon: '🔥' };
+    case 'bgmi':
+      return { id: 'bgmi', name: 'BGMI / PUBG Mobile', icon: '📱' };
+    case 'steam':
+      return { id: 'steam', name: 'Steam Library', icon: '🎮' };
+    default:
+      return { id: normId, name: normId.toUpperCase(), icon: '🎮' };
+  }
+}
+
+// 15-minute server-side cache keyed strictly by userId:gameId:externalPlayerId
 interface CacheEntry {
   timestamp: number;
   stats: any;
@@ -35,37 +67,69 @@ class CompareService {
       return isSender ? req.receiver : req.sender;
     });
 
-    // Filter out friends who opted out of comparison
     return friends.filter((f) => f && f.profile?.allowComparison !== false);
   }
 
   /**
-   * Helper: Normalize Game Keys
+   * PHASE 1 & 2: Single Source of Truth for Connected Games
+   * Returns common games between user and accepted friends (or user's own connected games if no friend selected)
    */
-  private normalizeGameKey(game: string): string {
-    const k = (game || '').toLowerCase().replace(/_/g, '');
-    if (k === 'clashofclans' || k === 'coc') return 'clashofclans';
-    if (k === 'pubg') return 'pubg';
-    if (k === 'valorant') return 'valorant';
-    return k;
-  }
-
-  /**
-   * 1. GET COMMON GAMES: Intersection(user.connectedGames, friends.connectedGames)
-   */
-  async getCommonGames(userId: string) {
+  async getCommonGames(userId: string, targetFriendId?: string) {
+    // Single Source of Truth: prisma.gameAccount
     const userGameAccounts = await prisma.gameAccount.findMany({
       where: { userId },
     });
 
-    if (userGameAccounts.length === 0) {
-      return [];
+    const userGameKeys = Array.from(new Set(userGameAccounts.map((a) => normalizeGameId(a.game))));
+
+    console.log('[COMPARE:DEBUG]', {
+      userId,
+      userGameAccountsCount: userGameAccounts.length,
+      userGameKeys,
+      targetFriendId: targetFriendId || 'ALL_FRIENDS',
+    });
+
+    if (userGameKeys.length === 0) {
+      return {
+        userHasConnectedGames: false,
+        commonGames: [],
+        userConnectedGames: [],
+      };
     }
 
-    const userGameKeys = Array.from(new Set(userGameAccounts.map((a) => this.normalizeGameKey(a.game))));
+    const userConnectedGames = userGameKeys.map((gId) => getGameMetaData(gId));
+
+    // If specific friend selected
+    if (targetFriendId) {
+      const friendAccounts = await prisma.gameAccount.findMany({
+        where: { userId: targetFriendId },
+      });
+      const friendGameKeys = new Set(friendAccounts.map((a) => normalizeGameId(a.game)));
+      const commonKeys = userGameKeys.filter((gKey) => friendGameKeys.has(gKey));
+
+      console.log('[COMPARE:FRIEND_INTERSECTION]', {
+        userId,
+        userGameKeys,
+        targetFriendId,
+        friendGameKeys: Array.from(friendGameKeys),
+        commonKeys,
+      });
+
+      return {
+        userHasConnectedGames: true,
+        commonGames: commonKeys.map((gId) => getGameMetaData(gId)),
+        userConnectedGames,
+      };
+    }
+
+    // Otherwise calculate intersection across all accepted friends
     const friends = await this.getAcceptedFriends(userId);
     if (friends.length === 0) {
-      return [];
+      return {
+        userHasConnectedGames: true,
+        commonGames: userConnectedGames, // Fallback: user can view their own connected games
+        userConnectedGames,
+      };
     }
 
     const friendIds = friends.map((f) => f.id);
@@ -75,52 +139,59 @@ class CompareService {
 
     const friendGameKeyCounts = new Map<string, number>();
     for (const fAcc of friendGameAccounts) {
-      const normKey = this.normalizeGameKey(fAcc.game);
+      const normKey = normalizeGameId(fAcc.game);
       const current = friendGameKeyCounts.get(normKey) || 0;
       friendGameKeyCounts.set(normKey, current + 1);
     }
 
-    const commonGames = userGameKeys
-      .filter((gKey) => friendGameKeyCounts.has(gKey))
-      .map((gKey) => {
-        let name = gKey.toUpperCase();
-        let icon = '🎮';
-        if (gKey === 'clashofclans') { name = 'Clash of Clans'; icon = '🏰'; }
-        if (gKey === 'pubg') { name = 'PUBG (PC / Steam)'; icon = '🪖'; }
-        if (gKey === 'valorant') { name = 'Valorant'; icon = '🎯'; }
+    const commonKeys = userGameKeys.filter((gKey) => friendGameKeyCounts.has(gKey));
+    const commonGames = (commonKeys.length > 0 ? commonKeys : userGameKeys).map((gId) => {
+      const meta = getGameMetaData(gId);
+      return {
+        ...meta,
+        friendsCount: friendGameKeyCounts.get(gId) || 0,
+      };
+    });
 
-        return {
-          id: gKey,
-          name,
-          icon,
-          friendsCount: friendGameKeyCounts.get(gKey) || 0,
-        };
-      });
+    console.log('[COMPARE:COMMON_GAMES_RESULT]', {
+      userId,
+      userGameKeys,
+      friendsCount: friends.length,
+      commonKeys,
+      commonGames,
+    });
 
-    return commonGames;
+    return {
+      userHasConnectedGames: true,
+      commonGames,
+      userConnectedGames,
+    };
   }
 
   /**
-   * Helper: Fetch stats with server-side rate-limit caching
+   * PHASE 7: Cache keyed strictly by userId + gameId + externalPlayerId
    */
-  private async getCachedPlayerStats(gameKey: string, inGameUid: string): Promise<any> {
-    const cacheKey = `${gameKey}:${inGameUid.toUpperCase()}`;
+  private async getCachedPlayerStats(userId: string, normGameId: string, inGameUid: string): Promise<any> {
+    const cacheKey = `${userId}:${normGameId}:${inGameUid.toUpperCase()}`;
     const cached = this.cache.get(cacheKey);
 
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      console.log('[COMPARE:CACHE_HIT]', cacheKey);
       return cached.stats;
     }
 
+    console.log('[COMPARE:FETCHING_LIVE_API]', { userId, normGameId, inGameUid, cacheKey });
+
     let freshStats: any = null;
     try {
-      if (gameKey === 'clashofclans') {
+      if (normGameId === 'clash_of_clans') {
         const cleanTag = inGameUid.replace(/^#/, '');
         freshStats = await clashOfClansService.getPlayerProfile(cleanTag);
-      } else if (gameKey === 'pubg') {
+      } else if (normGameId === 'pubg_pc') {
         freshStats = await pubgService.getPlayerProfile(inGameUid, 'steam');
       }
     } catch (err: any) {
-      console.warn(`[CompareService] API fetch failed for ${cacheKey}:`, err.message);
+      console.warn(`[COMPARE:API_ERROR] ${cacheKey}:`, err.message);
       if (cached) return cached.stats;
     }
 
@@ -132,31 +203,29 @@ class CompareService {
   }
 
   /**
-   * 2. GET FRIENDS LEADERBOARD for a Game
+   * PHASE 4 & 6: Friends Leaderboard with strict game stats isolation
    */
-  async getFriendsLeaderboard(userId: string, gameKey: string) {
-    const normKey = this.normalizeGameKey(gameKey);
+  async getFriendsLeaderboard(userId: string, gameId: string) {
+    const normGameId = normalizeGameId(gameId);
 
-    // Current user's game account
-    const userGameAccount = await prisma.gameAccount.findFirst({
-      where: { userId, game: { contains: normKey.toUpperCase() } },
-    });
+    // Single source of truth: Find user's connected account for this game
+    const userAccounts = await prisma.gameAccount.findMany({ where: { userId } });
+    const userGameAccount = userAccounts.find((a) => normalizeGameId(a.game) === normGameId);
 
     if (!userGameAccount) {
-      throw new AppError(`You have not connected ${gameKey}. Please connect it first.`, 400);
+      throw new AppError(`You have not connected ${normGameId}. Please connect it first.`, 400);
     }
 
-    // Friends' game accounts
+    // Friends connected to this game
     const friends = await this.getAcceptedFriends(userId);
     const friendIds = friends.map((f) => f.id);
-    const friendGameAccounts = await prisma.gameAccount.findMany({
-      where: { userId: { in: friendIds }, game: { contains: normKey.toUpperCase() } },
-      include: {
-        user: { select: { id: true, profile: true } },
-      },
+    const friendAccounts = await prisma.gameAccount.findMany({
+      where: { userId: { in: friendIds } },
+      include: { user: { select: { id: true, profile: true } } },
     });
 
-    // Current user object
+    const friendGameAccounts = friendAccounts.filter((fa) => normalizeGameId(fa.game) === normGameId);
+
     const currentUserObj = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, profile: true },
@@ -167,17 +236,24 @@ class CompareService {
       ...friendGameAccounts.map((fa) => ({ account: fa, user: fa.user })),
     ];
 
-    // Fetch stats for all accounts
+    console.log('[COMPARE:LEADERBOARD_QUERY]', {
+      userId,
+      normGameId,
+      userInGameUid: userGameAccount.inGameUid,
+      totalParticipants: allAccounts.length,
+    });
+
+    // Fetch stats isolated by player + game
     const leaderboardItems = await Promise.all(
       allAccounts.map(async ({ account, user }) => {
-        const stats = await this.getCachedPlayerStats(normKey, account.inGameUid);
+        const stats = await this.getCachedPlayerStats(user.id, normGameId, account.inGameUid);
         let score = 0;
         let scoreLabel = '0';
 
-        if (normKey === 'clashofclans') {
+        if (normGameId === 'clash_of_clans') {
           score = stats?.trophies || account.rankRating || 0;
           scoreLabel = `${score.toLocaleString()} Trophies`;
-        } else if (normKey === 'pubg') {
+        } else if (normGameId === 'pubg_pc') {
           score = parseFloat(stats?.kdRatio || '0') || account.kdRatio || 0;
           scoreLabel = `K/D ${stats?.kdRatio || account.kdRatio || '0.00'}`;
         } else {
@@ -207,10 +283,8 @@ class CompareService {
       })
     );
 
-    // Sort descending by score
     leaderboardItems.sort((a, b) => b.score - a.score);
 
-    // Assign rank
     const rankedLeaderboard = leaderboardItems.map((item, idx) => ({
       ...item,
       rank: idx + 1,
@@ -223,18 +297,20 @@ class CompareService {
     if (currentUserRank > 1) {
       const topPlayer = rankedLeaderboard[0];
       const diff = topPlayer.score - (currentUserRankItem?.score || 0);
-      if (normKey === 'clashofclans') {
-        gapText = `You need ${diff.toLocaleString()} more trophies to overtake ${topPlayer.displayName} (#1)`;
-      } else if (normKey === 'pubg') {
-        gapText = `You need ${diff.toFixed(2)} higher K/D to overtake ${topPlayer.displayName} (#1)`;
+      if (normGameId === 'clash_of_clans') {
+        gapText = `Need ${diff.toLocaleString()} more trophies to overtake ${topPlayer.displayName} (#1)`;
+      } else if (normGameId === 'pubg_pc') {
+        gapText = `Need ${diff.toFixed(2)} higher K/D to overtake ${topPlayer.displayName} (#1)`;
       } else {
-        gapText = `You need ${diff.toLocaleString()} more points to overtake ${topPlayer.displayName} (#1)`;
+        gapText = `Need ${diff.toLocaleString()} more points to overtake ${topPlayer.displayName} (#1)`;
       }
     }
 
+    const meta = getGameMetaData(normGameId);
+
     return {
-      gameId: normKey,
-      gameName: normKey === 'clashofclans' ? 'Clash of Clans' : normKey === 'pubg' ? 'PUBG (PC / Steam)' : normKey.toUpperCase(),
+      gameId: normGameId,
+      gameName: meta.name,
       userRank: currentUserRank,
       totalPlayers: rankedLeaderboard.length,
       gapText,
@@ -244,17 +320,17 @@ class CompareService {
   }
 
   /**
-   * 3. GET 1-ON-1 HEAD-TO-HEAD COMPARISON
+   * PHASE 6: 1-on-1 Head-to-Head Comparison
    */
-  async get1v1Comparison(userId: string, friendId: string, gameKey: string) {
-    const normKey = this.normalizeGameKey(gameKey);
-    const leaderboardData = await this.getFriendsLeaderboard(userId, normKey);
+  async get1v1Comparison(userId: string, friendId: string, gameId: string) {
+    const normGameId = normalizeGameId(gameId);
+    const leaderboardData = await this.getFriendsLeaderboard(userId, normGameId);
 
     const userItem = leaderboardData.leaderboard.find((i) => i.userId === userId);
     const friendItem = leaderboardData.leaderboard.find((i) => i.userId === friendId);
 
     if (!friendItem) {
-      throw new AppError('Friend comparison statistics not available.', 404);
+      throw new AppError('Friend comparison statistics not available for this game.', 404);
     }
 
     return {

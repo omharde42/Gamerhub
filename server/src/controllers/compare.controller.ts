@@ -8,7 +8,8 @@ import prisma from '../config/database';
 export const compareController = {
   getCommonGames: asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = req.user!.userId;
-    const games = await compareService.getCommonGames(userId);
+    const friendId = req.query.friendId as string | undefined;
+    const games = await compareService.getCommonGames(userId, friendId);
     sendSuccess(res, games, 'Common connected games fetched successfully');
   }),
 
