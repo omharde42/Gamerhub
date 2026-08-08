@@ -99,7 +99,13 @@ export class ClashOfClansService {
           throw new NotFoundError(`Player with tag #${tag}`);
         }
         if (status === 403) {
-          throw new AppError(`Supercell API Access Denied (${reason || 'Invalid IP/Key'}). Please verify server IP authorization at developer.clashofclans.com.`, 403);
+          let serverIp = 'unknown';
+          try {
+            const ipRes = await fetch('https://api.ipify.org?format=json');
+            const ipData: any = await ipRes.json();
+            serverIp = ipData.ip || 'unknown';
+          } catch (e) {}
+          throw new AppError(`Supercell API Access Denied (${reason || 'invalidIp'}). Your Render server IP is ${serverIp}. Please add ${serverIp} to your API key at developer.clashofclans.com.`, 403);
         }
         if (status === 429) {
           throw new AppError('Clash of Clans API rate limit reached. Please try again in a few moments.', 429);
