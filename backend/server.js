@@ -4,21 +4,32 @@ require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
-
-const clashKey = (process.env.CLASH_OF_CLANS_API_TOKEN || process.env.CLASH_API_KEY || "").trim();
-const pubgKey = (process.env.PUBG_API_KEY || "").trim();
-
-console.log("Clash API Key loaded:", clashKey ? "YES" : "NO");
-console.log("Clash API Key length:", clashKey.length);
-console.log("PUBG API Key loaded:", pubgKey ? "YES" : "NO");
-console.log("PUBG API Key length:", pubgKey.length);
+const getGamingNews = require("./news");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// TASK 1 — Health Endpoint
+const PORT = process.env.PORT || process.env.port || 5000;
+
+const clashKey = (
+    process.env.CLASH_OF_CLANS_API_TOKEN ||
+    process.env.CLASH_API_KEY ||
+    ""
+).trim();
+
+const pubgKey = (
+    process.env.PUBG_API_KEY ||
+    ""
+).trim();
+
+console.log("Clash API Key loaded:", clashKey ? "YES" : "NO");
+console.log("Clash API Key length:", clashKey.length);
+console.log("PUBG API Key loaded:", pubgKey ? "YES" : "NO");
+console.log("PUBG API Key length:", pubgKey.length);
+
+// Health Endpoint
 app.get("/health", (req, res) => {
     res.json({
         success: true,
@@ -26,7 +37,10 @@ app.get("/health", (req, res) => {
     });
 });
 
-// TASK 9 — Clash of Clans Player Route
+// Gaming News Route
+app.get("/api/news", getGamingNews);
+
+// Clash of Clans Player Route
 app.get("/player/:tag", async (req, res) => {
     try {
         const tag = `%23${req.params.tag.replace("#", "")}`;
@@ -58,12 +72,11 @@ app.get("/player/:tag", async (req, res) => {
     }
 });
 
-// TASK 2, 3, 4, 5 & 10 — PUBG Player Endpoint with Normalized Stats & Error Handling
+// PUBG Player Endpoint with Normalized Stats & Error Handling
 app.get("/pubg/player/:platform/:playerName", async (req, res) => {
     try {
         const { platform, playerName } = req.params;
 
-        // TASK 3 — Shard Validation (Steam only)
         if (!platform || platform.toLowerCase() !== "steam") {
             return res.status(400).json({
                 success: false,
@@ -148,11 +161,9 @@ app.get("/pubg/player/:platform/:playerName", async (req, res) => {
             console.warn("Could not fetch PUBG lifetime stats:", statsErr.message);
         }
 
-        // TASK 5 — Safe Real Data Calculations
         const kdRatio = deaths > 0 ? (kills / deaths).toFixed(2) : (kills > 0 ? kills.toString() : "0.00");
         const winRate = matches > 0 ? `${((wins / matches) * 100).toFixed(1)}%` : "0.0%";
 
-        // TASK 4 — Normalized Response Format
         return res.json({
             success: true,
             game: "PUBG",
@@ -171,7 +182,7 @@ app.get("/pubg/player/:platform/:playerName", async (req, res) => {
                 matches: matches,
                 kdRatio: matches > 0 ? kdRatio : "N/A",
                 winRate: matches > 0 ? winRate : "N/A",
-                accuracy: "N/A", // PUBG API does not provide shot accuracy metrics
+                accuracy: "N/A",
                 accuracyNote: "Not available from PUBG API"
             }
         });
@@ -185,7 +196,6 @@ app.get("/pubg/player/:platform/:playerName", async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || process.env.port || 5000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
