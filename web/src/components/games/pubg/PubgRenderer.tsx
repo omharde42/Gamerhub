@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { RefreshCw, CheckCircle2, AlertCircle, Shield, Swords } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { PubgOverview } from './PubgOverview';
@@ -23,8 +23,19 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
   const [isEditing, setIsEditing] = useState(!gameUid);
   const queryClient = useQueryClient();
 
+  // Fetch user accounts to check connection status
+  const { data: userAccounts = [] } = useQuery({
+    queryKey: ['user-game-connections'],
+    queryFn: async () => {
+      const res = await api.get('/game/user-connections');
+      return res.data.data || [];
+    },
+  });
+
+  const pubgAccount = userAccounts.find((a: any) => (a.game || '').toUpperCase().includes('PUBG'));
+
   // Fetch Live PUBG Profile & Stats
-  const { data, isLoading, isError, refetch, isFetching, error } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['game-profile', 'pubg', gameUid || nameInput],
     queryFn: async () => {
       const targetName = gameUid || nameInput;
@@ -47,6 +58,7 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ['game-profile', 'pubg'] });
       queryClient.invalidateQueries({ queryKey: ['user-game-connections'] });
+      queryClient.invalidateQueries({ queryKey: ['compare-common-games'] });
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || 'Failed to connect PUBG player name. Ensure player name exists on Steam.');
@@ -62,42 +74,21 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
     connectMutation.mutate(nameInput.trim());
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-6 rounded-3xl bg-[#121624]/80 border border-amber-500/30 animate-pulse space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/10" />
-          <div className="h-4 w-40 bg-white/10 rounded" />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="h-24 bg-white/5 rounded-2xl" />
-          <div className="h-24 bg-white/5 rounded-2xl" />
-          <div className="h-24 bg-white/5 rounded-2xl" />
-          <div className="h-24 bg-white/5 rounded-2xl" />
-        </div>
-      </div>
-    );
-  }
+  const isConnected = Boolean(gameUid || pubgAccount);
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
-      <Card variant="glass" className="border-amber-500/30 relative overflow-hidden bg-gradient-to-br from-[#1A1408] via-[#0B0E17] to-black shadow-2xl">
+      <Card variant="glass" className="border-amber-500/30 relative overflow-hidden bg-gradient-to-br from-[#1A1208] via-[#0D0A05] to-[#141A0B] shadow-2xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <CardContent className="p-6 space-y-6">
-          {/* Connection Form */}
-          {(isEditing || !data || isError) ? (
+          {!isConnected || isEditing ? (
             <div className="p-6 rounded-2xl bg-black/60 border border-amber-500/30 space-y-4">
               <div className="flex items-center gap-2">
-                <span className="text-xl">🪖</span>
-                <h4 className="font-extrabold text-base text-white">Connect PUBG (Steam / PC)</h4>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-200 leading-relaxed">
-                  Currently GamerZ Hub supports <strong>PUBG PC / Steam</strong> players only. Enter your official Steam PUBG in-game name (e.g. <code>TGLTN</code>).
-                </p>
+                <Swords className="h-6 w-6 text-amber-400" />
+                <h4 className="font-extrabold text-base text-white">
+                  {isConnected ? 'Update PUBG Steam Player Name' : 'Connect your PUBG Steam account'}
+                </h4>
               </div>
 
               <form onSubmit={handleConnectSubmit} className="space-y-3">
@@ -112,7 +103,7 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
                 </div>
 
                 <div className="flex gap-2 justify-end pt-1">
-                  {gameUid && (
+                  {isConnected && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -127,20 +118,23 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
                     disabled={connectMutation.isPending}
                     className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-black font-extrabold px-6 rounded-xl h-10"
                   >
-                    {connectMutation.isPending ? 'Connecting...' : 'Connect PUBG'}
+                    {connectMutation.isPending ? 'Connecting...' : isConnected ? 'Save Changes' : 'Connect PUBG'}
                   </Button>
                 </div>
               </form>
             </div>
           ) : (
+            // CONNECTED STATE
             <>
               {/* Connected Header */}
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-black/40 border border-white/10">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold gap-1 px-3 py-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> ✓ PUBG Connected
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-black/40 border border-amber-500/20">
+                <div className="flex items-center gap-2.5">
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold gap-1.5 px-3 py-1">
+                    <CheckCircle2 className="h-4 w-4" /> ✓ PUBG Connected
                   </Badge>
-                  <span className="text-xs text-gray-400 font-medium">Steam PC Player Connected</span>
+                  <span className="text-xs text-amber-300 font-mono font-bold">
+                    Steam Player: {gameUid || nameInput}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -168,8 +162,37 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
                 </div>
               </div>
 
-              {/* Authentic PUBG Overview */}
-              <PubgOverview data={data} />
+              {/* STATS LOADING STATE */}
+              {isLoading ? (
+                <div className="p-6 rounded-2xl bg-black/40 border border-white/10 animate-pulse space-y-4 text-center">
+                  <p className="text-xs text-amber-400 font-mono font-bold animate-bounce">
+                    Syncing live PUBG PC statistics for {gameUid || nameInput}...
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="h-20 bg-white/5 rounded-2xl" />
+                    <div className="h-20 bg-white/5 rounded-2xl" />
+                    <div className="h-20 bg-white/5 rounded-2xl" />
+                    <div className="h-20 bg-white/5 rounded-2xl" />
+                  </div>
+                </div>
+              ) : isError ? (
+                <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2.5 text-red-300 text-xs font-semibold">
+                    <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
+                    <span>Unable to fetch live PUBG API data right now.</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                    className="text-xs font-bold text-red-300 border-red-500/40 rounded-xl"
+                  >
+                    Retry Sync
+                  </Button>
+                </div>
+              ) : data ? (
+                <PubgOverview data={data} />
+              ) : null}
             </>
           )}
         </CardContent>

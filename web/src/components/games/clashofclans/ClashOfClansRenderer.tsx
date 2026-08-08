@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Crown, RefreshCw, AlertTriangle, Lock, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Crown, RefreshCw, AlertTriangle, Lock, CheckCircle2, ShieldAlert, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { ClashOfClansOverview } from './ClashOfClansOverview';
@@ -35,7 +35,7 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
     },
   });
 
-  const cocAccount = userAccounts.find((a: any) => (a.game || '').toUpperCase() === 'CLASH_OF_CLANS');
+  const cocAccount = userAccounts.find((a: any) => (a.game || '').toUpperCase().includes('CLASH'));
   const changeCount = cocAccount?.changeCount || 0;
   const isLocked = changeCount >= 1;
 
@@ -68,6 +68,7 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
       setShowConfirmModal(false);
       queryClient.invalidateQueries({ queryKey: ['game-profile', 'clashofclans'] });
       queryClient.invalidateQueries({ queryKey: ['user-game-connections'] });
+      queryClient.invalidateQueries({ queryKey: ['compare-common-games'] });
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || 'Failed to connect player tag. Please check tag format & IP whitelist.');
@@ -81,7 +82,6 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
       return;
     }
 
-    // If changing tag for existing account, show confirmation modal
     if (cocAccount && cocAccount.inGameUid.toUpperCase() !== `#${cleanTag}`.toUpperCase()) {
       if (isLocked) {
         toast.error('Player Tag Locked: You have used your one allowed Player Tag change.');
@@ -97,22 +97,7 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
     connectMutation.mutate(tagInput.trim());
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-6 rounded-3xl bg-[#121624]/80 border border-yellow-500/30 animate-pulse space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/10" />
-          <div className="h-4 w-40 bg-white/10 rounded" />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="h-24 bg-white/5 rounded-2xl" />
-          <div className="h-24 bg-white/5 rounded-2xl" />
-          <div className="h-24 bg-white/5 rounded-2xl" />
-          <div className="h-24 bg-white/5 rounded-2xl" />
-        </div>
-      </div>
-    );
-  }
+  const isConnected = Boolean(gameUid || cocAccount);
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
@@ -120,12 +105,14 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
         <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <CardContent className="p-6 space-y-6">
-          {/* Connection Form (First Connection or Editing) */}
-          {(isEditing || !data || isError) ? (
+          {/* Form to connect if not connected or user clicked Change Tag */}
+          {!isConnected || isEditing ? (
             <div className="p-6 rounded-2xl bg-black/60 border border-yellow-500/30 space-y-4">
               <div className="flex items-center gap-2">
                 <Crown className="h-6 w-6 text-yellow-400" />
-                <h4 className="font-extrabold text-base text-white">Connect your Clash of Clans account</h4>
+                <h4 className="font-extrabold text-base text-white">
+                  {isConnected ? 'Change your Clash of Clans Player Tag' : 'Connect your Clash of Clans account'}
+                </h4>
               </div>
 
               {/* Warning Alert Box */}
@@ -148,7 +135,7 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
                 </div>
 
                 <div className="flex gap-2 justify-end pt-1">
-                  {gameUid && (
+                  {isConnected && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -163,20 +150,23 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
                     disabled={connectMutation.isPending}
                     className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-black font-extrabold px-6 rounded-xl h-10"
                   >
-                    {connectMutation.isPending ? 'Connecting...' : 'Connect'}
+                    {connectMutation.isPending ? 'Connecting...' : isConnected ? 'Save Tag Change' : 'Connect'}
                   </Button>
                 </div>
               </form>
             </div>
           ) : (
+            // CONNECTED STATE DISPLAY
             <>
               {/* Connected Header & Action Controls */}
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-black/40 border border-white/10">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold gap-1 px-3 py-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> ✓ Clash of Clans Connected
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-black/40 border border-yellow-500/20">
+                <div className="flex items-center gap-2.5">
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold gap-1.5 px-3 py-1">
+                    <CheckCircle2 className="h-4 w-4" /> ✓ Clash of Clans Connected
                   </Badge>
-                  <span className="text-xs text-gray-400 font-medium">Player Tag connected</span>
+                  <span className="text-xs text-amber-300 font-mono font-bold">
+                    Tag: #{cleanTag}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -189,14 +179,14 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
                     className="text-xs font-bold gap-1.5 rounded-xl h-8 border-yellow-500/30 hover:border-yellow-500/60 bg-black/40 text-yellow-300"
                   >
                     <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin text-yellow-400' : ''}`} />
-                    {isFetching ? 'Syncing Clash of Clans data...' : 'Sync Now'}
+                    {isFetching ? 'Syncing...' : 'Sync Now'}
                   </Button>
 
                   {/* Change Tag / Locked Badge */}
                   {isOwner && (
                     isLocked ? (
                       <Badge variant="outline" className="bg-red-500/10 text-red-400 border-red-500/30 text-xs font-bold gap-1 py-1">
-                        <Lock className="h-3 w-3" /> Player Tag Locked
+                        <Lock className="h-3 w-3" /> Tag Change Locked
                       </Badge>
                     ) : (
                       <Button
@@ -212,19 +202,50 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
                 </div>
               </div>
 
-              {/* Authentic Supercell Overview */}
-              <ClashOfClansOverview data={data} />
-
-              {/* Authentic Supercell Heroes & Pets */}
-              {data.heroes && data.heroes.length > 0 && (
-                <ClashOfClansHeroes heroes={data.heroes} pets={data.pets} />
-              )}
+              {/* STATS LOADING STATE */}
+              {isLoading ? (
+                <div className="p-6 rounded-2xl bg-black/40 border border-white/10 animate-pulse space-y-4 text-center">
+                  <p className="text-xs text-yellow-400 font-mono font-bold animate-bounce">
+                    Syncing live Supercell player data for #{cleanTag}...
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="h-20 bg-white/5 rounded-2xl" />
+                    <div className="h-20 bg-white/5 rounded-2xl" />
+                    <div className="h-20 bg-white/5 rounded-2xl" />
+                    <div className="h-20 bg-white/5 rounded-2xl" />
+                  </div>
+                </div>
+              ) : isError ? (
+                /* ERROR STATE */
+                <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2.5 text-red-300 text-xs font-semibold">
+                    <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
+                    <span>Unable to fetch live Supercell API data right now.</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                    className="text-xs font-bold text-red-300 border-red-500/40 rounded-xl"
+                  >
+                    Retry Sync
+                  </Button>
+                </div>
+              ) : data ? (
+                /* AUTHENTIC SUPERCELL OVERVIEW & HEROES */
+                <>
+                  <ClashOfClansOverview data={data} />
+                  {data.heroes && data.heroes.length > 0 && (
+                    <ClashOfClansHeroes heroes={data.heroes} pets={data.pets} />
+                  )}
+                </>
+              ) : null}
             </>
           )}
         </CardContent>
       </Card>
 
-      {/* One-Time Tag Change Confirmation Modal */}
+      {/* Confirmation Modal */}
       <AnimatePresence>
         {showConfirmModal && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
