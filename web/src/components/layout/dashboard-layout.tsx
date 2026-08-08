@@ -9,7 +9,6 @@ import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAutoHideNav } from '@/hooks/useAutoHideNav';
 import toast from 'react-hot-toast';
-import { UpdateChecker } from '../common/update-checker';
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -122,7 +121,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       )}
       {/* Progress bar + scroll-to-top FAB appear while the nav bars are auto-hidden */}
       {!isAuthOrLanding && !isMessages && <ScrollControls hidden={navHidden} />}
-      <UpdateChecker />
     </div>
   );
 }
