@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Download, Sparkles, X, Shield, ArrowRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Download, Sparkles, Shield, ArrowRight } from 'lucide-react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PremiumModal } from '@/components/ui/premium-modal';
 import { useAuthStore } from '@/store/authStore';
 
 export const CURRENT_APP_VERSION = '1.0.0';
@@ -84,15 +84,15 @@ export function UpdateChecker() {
     checkVersion();
   }, [isAuthenticated]);
 
-  if (!isOpen || !updateData) return null;
-
   const handleUpdate = () => {
+    if (!updateData) return;
     if (updateData.apkUrl) {
       window.open(updateData.apkUrl, '_blank');
     }
   };
 
   const handleDismiss = () => {
+    if (!updateData) return;
     if (updateData.latestVersion) {
       setDismissedVersion(updateData.latestVersion);
     }
@@ -100,26 +100,20 @@ export function UpdateChecker() {
   };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-md overflow-hidden rounded-2xl bg-card border border-primary/30 p-6 shadow-2xl space-y-5"
-        >
+    <PremiumModal
+      open={isOpen && !!updateData}
+      onClose={handleDismiss}
+      variant="center"
+      size="md"
+      zIndex={120}
+      showCloseButton={!updateData?.isForceUpdate}
+      closeOnOverlayClick={!updateData?.isForceUpdate}
+      title="Update Available"
+    >
+      {updateData && (
+        <div className="relative w-full space-y-5 p-6">
           {/* Top Gradient Accent */}
           <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-primary via-gaming-cyan to-primary" />
-
-          {/* Dismiss button */}
-          {!updateData.isForceUpdate && (
-            <button
-              onClick={handleDismiss}
-              className="absolute top-4 right-4 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
 
           {/* Header */}
           <div className="flex items-start gap-4 pt-1">
@@ -186,8 +180,8 @@ export function UpdateChecker() {
               <Download className="h-4 w-4" /> Update Now
             </Button>
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+        </div>
+      )}
+    </PremiumModal>
   );
 }

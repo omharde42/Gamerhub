@@ -17,6 +17,7 @@ import { motion } from 'framer-motion';
 import { useKeyboard, scrollInputIntoView } from '@/hooks/useKeyboard';
 
 import { ImagePreview } from '@/components/ui/image-preview';
+import { PremiumModal } from '@/components/ui/premium-modal';
 
 interface CreatePostProps {
   isFullScreen?: boolean;
@@ -392,13 +393,16 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
   // Full Screen Mobile Page view
   if (isFullScreen) {
     return (
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed inset-0 z-50 bg-background flex flex-col h-dvh w-full overflow-hidden text-foreground"
+      <PremiumModal
+        open={isFullScreen}
+        onClose={onClose ?? (() => undefined)}
+        variant="full"
+        bare
+        className="bg-background"
+        showCloseButton={false}
+        title="Create Post"
       >
+        <div className="flex h-full w-full flex-col overflow-hidden text-foreground">
         {/* Full Screen Sticky Header */}
         <div className="shrink-0 h-14 border-b border-border/40 px-4 flex items-center justify-between bg-card/60 backdrop-blur-md sticky top-0 z-10 pt-[env(safe-area-inset-top,0px)]">
           <button
@@ -644,7 +648,8 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
             />
           </div>
         </div>
-      </motion.div>
+        </div>
+      </PremiumModal>
     );
   }
 

@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Gamepad2, Compass, TrendingUp, Users, Trophy, Zap, Search, Loader2, Sparkles } from 'lucide-react';
+import { Gamepad2, Compass, TrendingUp, Users, Trophy, Zap, Search, Loader2, Sparkles, ChevronRight } from 'lucide-react';
+import { useOverlayStore } from '@/store/overlayStore';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -17,6 +18,7 @@ import { motion } from 'framer-motion';
 
 export default function ExplorePage() {
   const { user } = useAuthStore();
+  const openGamesPanel = useOverlayStore((s) => s.openPanel);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: trending } = useQuery({
@@ -57,10 +59,20 @@ export default function ExplorePage() {
 
       <Card variant="glass">
         <CardHeader className="pb-2">
-          <h2 className="font-semibold flex items-center gap-2 text-sm">
-            <Gamepad2 className="h-4 w-4 text-primary" />
-            Popular Games
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold flex items-center gap-2 text-sm">
+              <Gamepad2 className="h-4 w-4 text-primary" />
+              Popular Games
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 text-xs text-primary hover:text-primary"
+              onClick={() => openGamesPanel('games')}
+            >
+              View all <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">

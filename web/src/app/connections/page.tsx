@@ -10,7 +10,8 @@ import api from '@/lib/api';
 import { GAMES_CONFIG, GameConfig } from '@/config/gamesConfig';
 import { Shield, Check, Trash2, Loader2, Sparkles, Gamepad2, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { PremiumModal } from '@/components/ui/premium-modal';
 
 export default function ConnectionsPage() {
   const queryClient = useQueryClient();
@@ -168,69 +169,73 @@ export default function ConnectionsPage() {
       </div>
 
       {/* Dynamic Connection Modal */}
-      <AnimatePresence>
+      <PremiumModal
+        open={!!selectedGame}
+        onClose={() => setSelectedGame(null)}
+        variant="center"
+        size="sm"
+        showCloseButton={false}
+        title={selectedGame ? `Connect ${selectedGame.name}` : undefined}
+        className={selectedGame?.borderColor}
+      >
         {selectedGame && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full max-w-md">
-              <Card variant="glass" className={`border ${selectedGame.borderColor} bg-gradient-to-br ${selectedGame.bgGradient}`}>
-                <CardHeader>
-                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                    <span>{selectedGame.icon}</span> Connect {selectedGame.name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <form onSubmit={handleConnectSubmit} className="space-y-4">
-                    {selectedGame.fields.map((field) => (
-                      <div key={field.name} className="space-y-1.5">
-                        <label className="text-xs font-semibold text-gray-300">{field.label}</label>
-                        {field.type === 'select' ? (
-                          <select
-                            value={formData[field.name] || ''}
-                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                            className="w-full h-11 bg-black/60 border border-white/15 rounded-xl px-3 text-sm text-white focus:border-primary outline-none"
-                          >
-                            <option value="">{field.placeholder}</option>
-                            {field.options?.map((opt) => (
-                              <option key={opt.value} value={opt.value} className="bg-slate-900 text-white">
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <Input
-                            placeholder={field.placeholder}
-                            value={formData[field.name] || ''}
-                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                            className="bg-black/60 border-white/15 text-white placeholder:text-gray-500 h-11 rounded-xl"
-                          />
-                        )}
-                      </div>
-                    ))}
+          <div className={`flex min-h-full w-full flex-col bg-gradient-to-br ${selectedGame.bgGradient}`}>
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <span>{selectedGame.icon}</span> Connect {selectedGame.name}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form onSubmit={handleConnectSubmit} className="space-y-4">
+                {selectedGame.fields.map((field) => (
+                  <div key={field.name} className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-300">{field.label}</label>
+                    {field.type === 'select' ? (
+                      <select
+                        value={formData[field.name] || ''}
+                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                        className="w-full h-11 bg-black/60 border border-white/15 rounded-xl px-3 text-sm text-white focus:border-primary outline-none"
+                      >
+                        <option value="">{field.placeholder}</option>
+                        {field.options?.map((opt) => (
+                          <option key={opt.value} value={opt.value} className="bg-slate-900 text-white">
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        placeholder={field.placeholder}
+                        value={formData[field.name] || ''}
+                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                        className="bg-black/60 border-white/15 text-white placeholder:text-gray-500 h-11 rounded-xl"
+                      />
+                    )}
+                  </div>
+                ))}
 
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setSelectedGame(null)}
-                        className="flex-1 text-gray-400 hover:text-white rounded-xl h-11"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={connectMutation.isPending}
-                        className="flex-1 bg-gradient-to-r from-primary to-indigo-600 font-bold text-white rounded-xl h-11"
-                      >
-                        {connectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Connect Account'}
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-            </motion.div>
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setSelectedGame(null)}
+                    className="flex-1 text-gray-400 hover:text-white rounded-xl h-11"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={connectMutation.isPending}
+                    className="flex-1 bg-gradient-to-r from-primary to-indigo-600 font-bold text-white rounded-xl h-11"
+                  >
+                    {connectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Connect Account'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
           </div>
         )}
-      </AnimatePresence>
+      </PremiumModal>
     </div>
   );
 }

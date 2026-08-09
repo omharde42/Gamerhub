@@ -19,6 +19,15 @@ import { getInitials } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useState } from 'react';
+import { useOverlayStore, type PanelType } from '@/store/overlayStore';
+import { usePanelNav } from '@/hooks/usePanelNav';
+
+// Sidebar destinations that open as premium overlay panels instead of navigating.
+const PANEL_BY_HREF: Record<string, PanelType> = {
+  '/notifications': 'notifications',
+  '/tournaments': 'tournaments',
+  '/connections': 'connections',
+};
 
 const getNavItems = (username: string) => [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -44,6 +53,8 @@ export function Sidebar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
+  const panel = useOverlayStore((s) => s.panel);
+  const openPanelFromNav = usePanelNav();
 
   const { data: chatUnreadData } = useQuery({
     queryKey: ['chat-unread'],
@@ -84,9 +95,12 @@ export function Sidebar() {
                   <AvatarImage src={user?.profile?.avatar || ''} />
                   <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-lg">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
                 </Avatar>
-                <Link href={`/profile/${user?.profile?.username}`} className="block mt-2">
+                <button
+                  onClick={() => openPanelFromNav('profile', { username: user?.profile?.username })}
+                  className="block mt-2 cursor-pointer"
+                >
                   <p className="font-semibold text-sm hover:text-primary transition-colors">{user?.profile?.displayName || user?.profile?.username}</p>
-                </Link>
+                </button>
                 <p className="text-xs text-muted-foreground">{(user?.profile as any)?.headline || user?.profile?.role || 'Gamer'}</p>
                 {user?.profile?.rank && (
                   <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
@@ -97,13 +111,13 @@ export function Sidebar() {
               
               {/* Desktop Connections stats */}
               <div className="border-t border-border/40 px-3 py-2 space-y-1 hidden lg:block">
-                <Link href="/connections" className="flex items-center justify-between text-xs hover:bg-muted/80 rounded-lg px-2 py-1.5 -mx-1 transition-colors">
+                <button onClick={() => openPanelFromNav('connections')} className="flex items-center justify-between text-xs hover:bg-muted/80 rounded-lg px-2 py-1.5 -mx-1 transition-colors w-full cursor-pointer">
                   <span className="text-muted-foreground">Connections</span>
                   <span className="text-primary font-semibold">{(user?.profile as any)?._count?.following || 0}</span>
-                </Link>
-                <Link href="/profile/settings" className="flex items-center text-xs text-muted-foreground hover:bg-muted/80 rounded-lg px-2 py-1.5 -mx-1 transition-colors">
+                </button>
+                <button onClick={() => openPanelFromNav('settings')} className="flex items-center text-xs text-muted-foreground hover:bg-muted/80 rounded-lg px-2 py-1.5 -mx-1 transition-colors w-full cursor-pointer">
                   <Settings className="h-3 w-3 mr-1.5" /> Edit Profile
-                </Link>
+                </button>
               </div>
             </>
           ) : (
@@ -126,15 +140,19 @@ export function Sidebar() {
         <div className="bg-[#111827] rounded-2xl p-2 space-y-1 border border-white/[0.08] shadow-xl">
           {getNavItems(user?.profile?.username || '').map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-            return (
-              <Link key={item.href} href={item.href}
-                className={cn(
-                  'flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 relative justify-center lg:justify-start group',
-                  isActive
-                    ? 'text-white bg-[#7C3AED]/20 border-l-4 border-[#7C3AED] shadow-[0_0_20px_rgba(124,58,237,0.3)] font-bold'
-                    : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.06] border-l-4 border-transparent'
-                )}>
+            const panelType = PANEL_BY_HREF[item.href];
+            const isActive =
+              pathname === item.href ||
+              pathname?.startsWith(item.href + '/') ||
+              (!!panelType && panel === panelType);
+            const classes = cn(
+              'flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 relative justify-center lg:justify-start group',
+              isActive
+                ? 'text-white bg-[#7C3AED]/20 border-l-4 border-[#7C3AED] shadow-[0_0_20px_rgba(124,58,237,0.3)] font-bold'
+                : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.06] border-l-4 border-transparent'
+            );
+            const inner = (
+              <>
                 <div className="relative shrink-0">
                   <Icon className={cn('h-4 w-4 transition-all duration-200 group-hover:scale-110', isActive ? 'text-[#7C3AED]' : 'text-[#94A3B8] group-hover:text-white')} />
                   {item.href === '/messages' && totalChatUnread > 0 && (
@@ -144,6 +162,20 @@ export function Sidebar() {
                   )}
                 </div>
                 <span className="hidden lg:block font-inter">{item.label}</span>
+              </>
+            );
+
+            if (panelType) {
+              return (
+                <button key={item.href} onClick={() => openPanelFromNav(panelType)} className={cn(classes, 'w-full text-left')}>
+                  {inner}
+                </button>
+              );
+            }
+
+            return (
+              <Link key={item.href} href={item.href} className={classes}>
+                {inner}
               </Link>
             );
           })}
@@ -161,16 +193,12 @@ export function Sidebar() {
                   <Building2 className="h-4 w-4 mr-2" /> Organizations
                 </DropdownMenuItem>
               </Link>
-              <Link href="/connections">
-                <DropdownMenuItem onSelect={() => setMenuOpen(false)}>
-                  <UserCheck className="h-4 w-4 mr-2" /> Connections
-                </DropdownMenuItem>
-              </Link>
-              <Link href={`/profile/${user?.profile?.username}`}>
-                <DropdownMenuItem onSelect={() => setMenuOpen(false)}>
-                  <User className="h-4 w-4 mr-2" /> View Profile
-                </DropdownMenuItem>
-              </Link>
+              <DropdownMenuItem onSelect={() => { setMenuOpen(false); openPanelFromNav('connections'); }}>
+                <UserCheck className="h-4 w-4 mr-2" /> Connections
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => { setMenuOpen(false); openPanelFromNav('profile', { username: user?.profile?.username }); }}>
+                <User className="h-4 w-4 mr-2" /> View Profile
+              </DropdownMenuItem>
               <Link href={`/passport/${user?.profile?.username}`}>
                 <DropdownMenuItem onSelect={() => setMenuOpen(false)}>
                   <Shield className="h-4 w-4 mr-2" /> Gamer Passport

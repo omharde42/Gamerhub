@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Crown, RefreshCw, AlertTriangle, Lock, CheckCircle2, ShieldAlert } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { PremiumModal } from '@/components/ui/premium-modal';
 import toast from 'react-hot-toast';
 import { ClashOfClansOverview } from './ClashOfClansOverview';
 import { ClashOfClansHeroes } from './ClashOfClansHeroes';
@@ -220,41 +221,42 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
       </Card>
 
       {/* One-Time Tag Change Confirmation Modal */}
-      <AnimatePresence>
-        {showConfirmModal && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full max-w-md">
-              <Card variant="glass" className="border-yellow-500/40 bg-gradient-to-br from-[#1F1708] via-[#0F0D06] to-black">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center gap-2.5 text-amber-400">
-                    <ShieldAlert className="h-6 w-6" />
-                    <h3 className="text-lg font-extrabold text-white">Are you sure?</h3>
-                  </div>
-                  <p className="text-xs text-gray-300 leading-relaxed">
-                    Your Clash of Clans Player Tag can only be changed <strong>once</strong>. After this change, it will be permanently locked to your GamerZ Hub account.
-                  </p>
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => setShowConfirmModal(false)}
-                      className="flex-1 text-gray-400 hover:text-white rounded-xl h-11"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={confirmChangeTag}
-                      disabled={connectMutation.isPending}
-                      className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-600 font-extrabold text-black rounded-xl h-11"
-                    >
-                      {connectMutation.isPending ? 'Changing...' : 'Change Tag'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+      <PremiumModal
+        open={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        variant="center"
+        size="sm"
+        showCloseButton={false}
+        title="Confirm Player Tag Change"
+      >
+        <div className="flex min-h-full w-full flex-col bg-gradient-to-br from-[#1F1708] via-[#0F0D06] to-black">
+          <div className="space-y-4 p-6">
+            <div className="flex items-center gap-2.5 text-amber-400">
+              <ShieldAlert className="h-6 w-6" />
+              <h3 className="text-lg font-extrabold text-white">Are you sure?</h3>
+            </div>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Your Clash of Clans Player Tag can only be changed <strong>once</strong>. After this change, it will be permanently locked to your GamerZ Hub account.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 text-gray-400 hover:text-white rounded-xl h-11"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmChangeTag}
+                disabled={connectMutation.isPending}
+                className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-600 font-extrabold text-black rounded-xl h-11"
+              >
+                {connectMutation.isPending ? 'Changing...' : 'Change Tag'}
+              </Button>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      </PremiumModal>
     </motion.div>
   );
 }

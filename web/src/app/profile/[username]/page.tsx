@@ -10,14 +10,15 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { MapPin, Trophy, Target, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Award, Swords, X, Loader2, Heart, UserCheck, UserPlus, Sparkles, Settings, Camera, MessageSquare, Search } from 'lucide-react';
 import { formatDate, getInitials, getRankColor } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
+import { useOverlayStore } from '@/store/overlayStore';
 import { useSocket } from '@/hooks/useSocket';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { PremiumModal } from '@/components/ui/premium-modal';
 import { PostCard } from '@/components/post/post-card';
 import { SteamShowcase } from '@/components/profile/steam-showcase';
 import { ClashOfClansCard } from '@/components/game-sync/clash-of-clans-card';
@@ -49,7 +50,13 @@ function StatCard({ value, label, color, delay = 0 }: { value: string | number; 
 }
 
 export default function ProfilePage() {
-  const { username } = useParams();
+  const { username: paramUsername } = useParams();
+  // When rendered inside the Profile overlay panel the username is provided by
+  // the overlay store; as a normal route it comes from the URL params.
+  const panelEmbedded = useOverlayStore((s) => s.panel === 'profile');
+  const panelUsername = useOverlayStore((s) => s.panelUsername);
+  const username = (panelEmbedded ? panelUsername : paramUsername) as string;
+  const embedded = panelEmbedded;
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const socket = useSocket();
@@ -236,8 +243,8 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Back navigation button */}
-      <BackHeader title={profile.displayName || profile.username} />
+      {/* Back navigation button (hidden when embedded as an overlay panel) */}
+      {!embedded && <BackHeader title={profile.displayName || profile.username} />}
 
       {/* Profile header */}
       <Card variant="glass" className="overflow-hidden border-border/60" hover={false}>
@@ -593,122 +600,117 @@ export default function ProfilePage() {
       </Tabs>
 
       {/* Social List Modal (Connections, Followers, Following) */}
-      <AnimatePresence>
-        {listModalOpen && listType && (
-          <motion.div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="bg-background border border-border/50 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl relative overflow-hidden"
-              initial={{ scale: 0.95, y: 15 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 15 }}
-              transition={{ type: 'spring', duration: 0.3 }}
-            >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50 bg-muted/10 shrink-0">
-                <div>
-                  <h3 className="font-bold text-base capitalize">{listType}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {filteredList.length} {filteredList.length === 1 ? 'user' : 'users'} found
-                  </p>
+      <PremiumModal
+        open={listModalOpen && !!listType}
+        onClose={() => setListModalOpen(false)}
+        variant="bottom"
+        size="md"
+        title={listType ? `${listType} list` : undefined}
+        header={
+          listType ? (
+            <div className="flex w-full items-center justify-between">
+              <div>
+                <h3 className="font-bold text-base capitalize">{listType}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {filteredList.length} {filteredList.length === 1 ? 'user' : 'users'} found
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setListModalOpen(false)} className="h-9 w-9 rounded-full">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          ) : undefined
+        }
+      >
+        {listType && (
+          <div>
+            {/* Local Search input */}
+            <div className="flex items-center gap-2 border-b border-border/30 bg-muted/5 px-4 py-3">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search user..."
+                value={listSearch}
+                onChange={(e) => setListSearch(e.target.value)}
+                className="h-8 border-0 bg-transparent text-xs focus-visible:ring-0 px-0"
+                variant="ghost"
+              />
+            </div>
+
+            {/* List Content */}
+            <div className="p-4">
+              {listLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="text-xs text-muted-foreground">Loading list...</span>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setListModalOpen(false)}>
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
+              ) : filteredList.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-muted-foreground">No users found</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredList.map((item: any) => {
+                    if (!item) return null;
+                    const isMe = item.id === user?.id;
+                    const isFriend = friendList?.includes(item.id);
+                    const isFollowingItem = followingList?.includes(item.id);
 
-              {/* Local Search input */}
-              <div className="p-3 border-b border-border/30 bg-muted/5 shrink-0 flex items-center gap-2">
-                <Search className="h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search user..."
-                  value={listSearch}
-                  onChange={(e) => setListSearch(e.target.value)}
-                  className="h-8 border-0 bg-transparent text-xs focus-visible:ring-0 px-0"
-                  variant="ghost"
-                />
-              </div>
+                    return (
+                      <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/15 border border-transparent hover:border-border/30 transition-all duration-200">
+                        {/* User Info */}
+                        <Link 
+                          href={`/profile/${item.profile?.username}`}
+                          onClick={() => setListModalOpen(false)}
+                          className="flex items-center gap-3 min-w-0"
+                        >
+                          <Avatar className="h-9 w-9 border border-border/30">
+                            <AvatarImage src={item.profile?.avatar || ''} />
+                            <AvatarFallback className="text-xs">{getInitials(item.profile?.username || '')}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate hover:text-primary transition-colors">
+                              {item.profile?.displayName || item.profile?.username}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              @{item.profile?.username}
+                            </p>
+                          </div>
+                        </Link>
 
-              {/* List Content */}
-              <ScrollArea className="flex-1 p-4">
-                {listLoading ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <span className="text-xs text-muted-foreground">Loading list...</span>
-                  </div>
-                ) : filteredList.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-muted-foreground">No users found</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredList.map((item: any) => {
-                      if (!item) return null;
-                      const isMe = item.id === user?.id;
-                      const isFriend = friendList?.includes(item.id);
-                      const isFollowingItem = followingList?.includes(item.id);
+                        {/* Action buttons */}
+                        {!isMe && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            {/* Follow / Unfollow */}
+                            <Button
+                              variant={isFollowingItem ? 'outline' : 'secondary'}
+                              onClick={() => listToggleFollow.mutate(item.id)}
+                              disabled={listToggleFollow.isPending}
+                              className="h-7 text-[10px] px-2 rounded-lg font-bold"
+                            >
+                              {isFollowingItem ? 'Unfollow' : 'Follow'}
+                            </Button>
 
-                      return (
-                        <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/15 border border-transparent hover:border-border/30 transition-all duration-200">
-                          {/* User Info */}
-                          <Link 
-                            href={`/profile/${item.profile?.username}`}
-                            onClick={() => setListModalOpen(false)}
-                            className="flex items-center gap-3 min-w-0"
-                          >
-                            <Avatar className="h-9 w-9 border border-border/30">
-                              <AvatarImage src={item.profile?.avatar || ''} />
-                              <AvatarFallback className="text-xs">{getInitials(item.profile?.username || '')}</AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold truncate hover:text-primary transition-colors">
-                                {item.profile?.displayName || item.profile?.username}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                @{item.profile?.username}
-                              </p>
-                            </div>
-                          </Link>
-
-                          {/* Action buttons */}
-                          {!isMe && (
-                            <div className="flex items-center gap-2 shrink-0">
-                              {/* Follow / Unfollow */}
-                              <Button
-                                variant={isFollowingItem ? 'outline' : 'secondary'}
-                                onClick={() => listToggleFollow.mutate(item.id)}
-                                disabled={listToggleFollow.isPending}
-                                className="h-7 text-[10px] px-2 rounded-lg font-bold"
-                              >
-                                {isFollowingItem ? 'Unfollow' : 'Follow'}
-                              </Button>
-
-                              {/* Connect / Connected */}
-                              <Button
-                                variant={isFriend ? 'default' : 'outline'}
-                                onClick={() => !isFriend && listConnect.mutate(item.id)}
-                                disabled={isFriend || listConnect.isPending}
-                                className={`h-7 text-[10px] px-2 rounded-lg font-bold ${isFriend ? 'bg-success/10 text-success hover:bg-success/15 border-success/30' : ''}`}
-                              >
-                                {isFriend ? 'Connected' : 'Connect'}
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </ScrollArea>
-            </motion.div>
-          </motion.div>
+                            {/* Connect / Connected */}
+                            <Button
+                              variant={isFriend ? 'default' : 'outline'}
+                              onClick={() => !isFriend && listConnect.mutate(item.id)}
+                              disabled={isFriend || listConnect.isPending}
+                              className={`h-7 text-[10px] px-2 rounded-lg font-bold ${isFriend ? 'bg-success/10 text-success hover:bg-success/15 border-success/30' : ''}`}
+                            >
+                              {isFriend ? 'Connected' : 'Connect'}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      </PremiumModal>
     </div>
   );
 }

@@ -1,0 +1,313 @@
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from 'framer-motion';
+import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useOverlayStore } from '@/store/overlayStore';
+
+export type PremiumModalVariant = 'center' | 'bottom' | 'left' | 'right' | 'full';
+export type PremiumModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
+
+export interface PremiumModalProps {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  /** Placement of the panel. Defaults to a centered dialog. */
+  variant?: PremiumModalVariant;
+  /** Max width for centered dialogs / desktop bottom sheets. */
+  size?: PremiumModalSize;
+  /** Extra classes for the panel itself. */
+  className?: string;
+  /** Extra classes for the dimming overlay. */
+  overlayClassName?: string;
+  /** Slim sticky header bar (replaces the floating close button). */
+  header?: React.ReactNode;
+  showCloseButton?: boolean;
+  closeOnOverlayClick?: boolean;
+  closeOnEscape?: boolean;
+  /** Allow swipe-down to dismiss (mobile bottom sheets). Defaults to true for bottom sheets. */
+  swipeToClose?: boolean;
+  /** Dim + blur + scale the app behind. Defaults to true. */
+  dimBackground?: boolean;
+  /** Skip the modal chrome (header/close/scroll wrapper) and let children fill the panel. */
+  bare?: boolean;
+  zIndex?: number;
+  /** Animation duration in seconds (250–350ms recommended). */
+  transitionDuration?: number;
+  /** Accessible label for the dialog. */
+  title?: string;
+  /** Called after the close (exit) animation finishes. */
+  onExitComplete?: () => void;
+}
+
+const EASE = [0.32, 0.72, 0, 1] as const;
+
+const SIZE_MAX_W: Record<PremiumModalSize, string> = {
+  sm: 'sm:max-w-md',
+  md: 'sm:max-w-lg',
+  lg: 'sm:max-w-3xl',
+  xl: 'sm:max-w-5xl',
+  full: 'sm:max-w-full',
+};
+
+const SWIPE_THRESHOLD = 110;
+const SWIPE_VELOCITY = 500;
+
+export function PremiumModal({
+  open,
+  onClose,
+  children,
+  variant = 'center',
+  size = 'md',
+  className,
+  overlayClassName,
+  header,
+  showCloseButton = true,
+  closeOnOverlayClick = true,
+  closeOnEscape = true,
+  swipeToClose,
+  dimBackground = true,
+  bare = false,
+  zIndex = 80,
+  transitionDuration = 0.3,
+  title,
+  onExitComplete,
+}: PremiumModalProps) {
+  const registerOverlay = useOverlayStore((s) => s.registerOverlay);
+  const unregisterOverlay = useOverlayStore((s) => s.unregisterOverlay);
+  const reduceMotion = useReducedMotion();
+  const sheetControls = useAnimationControls();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // True while the close (exit) animation is still playing — keeps the overlay
+  // (dim/blur/scale + scroll lock) registered until the panel is fully gone.
+  const [closing, setClosing] = useState(false);
+  useEffect(() => {
+    if (open) setClosing(false);
+  }, [open]);
+
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  const registered = open || closing;
+
+  // Dim/blur/scale the application behind the overlay while open (and during exit).
+  useEffect(() => {
+    if (!registered || !dimBackground) return;
+    registerOverlay();
+    return () => unregisterOverlay();
+  }, [registered, dimBackground, registerOverlay, unregisterOverlay]);
+
+  // Escape key closes.
+  useEffect(() => {
+    if (!open || !closeOnEscape) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, closeOnEscape, onClose]);
+
+  // Move keyboard focus into the dialog while it is open.
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
+
+  if (typeof document === 'undefined') return null;
+
+  const isBottomSheet = variant === 'bottom';
+  const useBottomSheetMobile = isBottomSheet && isMobile;
+  const useBottomSheetDesktop = isBottomSheet && !isMobile;
+  const swipeEnabled = swipeToClose ?? isBottomSheet;
+
+  // Slide the mobile bottom sheet in when it opens (driven through the
+  // animation controls so the swipe-to-close handler can share them).
+  useEffect(() => {
+    if (open && useBottomSheetMobile && swipeEnabled) {
+      sheetControls.start({ y: 0, transition: { duration: 0.32, ease: EASE } });
+    }
+  }, [open, useBottomSheetMobile, swipeEnabled, sheetControls]);
+
+  // --- Manual swipe-to-close (bottom sheets only) -------------------------
+  // Uses pointer events instead of framer's drag so the sheet's scrollable
+  // content keeps native touch scrolling (framer sets touch-action: pan-x on
+  // drag elements, which would block vertical scrolling of inner content).
+  const dragStart = useRef<{ y: number; time: number; lastY: number; lastTime: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: PointerEvent) => {
+      const start = dragStart.current;
+      if (!start) return;
+      const dy = e.clientY - start.y;
+      if (dy > 0) {
+        sheetControls.start({ y: dy });
+        start.lastY = e.clientY;
+        start.lastTime = Date.now();
+      }
+    };
+    const onUp = (e: PointerEvent) => {
+      const start = dragStart.current;
+      dragStart.current = null;
+      setDragging(false);
+      if (!start) return;
+      const dy = e.clientY - start.y;
+      const dt = Math.max(1, Date.now() - start.lastTime);
+      const velocity = (e.clientY - start.lastY) / dt; // px per ms
+      if (dy > SWIPE_THRESHOLD || (dy > 40 && velocity > SWIPE_VELOCITY / 1000)) {
+        onClose();
+      } else {
+        sheetControls.start({ y: 0, transition: { type: 'spring', damping: 28, stiffness: 320 } });
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [dragging, sheetControls, onClose]);
+
+  const handlePanelPointerDown = (e: React.PointerEvent) => {
+    if (!useBottomSheetMobile || !swipeEnabled || !e.isPrimary) return;
+    // Never hijack the gesture while the content is scrolled.
+    if (contentRef.current && contentRef.current.scrollTop > 0) return;
+    dragStart.current = { y: e.clientY, time: Date.now(), lastY: e.clientY, lastTime: Date.now() };
+    setDragging(true);
+  };
+
+  // --- Animations ----------------------------------------------------------
+  const overlayTransition = { duration: transitionDuration, ease: EASE };
+
+  const panelVariants = (() => {
+    if (reduceMotion) {
+      return { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } };
+    }
+    switch (variant) {
+      case 'center':
+        return {
+          initial: { opacity: 0, scale: 0.95, y: 14 },
+          animate: { opacity: 1, scale: 1, y: 0 },
+          exit: { opacity: 0, scale: 0.95, y: 14 },
+        };
+      case 'bottom':
+        return useBottomSheetMobile
+          ? { initial: { y: '100%' }, animate: { y: 0 }, exit: { y: '100%' } }
+          : {
+              initial: { opacity: 0, scale: 0.97, y: 36, x: '-50%' },
+              animate: { opacity: 1, scale: 1, y: 0, x: '-50%' },
+              exit: { opacity: 0, scale: 0.97, y: 36, x: '-50%' },
+            };
+      case 'left':
+        return { initial: { x: '-100%' }, animate: { x: 0 }, exit: { x: '-100%' } };
+      case 'right':
+        return { initial: { x: '100%' }, animate: { x: 0 }, exit: { x: '100%' } };
+      case 'full':
+        return { initial: { y: '100%' }, animate: { y: 0 }, exit: { y: '100%' } };
+    }
+  })();
+
+  const panelClasses = cn(
+    'relative flex flex-col overflow-hidden bg-card text-foreground shadow-2xl border-border/40',
+    variant === 'center' && cn('w-full max-h-[85dvh] rounded-3xl border', SIZE_MAX_W[size]),
+    useBottomSheetMobile && 'absolute inset-x-0 bottom-0 w-full max-h-[92dvh] rounded-t-3xl border-t',
+    useBottomSheetDesktop && 'absolute left-1/2 top-1/2 w-full h-[min(85dvh,52rem)] rounded-3xl border',
+    variant === 'left' && 'absolute inset-y-0 left-0 w-[min(85vw,20rem)] rounded-r-3xl border-r',
+    variant === 'right' && 'absolute inset-y-0 right-0 w-[min(85vw,20rem)] rounded-l-3xl border-l',
+    variant === 'full' && 'absolute inset-0 h-full w-full rounded-none border-0',
+    className
+  );
+
+  const handleExitComplete = () => {
+    setClosing(false);
+    onExitComplete?.();
+  };
+
+  return createPortal(
+    <AnimatePresence onExitComplete={handleExitComplete}>
+      {open && (
+        <motion.div
+          key="premium-modal-root"
+          className="fixed inset-0"
+          style={{ zIndex }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+        >
+          {/* Dimming + blur overlay */}
+          <motion.div
+            className={cn('absolute inset-0 bg-black/45 backdrop-blur-[8px]', overlayClassName)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={overlayTransition}
+            onClick={closeOnOverlayClick ? onClose : undefined}
+          />
+
+          {/* Panel */}
+          <motion.div
+            ref={panelRef}
+            tabIndex={-1}
+            className={panelClasses}
+            initial={panelVariants.initial}
+            animate={useBottomSheetMobile && swipeEnabled ? sheetControls : panelVariants.animate}
+            exit={panelVariants.exit}
+            transition={{ duration: transitionDuration, ease: EASE }}
+            onPointerDown={handlePanelPointerDown}
+            style={useBottomSheetMobile && swipeEnabled && dragging ? { cursor: 'grabbing' } : undefined}
+          >
+            {useBottomSheetMobile && !bare && (
+              <div className="pointer-events-none flex shrink-0 items-center justify-center pt-2.5 pb-0">
+                <div className="h-1 w-10 rounded-full bg-foreground/15" />
+              </div>
+            )}
+
+            {!bare && header !== undefined && (
+              <div className="flex shrink-0 items-center gap-2 border-b border-border/40 bg-card/80 px-3 py-2.5 backdrop-blur-xl">
+                {header}
+              </div>
+            )}
+
+            {!bare && header === undefined && showCloseButton && (
+              <button
+                onClick={onClose}
+                aria-label="Close"
+                className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-background/60 text-muted-foreground backdrop-blur-md transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+
+            {bare ? (
+              children
+            ) : (
+              <div
+                ref={contentRef}
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+              >
+                {children}
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+}

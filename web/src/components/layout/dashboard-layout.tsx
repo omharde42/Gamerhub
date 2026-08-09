@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAutoHideNav } from '@/hooks/useAutoHideNav';
 import toast from 'react-hot-toast';
 import { UpdateChecker } from '../common/update-checker';
+import { PanelHost } from './panel-host';
+import { useOverlayActive } from '@/store/overlayStore';
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -23,6 +25,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   // Instagram-style auto-hide for the top search bar & bottom nav on scroll.
   const navHidden = useAutoHideNav();
+
+  // True while any premium modal/drawer/panel is open — dims, blurs and slightly
+  // scales the app behind it so attention focuses on the active content.
+  const overlayActive = useOverlayActive();
+
+  useEffect(() => {
+    document.body.style.overflow = overlayActive ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [overlayActive]);
 
   const isLanding = pathname === '/';
   const isAuthOrLanding = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');
@@ -103,7 +116,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       <header role="banner" className={isMessages ? "hidden md:block" : "block"}>
         <Navbar hidden={navHidden} />
       </header>
-      <div className={`w-full transition-[padding] duration-300 ease-in-out ${!isLanding ? (isMessages ? 'pt-0 md:pt-16 pb-0' : (navHidden ? 'pt-0 pb-0' : 'pt-16 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0')) : ''}`}>
+      <div className={`w-full transition-[padding,transform] duration-300 ease-in-out ${overlayActive && !isMessages ? 'scale-[0.985]' : ''} ${!isLanding ? (isMessages ? 'pt-0 md:pt-16 pb-0' : (navHidden ? 'pt-0 pb-0' : 'pt-16 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0')) : ''}`}>
         <div className={`w-full mx-auto flex gap-3 lg:gap-4 ${isMessages ? 'px-0 md:px-6 py-0 md:py-4' : 'px-3 md:px-6 py-3 md:py-4'}`}>
           {!hideSidebar && !isServerPage && !isMessages && (
             <aside aria-label="Control Panel" className="hidden md:block shrink-0">
@@ -122,6 +135,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       )}
       {/* Progress bar + scroll-to-top FAB appear while the nav bars are auto-hidden */}
       {!isAuthOrLanding && !isMessages && <ScrollControls hidden={navHidden} />}
+      {/* Premium overlay host: renders page-level features as panels */}
+      <PanelHost />
       <UpdateChecker />
     </div>
   );

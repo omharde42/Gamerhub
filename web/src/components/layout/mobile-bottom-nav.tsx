@@ -8,18 +8,27 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { useOverlayStore, type PanelType } from '@/store/overlayStore';
+import { usePanelNav } from '@/hooks/usePanelNav';
 
-const mobileNavItems = [
+const mobileNavItems: {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  panel?: PanelType;
+}[] = [
   { href: '/feed', icon: Newspaper, label: 'Feed' },
-  { href: '/search', icon: Search, label: 'Search' },
+  { href: '/search', icon: Search, label: 'Search', panel: 'search' },
   { href: '/messages', icon: MessageSquare, label: 'Messages' },
-  { href: '/tournaments', icon: Trophy, label: 'Tournaments' },
-  { href: '/profile', icon: User, label: 'Profile' },
+  { href: '/tournaments', icon: Trophy, label: 'Tournaments', panel: 'tournaments' },
+  { href: '/profile', icon: User, label: 'Profile', panel: 'profile' },
 ];
 
 export function MobileBottomNav({ hidden = false }: { hidden?: boolean }) {
   const pathname = usePathname();
   const { user } = useAuthStore();
+  const panel = useOverlayStore((s) => s.panel);
+  const openPanelFromNav = usePanelNav();
 
   const { data: chatUnreadData } = useQuery({
     queryKey: ['chat-unread'],
@@ -37,11 +46,16 @@ export function MobileBottomNav({ hidden = false }: { hidden?: boolean }) {
 
   const totalChatUnread = Object.values(chatUnreadData || {}).reduce((sum: number, c: any) => sum + (c as number), 0);
 
-  const isActive = (href: string) => {
-    if (href === '/profile') {
-      return pathname?.startsWith('/profile/') && !pathname?.endsWith('/settings');
+  const isActive = (item: (typeof mobileNavItems)[number]) => {
+    if (item.panel) {
+      const onRoute = pathname === item.href || pathname?.startsWith(item.href + '/');
+      if (item.panel === 'profile') {
+        const onProfilePage = pathname?.startsWith('/profile/') && !pathname?.endsWith('/settings');
+        return onProfilePage || panel === 'profile';
+      }
+      return onRoute || panel === item.panel;
     }
-    return pathname === href || pathname?.startsWith(href + '/');
+    return pathname === item.href || pathname?.startsWith(item.href + '/');
   };
 
   return (
@@ -57,25 +71,24 @@ export function MobileBottomNav({ hidden = false }: { hidden?: boolean }) {
         <div className="flex items-center justify-around px-1 py-1.5">
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.href);
+            const active = isActive(item);
             const isChat = item.href === '/messages';
             const isProfile = item.href === '/profile';
+            const panelType = item.panel;
 
             // Dynamically resolve /profile to current user's profile
             const targetHref = isProfile && user?.profile?.username
               ? `/profile/${user.profile.username}`
               : item.href;
 
-            return (
-              <Link
-                key={item.href}
-                href={targetHref}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all duration-200 min-w-[56px] relative ${
-                  active
-                    ? 'text-primary'
-                    : 'text-muted-foreground/70 hover:text-foreground'
-                }`}
-              >
+            const className = `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all duration-200 min-w-[56px] relative ${
+              active
+                ? 'text-primary'
+                : 'text-muted-foreground/70 hover:text-foreground'
+            }`;
+
+            const content = (
+              <>
                 <div className="relative">
                   <Icon className={`h-5 w-5 transition-all duration-200 ${
                     active ? 'drop-shadow-[0_0_6px_hsl(var(--primary)/0.4)]' : ''
@@ -90,6 +103,29 @@ export function MobileBottomNav({ hidden = false }: { hidden?: boolean }) {
                 {active && (
                   <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />
                 )}
+              </>
+            );
+
+            if (panelType) {
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => openPanelFromNav(panelType, panelType === 'profile' ? { username: user?.profile?.username } : undefined)}
+                  className={className}
+                  aria-label={item.label}
+                >
+                  {content}
+                </button>
+              );
+            }
+
+            return (
+              <Link
+                key={item.href}
+                href={targetHref}
+                className={className}
+              >
+                {content}
               </Link>
             );
           })}
