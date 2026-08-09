@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ClashOfClansRenderer, GameRendererProps } from './clashofclans/ClashOfClansRenderer';
+import { PubgRenderer } from './pubg/PubgRenderer';
 import { ValorantRenderer } from './valorant/ValorantRenderer';
 import { SteamRenderer } from './steam/SteamRenderer';
 import { FreeFireRenderer } from './freefire/FreeFireRenderer';
@@ -11,6 +12,11 @@ import { GenericGameRenderer } from './GenericGameRenderer';
 // Registry mapping gameKey -> Component
 const GAME_RENDERERS: Record<string, React.ComponentType<GameRendererProps>> = {
   clashofclans: ClashOfClansRenderer,
+  clash_of_clans: ClashOfClansRenderer,
+  coc: ClashOfClansRenderer,
+  pubg: PubgRenderer,
+  pubg_pc: PubgRenderer,
+  pubgpc: PubgRenderer,
   valorant: ValorantRenderer,
   steam: SteamRenderer,
   freefire: FreeFireRenderer,
@@ -24,7 +30,14 @@ const GAME_RENDERERS: Record<string, React.ComponentType<GameRendererProps>> = {
  * Renders the dedicated game UI component for any gameKey
  */
 export function GameRenderer({ gameKey, gameUid, isOwner }: GameRendererProps) {
-  const Component = GAME_RENDERERS[gameKey.toLowerCase()] || GenericGameRenderer;
+  const rawKey = (gameKey || '').toLowerCase();
+  const cleanKey = rawKey.replace(/[^a-z0-9]/g, '');
+
+  const Component =
+    GAME_RENDERERS[rawKey] ||
+    GAME_RENDERERS[cleanKey] ||
+    GenericGameRenderer;
+
   return <Component gameKey={gameKey} gameUid={gameUid} isOwner={isOwner} />;
 }
 

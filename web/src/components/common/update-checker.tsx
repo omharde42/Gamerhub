@@ -1,4 +1,5 @@
 'use client';
+<<<<<<< HEAD
 import { useEffect, useState } from 'react';
 import { Download, Sparkles, Shield, ArrowRight } from 'lucide-react';
 import api from '@/lib/api';
@@ -6,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PremiumModal } from '@/components/ui/premium-modal';
 import { useAuthStore } from '@/store/authStore';
+=======
+>>>>>>> 185fc85d5d3e25e8786a8f54f848c69940c3be9a
 
 export const CURRENT_APP_VERSION = '1.0.0';
 
@@ -19,32 +22,8 @@ export function isNewerVersion(latest: string, current: string): boolean {
   return lPatch > cPatch;
 }
 
-const DISMISSED_KEY = 'gamerhub_dismissed_update';
-const DISMISS_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-function getDismissedVersion(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const stored = localStorage.getItem(DISMISSED_KEY);
-    if (!stored) return null;
-    const { version, timestamp } = JSON.parse(stored);
-    if (Date.now() - timestamp > DISMISS_EXPIRY_MS) {
-      localStorage.removeItem(DISMISSED_KEY);
-      return null;
-    }
-    return version;
-  } catch {
-    return null;
-  }
-}
-
-function setDismissedVersion(version: string) {
-  try {
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify({ version, timestamp: Date.now() }));
-  } catch {}
-}
-
 export function UpdateChecker() {
+<<<<<<< HEAD
   const [updateData, setUpdateData] = useState<{
     latestVersion: string;
     apkUrl: string;
@@ -184,4 +163,7 @@ export function UpdateChecker() {
       )}
     </PremiumModal>
   );
+=======
+  return null;
+>>>>>>> 185fc85d5d3e25e8786a8f54f848c69940c3be9a
 }

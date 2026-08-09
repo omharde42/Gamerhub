@@ -1,8 +1,9 @@
 'use client';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Newspaper, Search, MessageSquare, Trophy, User
+  Newspaper, MessageSquare, Trophy, User
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -18,7 +19,10 @@ const mobileNavItems: {
   panel?: PanelType;
 }[] = [
   { href: '/feed', icon: Newspaper, label: 'Feed' },
+<<<<<<< HEAD
   { href: '/search', icon: Search, label: 'Search', panel: 'search' },
+=======
+>>>>>>> 185fc85d5d3e25e8786a8f54f848c69940c3be9a
   { href: '/messages', icon: MessageSquare, label: 'Messages' },
   { href: '/tournaments', icon: Trophy, label: 'Tournaments', panel: 'tournaments' },
   { href: '/profile', icon: User, label: 'Profile', panel: 'profile' },

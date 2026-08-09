@@ -45,10 +45,10 @@ export class ClashOfClansService {
   private apiBaseUrl = 'https://api.clashofclans.com/v1';
 
   private getApiToken(): string {
-    const token = process.env.CLASH_OF_CLANS_API_TOKEN || process.env.SUPERCELL_COC_TOKEN || process.env.COC_API_KEY;
+    const token = process.env.CLASH_OF_CLANS_API_TOKEN || process.env.CLASH_API_KEY || process.env.SUPERCELL_COC_TOKEN || process.env.COC_API_KEY;
     if (!token) {
-      // Fallback token if env var is missing on Render host
-      return "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJzdXBlcmNlbGwiLCJhdWQiOiJzdXBlcmNlbGw6cHVibGljYXBpIiwianRpIjoiYTRmODc5NTUtNWZjZS00Y2NjLTk3OTYtOWE3ZmFlMzc2OTk4IiwiaWF0IjoxNzU0NDEzNDUzLCJuYmYiOjE3NTQ0MTM0NTMsImlkZW50aXRpZXMiOlt7ImlkZW50aXR5IjoieWFzaHBhdGlsMTMyM0BnbWFpbC5jb20iLCJ0eXBlIjoiZGV2ZWxvcGVyIn1dLCJzY29wZXMiOlsicHVibGljYXBpIl0sImxpbWl0cyI6W3sidHlwZSI6ImNpcHIiLCJjaXB1cyI6WyI0OS4zNC45Ny40MCJdfV0sImtleUlkIjoiZTc4YzIxYjktYjA4YS00M2E2LWFkNjQtMTRjNjI2YTM5NjIifQ.gXKvkd7zBpsmsCuTNRolbvaJlrxlg";
+      console.warn('[ClashOfClansService] Warning: No Clash API Key env variable set.');
+      return '';
     }
     return token.trim();
   }
