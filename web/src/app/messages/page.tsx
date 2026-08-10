@@ -556,8 +556,8 @@ function DiscordMessagesPage() {
 
   return (
     <div className={cn(
-      "flex border-0 md:border md:border-border/40 rounded-none md:rounded-2xl overflow-hidden bg-card/45 backdrop-blur-md shadow-2xl w-full max-w-full md:max-w-7xl mx-auto relative group/container",
-      selectedChat ? "fixed inset-0 z-40 bg-background md:relative md:inset-auto md:z-auto h-dvh md:h-[calc(100vh-7rem)]" : "h-dvh md:h-[calc(100vh-7rem)]"
+      "flex border-0 md:border border-white/70 dark:border-white/10 rounded-none md:rounded-[32px] overflow-hidden bg-gradient-to-tr from-sky-200/90 via-purple-200/80 to-pink-200/90 dark:from-slate-950 dark:via-purple-950/80 dark:to-slate-900 backdrop-blur-2xl shadow-[0_25px_70px_-15px_rgba(0,0,0,0.15)] w-full max-w-full md:max-w-7xl mx-auto relative group/container p-0 md:p-3 gap-0 md:gap-3.5",
+      selectedChat ? "fixed inset-0 z-40 bg-background md:relative md:inset-auto md:z-auto h-dvh md:h-[calc(100vh-6.5rem)]" : "h-dvh md:h-[calc(100vh-6.5rem)]"
     )}>
       {/* Server sidebar (Desktop only) */}
       <div className="w-16 bg-muted/40 border-r border-border/40 hidden md:flex flex-col items-center py-4 gap-3 shrink-0">
@@ -636,30 +636,40 @@ function DiscordMessagesPage() {
 
       {/* Channel list (DM list) */}
       <div className={cn(
-        "w-full md:w-60 border-r border-border/40 bg-card/30 flex flex-col shrink-0 transition-all duration-300 h-full overflow-hidden",
+        "w-full md:w-72 md:rounded-[26px] border-r md:border border-white/70 dark:border-white/10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl shadow-xl flex flex-col shrink-0 transition-all duration-300 h-full overflow-hidden",
         selectedChat ? "hidden md:flex" : "flex"
       )}>
-        {/* Mobile-only back button so the user can always return to the previous page */}
+        {/* Mobile-only back header */}
         <BackHeader
           title="Messages"
           onBack={() => goBackOr('/feed')}
           className="md:hidden"
         />
-        <div className="p-4 border-b border-border/40 space-y-3">
+        <div className="p-4 border-b border-white/50 dark:border-white/10 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <Link href="/feed">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-accent rounded-xl shrink-0" aria-label="Back to feed">
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-white/50 rounded-xl shrink-0" aria-label="Back to feed">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               </Link>
-              <h2 className="font-bold text-sm flex items-center gap-1.5 text-foreground uppercase tracking-wider truncate">
-                <Hash className="h-4 w-4 text-primary animate-pulse shrink-0" />
-                <span>Direct Messages</span>
-              </h2>
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-pink-400 via-purple-500 to-indigo-500 shadow-md shadow-purple-500/30 flex items-center justify-center text-white font-extrabold text-[10px] shrink-0">
+                  💬
+                </div>
+                <h2 className="font-extrabold text-sm text-foreground tracking-tight truncate">
+                  Messages
+                </h2>
+              </div>
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl shrink-0" onClick={() => setNewChatOpen(true)}>
-              <Plus className="h-4 w-4" />
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 text-xs font-bold rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-white/90 dark:border-white/15 text-primary shadow-sm hover:scale-[1.02] transition-transform shrink-0"
+              onClick={() => setNewChatOpen(true)}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> New chat
             </Button>
           </div>
           <div className="relative">
@@ -668,7 +678,7 @@ function DiscordMessagesPage() {
               placeholder="Search conversations..."
               value={chatSearchQuery}
               onChange={(e) => setChatSearchQuery(e.target.value)}
-              className="pl-9 h-9 text-xs bg-muted/40 border-0 rounded-xl"
+              className="pl-9 h-9 text-xs bg-white/50 dark:bg-slate-800/50 border border-white/70 dark:border-white/10 rounded-2xl backdrop-blur-md"
               variant="ghost"
             />
             {chatSearchQuery && (
@@ -727,10 +737,10 @@ function DiscordMessagesPage() {
                     key={chat.id}
                     onClick={() => handleSelectChat(chat.id)}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm transition-all duration-200 border",
+                      "flex items-center gap-3 px-3.5 py-3 rounded-2xl cursor-pointer text-sm transition-all duration-200 border backdrop-blur-xl",
                       isSelected 
-                        ? "bg-primary/10 text-primary border-primary/20 shadow-sm" 
-                        : "text-muted-foreground hover:bg-accent/40 hover:text-foreground border-transparent"
+                        ? "bg-gradient-to-r from-purple-500/25 to-indigo-500/25 text-purple-700 dark:text-purple-300 border-purple-500/40 shadow-md shadow-purple-500/10 font-bold" 
+                        : "bg-white/40 hover:bg-white/80 dark:bg-white/5 dark:hover:bg-white/15 text-muted-foreground hover:text-foreground border-white/60 dark:border-white/10 shadow-sm"
                     )}
                     whileHover={{ x: 3 }}
                     layout
@@ -811,13 +821,13 @@ function DiscordMessagesPage() {
 
       {/* Main chat area */}
       <div className={cn(
-        "flex-1 flex flex-col bg-background/20 backdrop-blur-sm transition-all duration-300 h-full overflow-hidden",
+        "flex-1 flex flex-col md:rounded-[26px] border-0 md:border border-white/70 dark:border-white/10 bg-white/55 dark:bg-slate-900/55 backdrop-blur-2xl shadow-2xl transition-all duration-300 h-full overflow-hidden",
         selectedChat ? "flex" : "hidden md:flex"
       )}>
         {selectedChat ? (
           <>
             {/* Channel header */}
-            <div className="h-14 border-b border-border/40 flex items-center px-4 shrink-0 bg-muted/10">
+            <div className="h-16 border-b border-white/60 dark:border-white/10 flex items-center px-4 shrink-0 bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl m-2 rounded-2xl shadow-sm">
               {(() => {
                 const chat = chats?.find((c: any) => c.id === selectedChat);
                 const other = chat ? getOtherParticipant(chat) : null;
@@ -976,10 +986,10 @@ function DiscordMessagesPage() {
                             <div
                               onClick={() => msg.status === 'failed' && handleRetryMessage(msg)}
                               className={cn(
-                                "px-4 py-2.5 rounded-2xl text-sm leading-relaxed relative border transition-all duration-300 break-words break-all [overflow-wrap:anywhere] max-w-full overflow-hidden",
+                                "px-4.5 py-3 rounded-[22px] text-sm leading-relaxed relative border transition-all duration-300 break-words break-all [overflow-wrap:anywhere] max-w-full overflow-hidden shadow-md backdrop-blur-xl font-medium",
                                 isOwn
-                                  ? 'bg-gradient-to-br from-gaming-purple to-gaming-pink text-white rounded-tr-sm shadow-md shadow-gaming-purple/20 border-gaming-purple/20'
-                                  : 'bg-card/75 border-border/40 text-foreground rounded-tl-sm shadow-sm backdrop-blur-sm',
+                                  ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 text-white rounded-br-xs shadow-purple-500/25 border-purple-400/30'
+                                  : 'bg-white/85 dark:bg-slate-800/85 border-white/95 dark:border-white/15 text-foreground rounded-bl-xs shadow-sm',
                                 msg.status === 'failed' ? 'border-destructive/50 text-destructive bg-destructive/10 cursor-pointer hover:bg-destructive/15' : ''
                               )}
                             >
@@ -1098,7 +1108,7 @@ function DiscordMessagesPage() {
                   )}
                 </motion.div>
               )}
-              <div className="flex items-center gap-2 bg-card/65 rounded-2xl px-3 py-1.5 border border-border/40 transition-all duration-300 focus-within:border-primary/40 focus-within:shadow-md focus-within:shadow-primary/5 focus-within:ring-1 focus-within:ring-primary/10 min-h-[46px]">
+              <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 rounded-[26px] px-3.5 py-1.5 border border-white/95 dark:border-white/20 shadow-xl shadow-purple-500/10 backdrop-blur-2xl transition-all duration-300 focus-within:border-primary/50 focus-within:shadow-purple-500/20 focus-within:ring-1 focus-within:ring-primary/20 min-h-[48px]">
                 {isRecordingVoice ? (
                   // Recording Panel Overlay
                   <div className="flex items-center w-full justify-between animate-fade-in">
@@ -1203,19 +1213,43 @@ function DiscordMessagesPage() {
             </div>
           </>
         ) : (
-          /* Empty state */
-          <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-muted/5 to-muted/20 p-6">
-            <motion.div className="text-center space-y-4 max-w-sm" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-gaming-purple/20 to-gaming-cyan/20 flex items-center justify-center mx-auto border border-primary/20 shadow-inner relative group-hover/container:animate-pulse">
-                <MessageSquare className="h-10 w-10 text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.4)]" />
+          /* Empty state - Aetheris Style Central 3D Sphere & Greetings */
+          <div className="flex-1 flex items-center justify-center p-6 bg-transparent">
+            <motion.div className="text-center space-y-5 max-w-md" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.35 }}>
+              {/* Central Glowing 3D Glass Sphere Orb */}
+              <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-pink-400 via-purple-500 to-indigo-500 flex items-center justify-center mx-auto shadow-[0_15px_45px_rgba(168,85,247,0.45)] text-white relative animate-pulse">
+                <div className="absolute inset-1 rounded-full bg-white/20 backdrop-blur-sm" />
+                <MessageSquare className="h-10 w-10 text-white relative z-10 drop-shadow-md" />
               </div>
-              <h2 className="text-xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-primary bg-clip-text">Welcome to Messages</h2>
-              <p className="text-sm text-muted-foreground">Select an existing conversation from the list or send a message to start a new chat with fellow gamers.</p>
-              <div className="flex justify-center gap-3 pt-2">
-                <Button variant="gradient" size="sm" className="gap-1.5 rounded-xl shadow-md shadow-primary/10" onClick={() => setNewChatOpen(true)} animate>
-                  <UserPlus className="h-4 w-4" /> New Message
+
+              <div className="space-y-2">
+                <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
+                  Good Day, {user?.profile?.displayName || user?.profile?.username || 'Gamer'}
+                </h2>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                  How can we help you team up today? Select a conversation from the sidebar or start a fresh encrypted chat.
+                </p>
+              </div>
+
+              {/* Aetheris Floating Pills */}
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-4 text-xs font-bold rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-white/90 dark:border-white/15 text-primary shadow-sm hover:scale-[1.03] transition-transform"
+                  onClick={() => setNewChatOpen(true)}
+                >
+                  <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Start New Chat
                 </Button>
-                <Link href="/friends"><Button variant="outline" size="sm" className="gap-1.5 rounded-xl"><Search className="h-4 w-4" /> Find Players</Button></Link>
+                <Link href="/friends">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-4 text-xs font-bold rounded-2xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/70 dark:border-white/10 text-foreground hover:bg-white/80 transition-all"
+                  >
+                    <Search className="h-3.5 w-3.5 mr-1.5" /> Find Players
+                  </Button>
+                </Link>
               </div>
             </motion.div>
           </div>
