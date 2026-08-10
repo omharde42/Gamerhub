@@ -45,12 +45,12 @@
   }
 
   .light {
-    /* AAA LIGHT GAMING DESIGN SYSTEM - PRESTIGE LIGHT PALETTE */
-    --background: 220 33% 98%; /* #F8FAFC */
-    --background-secondary: 210 40% 96%; /* #F1F5F9 */
-    --foreground: 222 47% 11%; /* #0F172A */
+    /* AAA LIGHT GAMING DESIGN SYSTEM - PRESTIGE LIGHT PALETTE (LINKEDIN/DISCORD LIGHT LEVEL) */
+    --background: 215 28% 97%; /* #F1F5F9 Slate 100 */
+    --background-secondary: 210 40% 94%; /* #E2E8F0 */
+    --foreground: 222 47% 11%; /* #0F172A Slate 900 */
     
-    --card: 0 0% 100%; /* #FFFFFF */
+    --card: 0 0% 100%; /* #FFFFFF Pure Elevated White */
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
@@ -61,27 +61,27 @@
     --secondary: 25 100% 50%; /* #FF6B00 */
     --secondary-foreground: 0 0% 100%;
     
-    --muted: 210 40% 94%;
-    --muted-foreground: 215 16% 40%; /* #475569 */
+    --muted: 210 40% 95%; /* #F1F5F9 */
+    --muted-foreground: 215 20% 35%; /* #334155 Deep Slate Text - High Contrast */
     
     --accent: 263 84% 96%;
     --accent-foreground: 263 84% 45%;
     
-    --destructive: 345 100% 62%;
+    --destructive: 345 100% 55%;
     --destructive-foreground: 0 0% 100%;
     
-    --success: 151 100% 40%;
+    --success: 151 100% 35%;
     --success-foreground: 0 0% 100%;
     
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     
-    --border: 214 32% 88%; /* #CBD5E1 */
-    --input: 214 32% 91%;
+    --border: 214 32% 86%; /* #CBD5E1 Slate Border */
+    --input: 214 32% 90%;
     --ring: 263 84% 58%;
 
-    --glass-bg: rgba(255, 255, 255, 0.88);
-    --glass-border: rgba(124, 58, 237, 0.18);
+    --glass-bg: rgba(255, 255, 255, 0.95);
+    --glass-border: rgba(124, 58, 237, 0.2);
   }
 
   .gray {
@@ -155,6 +155,69 @@
   h1, h2, h3, .font-heading {
     font-family: var(--font-orbitron), var(--font-rajdhani), var(--font-space), sans-serif;
     letter-spacing: -0.01em;
+  }
+
+  /* --- LIGHT MODE SPECIFIC HIGH-CONTRAST OVERRIDES --- */
+  .light body {
+    background-color: #F1F5F9 !important;
+    color: #0F172A !important;
+  }
+
+  .light .gaming-card,
+  .light .glass-card,
+  .light [class*="bg-card"] {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border-color: #CBD5E1 !important;
+    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .light .gaming-card:hover,
+  .light .glass-card:hover {
+    border-color: #7C3AED !important;
+    box-shadow: 0 20px 40px -10px rgba(124, 58, 237, 0.2) !important;
+  }
+
+  .light .aurora-hero,
+  .light [class*="from-indigo-900"] {
+    background: linear-gradient(135deg, #2E1065 0%, #6D28D9 50%, #4C1D95 100%) !important;
+    color: #FFFFFF !important;
+    border-color: rgba(124, 58, 237, 0.4) !important;
+    box-shadow: 0 20px 40px -10px rgba(109, 40, 217, 0.35) !important;
+  }
+
+  .light [class*="from-indigo-900"] h1,
+  .light [class*="from-indigo-900"] h2,
+  .light [class*="from-indigo-900"] p,
+  .light [class*="from-indigo-900"] span {
+    color: #FFFFFF !important;
+  }
+
+  .light aside nav a:not([class*="bg-"]),
+  .light aside nav button:not([class*="bg-"]) {
+    color: #334155 !important;
+  }
+
+  .light aside nav a:hover,
+  .light aside nav button:hover {
+    color: #0F172A !important;
+    background-color: #E2E8F0 !important;
+  }
+
+  .light .text-muted-foreground {
+    color: #334155 !important;
+  }
+
+  .light input,
+  .light select,
+  .light textarea {
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+    border-color: #CBD5E1 !important;
+  }
+
+  .light input::placeholder {
+    color: #64748B !important;
   }
 }
 

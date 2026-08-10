@@ -69,7 +69,7 @@ export default function DashboardPage() {
     <motion.div className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Hybrid Aurora Banner Header */}
       <motion.div
-        className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-r from-indigo-900/40 via-purple-900/30 to-pink-900/30 p-6 md:p-8 backdrop-blur-2xl shadow-2xl"
+        className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-r from-indigo-950 via-purple-900 to-indigo-900 p-6 md:p-8 backdrop-blur-2xl shadow-2xl text-white"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
