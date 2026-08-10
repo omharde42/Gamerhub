@@ -1,5 +1,6 @@
 'use client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -15,8 +16,109 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function TournamentsPage() {
   const [search, setSearch] = useState('');
   const [gameFilter, setGameFilter] = useState('');
-  const { data: tournamentsData } = useQuery({ queryKey: ['tournaments', search, gameFilter], queryFn: () => api.get(`/tournaments?search=${search}&game=${gameFilter}`).then(r => r.data) });
+  const { data: tournamentsData } = useQuery({
+    queryKey: ['tournaments', search, gameFilter],
+    queryFn: () => api.get(`/tournaments?search=${search}&game=${gameFilter}`).then((r) => r.data),
+  });
 
+<<<<<<< HEAD
   return (<div className="space-y-6 overflow-x-hidden"><div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold">Tournaments</h1><Link href="/tournaments/create" className="block w-full sm:inline-block sm:w-auto"><Button variant="default" className="gap-2 w-full sm:w-auto"><Trophy className="h-4 w-4" />Create Tournament</Button></Link></div><div className="flex flex-col md:flex-row gap-3"><div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search tournaments..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div><Select value={gameFilter} onValueChange={setGameFilter}><SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Games" /></SelectTrigger><SelectContent><SelectItem value="">All Games</SelectItem><SelectItem value="Valorant">Valorant</SelectItem><SelectItem value="CS2">CS2</SelectItem><SelectItem value="League of Legends">League of Legends</SelectItem><SelectItem value="Apex Legends">Apex Legends</SelectItem></SelectContent></Select></div>
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">{tournamentsData?.data?.map((t: any, i: number) => (<motion.div key={t.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}><Link href={`/tournaments/${t.id}`}><Card className="glass-card hover:border-gaming-purple/50 transition-all"><CardContent className="p-6 space-y-4"><div className="flex items-start justify-between"><div className="space-y-1"><h3 className="font-semibold text-lg">{t.title}</h3><Badge variant={t.status === 'REGISTRATION_OPEN' ? 'success' : t.status === 'IN_PROGRESS' ? 'warning' : 'secondary'}>{t.status?.replace('_', ' ')}</Badge></div><div className="w-12 h-12 rounded-xl bg-gaming-purple/10 flex items-center justify-center"><Trophy className="h-6 w-6 text-gaming-purple" /></div></div><div className="flex flex-wrap gap-3 text-sm text-muted-foreground"><span className="flex items-center gap-1"><Gamepad2 className="h-4 w-4" />{t.game}</span><span className="flex items-center gap-1"><Users className="h-4 w-4" />{t._count?.teams || 0}/{t.maxTeams}</span><span className="flex items-center gap-1"><DollarSign className="h-4 w-4" />{formatNumber(t.prizePool)}</span><span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{formatDate(t.startDate)}</span></div></CardContent></Card></Link></motion.div>))}</div></div>);
+=======
+  return (
+    <div className="space-y-6 overflow-x-hidden max-w-full">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-foreground truncate">Tournaments</h1>
+        <Link href="/tournaments/create" className="shrink-0">
+          <Button variant="default" size="sm" className="gap-1.5 text-xs sm:text-sm font-bold shrink-0">
+            <Trophy className="h-4 w-4" />
+            <span>Create<span className="hidden sm:inline"> Tournament</span></span>
+          </Button>
+        </Link>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search tournaments..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={gameFilter} onValueChange={setGameFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="All Games" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Games</SelectItem>
+            <SelectItem value="Valorant">Valorant</SelectItem>
+            <SelectItem value="CS2">CS2</SelectItem>
+            <SelectItem value="League of Legends">League of Legends</SelectItem>
+            <SelectItem value="Apex Legends">Apex Legends</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Tournament Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {tournamentsData?.data?.map((t: any, i: number) => (
+          <motion.div
+            key={t.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+          >
+            <Link href={`/tournaments/${t.id}`}>
+              <Card className="glass-card hover:border-gaming-purple/50 transition-all">
+                <CardContent className="p-5 sm:p-6 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <h3 className="font-bold text-base sm:text-lg truncate text-foreground">{t.title}</h3>
+                      <Badge
+                        variant={
+                          t.status === 'REGISTRATION_OPEN'
+                            ? 'success'
+                            : t.status === 'IN_PROGRESS'
+                            ? 'warning'
+                            : 'secondary'
+                        }
+                      >
+                        {t.status?.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gaming-purple/10 flex items-center justify-center shrink-0">
+                      <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-gaming-purple" />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Gamepad2 className="h-4 w-4" />
+                      {t.game}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users className="h-4 w-4" />
+                      {t._count?.teams || 0}/{t.maxTeams}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <DollarSign className="h-4 w-4" />
+                      {formatNumber(t.prizePool)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      {formatDate(t.startDate)}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+>>>>>>> 908917fdc5533110f1326c2fcd4d606479dde397
 }

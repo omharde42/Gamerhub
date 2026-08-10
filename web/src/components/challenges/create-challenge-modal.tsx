@@ -350,7 +350,7 @@ export function CreateChallengeModal({
   };
 
   return (
-    <PremiumModal open={open} onClose={onClose} variant="bottom" size="md" title="Create Challenge" swipeToClose={false}>
+    <PremiumModal open={open} onClose={onClose} variant="center" size="lg" title="Create Challenge" swipeToClose={false}>
       <div className="p-5 space-y-4">
         {/* Header */}
         <div className="flex items-center gap-3">

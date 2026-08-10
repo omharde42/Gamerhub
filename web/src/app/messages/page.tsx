@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Search, Send, Paperclip, Image as ImageIcon, Camera, MoreVertical, Plus, Loader2,
   MessageSquare, UserPlus, Phone, Video, Mic, Headphones, Settings,
-  Hash, Users, ChevronLeft, Heart, Smile, Reply,
+  Hash, Users, ChevronLeft, ArrowLeft, Heart, Smile, Reply,
   Trash2, Play, Pause, Square, Volume2, X, Link as LinkIcon, Lock
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -202,7 +202,7 @@ function DiscordMessagesPage() {
     refetchInterval: 10000,
   });
 
-  const { data: messagesData, refetch: refetchMessages } = useQuery({
+  const { data: messagesData, refetch: refetchMessages, isLoading: messagesLoading } = useQuery({
     queryKey: ['messages', selectedChat],
     queryFn: () => api.get(`/chat/${selectedChat}/messages`).then(r => r.data.data),
     enabled: !!selectedChat,
@@ -636,7 +636,7 @@ function DiscordMessagesPage() {
 
       {/* Channel list (DM list) */}
       <div className={cn(
-        "w-full md:w-60 border-r border-border/40 bg-card/30 flex flex-col shrink-0 transition-all duration-300",
+        "w-full md:w-60 border-r border-border/40 bg-card/30 flex flex-col shrink-0 transition-all duration-300 h-full overflow-hidden",
         selectedChat ? "hidden md:flex" : "flex"
       )}>
         {/* Mobile-only back button so the user can always return to the previous page */}
@@ -646,12 +646,19 @@ function DiscordMessagesPage() {
           className="md:hidden"
         />
         <div className="p-4 border-b border-border/40 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-sm flex items-center gap-1.5 text-foreground uppercase tracking-wider">
-              <Hash className="h-4 w-4 text-primary animate-pulse" />
-              Direct Messages
-            </h2>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => setNewChatOpen(true)}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Link href="/feed">
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-accent rounded-xl shrink-0" aria-label="Back to feed">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <h2 className="font-bold text-sm flex items-center gap-1.5 text-foreground uppercase tracking-wider truncate">
+                <Hash className="h-4 w-4 text-primary animate-pulse shrink-0" />
+                <span>Direct Messages</span>
+              </h2>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl shrink-0" onClick={() => setNewChatOpen(true)}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -671,7 +678,7 @@ function DiscordMessagesPage() {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-2 py-2">
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
           {(() => {
             const filteredChats = chats?.filter((chat: any) => {
               if (!chatSearchQuery.trim()) return true;
@@ -783,7 +790,7 @@ function DiscordMessagesPage() {
             );
           })()}
         </div>
-        <div className="p-3 border-t border-border/40 bg-muted/20">
+        <div className="p-3 border-t border-border/40 bg-muted/20 shrink-0 mt-auto">
           <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-card/40 border border-border/30 shadow-sm transition-colors">
             <Avatar className="h-8 w-8" status="online">
               <AvatarImage src={user?.profile?.avatar || ''} />
@@ -870,8 +877,46 @@ function DiscordMessagesPage() {
             {/* Messages list - Fully optimized standard div with native scrolling */}
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 bg-grid bg-[length:40px_40px]">
               <div className="py-6 space-y-3 max-w-4xl mx-auto">
-                <AnimatePresence initial={false}>
-                  {(decryptedMessages.length > 0 ? decryptedMessages : messages)?.map((msg: any, idx: number) => {
+                {messagesLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-3">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-xs text-muted-foreground">Loading conversation...</p>
+                  </div>
+                ) : (decryptedMessages.length > 0 ? decryptedMessages : messages)?.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 px-4 text-center space-y-4 max-w-md mx-auto">
+                    <div className="w-16 h-16 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xl">
+                      <MessageSquare className="h-8 w-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-base font-extrabold text-foreground flex items-center justify-center gap-1.5">
+                        End-to-End Encrypted Chat <Lock className="h-4 w-4 text-emerald-400" />
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Say hello to start the conversation! Your messages are protected with real-time end-to-end encryption.
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMessage('Hey 👋')}
+                        className="text-xs font-bold rounded-xl gap-1"
+                      >
+                        👋 Say 👋
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMessage("Hey, let's team up and play!")}
+                        className="text-xs font-bold rounded-xl gap-1"
+                      >
+                        🎮 Team Up
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <AnimatePresence initial={false}>
+                    {(decryptedMessages.length > 0 ? decryptedMessages : messages)?.map((msg: any, idx: number) => {
                     const isOwn = msg.sender?.id === user?.id;
                     const prev = messages[idx - 1];
                     const showHeader = !prev || prev.sender?.id !== msg.sender?.id;
@@ -987,6 +1032,7 @@ function DiscordMessagesPage() {
                     );
                   })}
                 </AnimatePresence>
+              )}
 
                 {/* Typing indicator */}
                 {selectedChat && typingUsers[selectedChat]?.length > 0 && (

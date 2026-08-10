@@ -580,8 +580,8 @@ export default function ProfilePage() {
       <PremiumModal
         open={listModalOpen && !!listType}
         onClose={() => setListModalOpen(false)}
-        variant="bottom"
-        size="md"
+        variant="center"
+        size="lg"
         title={listType ? `${listType} list` : undefined}
         header={
           listType ? (
