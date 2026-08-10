@@ -132,76 +132,6 @@ export default function ConnectionsPage() {
               </div>
             )}
 
-<<<<<<< HEAD
-      {/* Dynamic Connection Modal */}
-      <PremiumModal
-        open={!!selectedGame}
-        onClose={() => setSelectedGame(null)}
-        variant="center"
-        size="sm"
-        showCloseButton={false}
-        title={selectedGame ? `Connect ${selectedGame.name}` : undefined}
-        className={selectedGame?.borderColor}
-      >
-        {selectedGame && (
-          <div className={`flex min-h-full w-full flex-col bg-gradient-to-br ${selectedGame.bgGradient}`}>
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <span>{selectedGame.icon}</span> Connect {selectedGame.name}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <form onSubmit={handleConnectSubmit} className="space-y-4">
-                {selectedGame.fields.map((field) => (
-                  <div key={field.name} className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-300">{field.label}</label>
-                    {field.type === 'select' ? (
-                      <select
-                        value={formData[field.name] || ''}
-                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                        className="w-full h-11 bg-black/60 border border-white/15 rounded-xl px-3 text-sm text-white focus:border-primary outline-none"
-                      >
-                        <option value="">{field.placeholder}</option>
-                        {field.options?.map((opt) => (
-                          <option key={opt.value} value={opt.value} className="bg-slate-900 text-white">
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <Input
-                        placeholder={field.placeholder}
-                        value={formData[field.name] || ''}
-                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                        className="bg-black/60 border-white/15 text-white placeholder:text-gray-500 h-11 rounded-xl"
-                      />
-                    )}
-                  </div>
-                ))}
-
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setSelectedGame(null)}
-                    className="flex-1 text-gray-400 hover:text-white rounded-xl h-11"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={connectMutation.isPending}
-                    className="flex-1 bg-gradient-to-r from-primary to-indigo-600 font-bold text-white rounded-xl h-11"
-                  >
-                    {connectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Connect Account'}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </div>
-        )}
-      </PremiumModal>
-=======
             {/* PUBG PC Section */}
             {(pubgAccount || connectingGameId === 'pubg') && (
               <div className="space-y-2">
@@ -236,7 +166,6 @@ export default function ConnectionsPage() {
           toast.success(`Selected ${gameId === 'clash_of_clans' ? 'Clash of Clans' : 'PUBG PC'}. Enter your details below.`);
         }}
       />
->>>>>>> 185fc85d5d3e25e8786a8f54f848c69940c3be9a
     </div>
   );
 }

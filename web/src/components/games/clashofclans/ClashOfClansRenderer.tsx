@@ -7,14 +7,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-<<<<<<< HEAD
-import { Crown, RefreshCw, AlertTriangle, Lock, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Crown, RefreshCw, AlertTriangle, Lock, CheckCircle2, ShieldAlert, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PremiumModal } from '@/components/ui/premium-modal';
-=======
-import { Crown, RefreshCw, AlertTriangle, Lock, CheckCircle2, ShieldAlert, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
->>>>>>> 185fc85d5d3e25e8786a8f54f848c69940c3be9a
 import toast from 'react-hot-toast';
 import { ClashOfClansOverview } from './ClashOfClansOverview';
 import { ClashOfClansHeroes } from './ClashOfClansHeroes';
@@ -261,7 +256,6 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
         </CardContent>
       </Card>
 
-<<<<<<< HEAD
       {/* One-Time Tag Change Confirmation Modal */}
       <PremiumModal
         open={showConfirmModal}
@@ -296,41 +290,6 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
                 {connectMutation.isPending ? 'Changing...' : 'Change Tag'}
               </Button>
             </div>
-=======
-      {/* Confirmation Modal */}
-      <AnimatePresence>
-        {showConfirmModal && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full max-w-md">
-              <Card variant="glass" className="border-yellow-500/40 bg-gradient-to-br from-[#1F1708] via-[#0F0D06] to-black">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center gap-2.5 text-amber-400">
-                    <ShieldAlert className="h-6 w-6" />
-                    <h3 className="text-lg font-extrabold text-white">Are you sure?</h3>
-                  </div>
-                  <p className="text-xs text-gray-300 leading-relaxed">
-                    Changing your Player Tag is allowed only <strong>once</strong>. Make sure this is your own Player Tag. After this change, your Player Tag will be permanently locked.
-                  </p>
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => setShowConfirmModal(false)}
-                      className="flex-1 text-gray-400 hover:text-white rounded-xl h-11"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={confirmChangeTag}
-                      disabled={connectMutation.isPending}
-                      className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-600 font-extrabold text-black rounded-xl h-11"
-                    >
-                      {connectMutation.isPending ? 'Changing...' : 'Continue'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
->>>>>>> 185fc85d5d3e25e8786a8f54f848c69940c3be9a
           </div>
         </div>
       </PremiumModal>

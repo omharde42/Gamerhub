@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bell, Heart, MessageCircle, UserPlus, Trophy, Calendar, Briefcase, Flag, CheckCircle, Loader2 } from 'lucide-react';
+import { Bell, Heart, MessageCircle, UserPlus, Trophy, Calendar, Briefcase, Flag, CheckCircle, Loader2, Swords, Ban, Check } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -26,6 +26,12 @@ const NOTIFICATION_ICONS: Record<string, any> = {
   ACHIEVEMENT: Flag,
   SYSTEM: Bell,
   MATCH_FOUND: Trophy,
+  CHALLENGE_RECEIVED: Swords,
+  CHALLENGE_ACCEPTED: Swords,
+  CHALLENGE_DECLINED: Swords,
+  CHALLENGE_CANCELLED: Swords,
+  CHALLENGE_EXPIRED: Swords,
+  CHALLENGE_COMPLETED: Trophy,
 };
 
 export default function NotificationsPage() {
@@ -56,6 +62,19 @@ export default function NotificationsPage() {
   });
 
   const filtered = tab === 'all' ? notifications : notifications?.filter((n: any) => n.type === tab.toUpperCase());
+
+  // ── Challenge actions (Accept / Decline) ──────────────────────────
+  const challengeAction = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'accept' | 'decline' }) => api.post(`/challenges/${id}/${action}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
+      queryClient.invalidateQueries({ queryKey: ['challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-counts'] });
+      toast.success('Challenge updated');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Action failed'),
+  });
 
   const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
 
@@ -131,6 +150,31 @@ export default function NotificationsPage() {
                           </p>
                           {notif.message && (
                             <p className="text-xs text-muted-foreground mt-0.5">{notif.message}</p>
+                          )}
+                          {notif.type === 'CHALLENGE_RECEIVED' && notif.metadata?.challengeId && notif.metadata?.status === 'PENDING' && (
+                            <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="h-7 gap-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500"
+                                onClick={() => challengeAction.mutate({ id: notif.metadata.challengeId, action: 'accept' })}
+                                disabled={challengeAction.isPending}
+                              >
+                                <Check className="h-3 w-3" /> Accept
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 gap-1 text-[10px] border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                onClick={() => challengeAction.mutate({ id: notif.metadata.challengeId, action: 'decline' })}
+                                disabled={challengeAction.isPending}
+                              >
+                                <Ban className="h-3 w-3" /> Decline
+                              </Button>
+                              <Link href="/challenges" className="text-[10px] text-primary hover:underline font-semibold">
+                                View all
+                              </Link>
+                            </div>
                           )}
                           <p className="text-[10px] text-muted-foreground mt-1">{formatRelativeTime(notif.createdAt)}</p>
                         </div>

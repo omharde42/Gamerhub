@@ -23,6 +23,7 @@ import { PostCard } from '@/components/post/post-card';
 import { SteamShowcase } from '@/components/profile/steam-showcase';
 import { ClashOfClansCard } from '@/components/game-sync/clash-of-clans-card';
 import { ModularGameHub } from '@/components/profile/modular-game-hub';
+import { ChallengeButton } from '@/components/challenges/challenge-button';
 import { BackHeader } from '@/components/common/back-header';
 
 function StatCard({ value, label, color, delay = 0 }: { value: string | number; label: string; color: string; delay?: number }) {
@@ -360,6 +361,12 @@ export default function ProfilePage() {
                     <MessageSquare className="h-4 w-4 text-primary" /> Message
                   </Button>
                 </Link>
+                <ChallengeButton
+                  opponentId={profile.userId || profile.user?.id || profile.id}
+                  opponentUsername={profile.username}
+                  opponentDisplayName={profile.displayName}
+                  opponentAvatar={profile.avatar}
+                />
               </motion.div>
             ) : (
               <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>

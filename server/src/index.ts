@@ -51,6 +51,9 @@ import cryptoRoutes from './routes/crypto.routes';
 import steamRoutes from './routes/steam.routes';
 import gameStatsRoutes from './routes/game-stats.routes';
 import clashOfClansRoutes from './routes/clashofclans.routes';
+import challengeRoutes from './routes/challenge.routes';
+import { setSocketIo } from './socket-emitter';
+import { challengeService } from './services/challenge.service';
 
 const app = express();
 const httpServer = createServer(app);
@@ -84,6 +87,8 @@ io.use((socket, next) => {
     next(new Error('Invalid token'));
   }
 });
+
+setSocketIo(io);
 
 const onlineUsers = new Set<string>();
 
@@ -320,7 +325,8 @@ app.use('/api/news', newsRoutes);
 app.use('/api/game-requests', gameRequestRoutes);
 app.use('/api/crypto', cryptoRoutes);
 app.use('/api/steam', steamRoutes);
-app.get('/health', (req: any, res: any) => res.json({ success: true, message: 'GamerZ Hub API is running' }));
+// Public keep-alive health check (no auth, no DB, used by the Render keep-alive workflow)
+app.get('/health', (_req: any, res: any) => res.json({ status: 'ok', service: 'GamerZHub API' }));
 import gameSyncRoutes from './routes/game-sync.routes';
 import gameModularRoutes from './routes/game-modular.routes';
 import pubgRoutes from './routes/pubg.routes';
@@ -337,10 +343,16 @@ app.use('/api/compare', compareRoutes);
 app.use('/api/game-sync', gameSyncRoutes);
 app.use('/api/game-stats', gameStatsRoutes);
 app.use('/api/game', gameModularRoutes);
+app.use('/api/challenges', challengeRoutes);
 
 // Error handling
 app.use(notFoundHandler);
 app.use(errorHandler);
+
+// Automatic challenge expiry sweep (every 15 minutes)
+setInterval(() => {
+  challengeService.expireOverdue().catch((err: any) => console.error('[challenge-sweep]', err?.message));
+}, 15 * 60 * 1000);
 
 httpServer.listen(config.port, () => {
   console.log(`GamerHub API running on port ${config.port}`);

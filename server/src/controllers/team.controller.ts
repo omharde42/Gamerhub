@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { teamService } from '../services/team.service';
+import prisma from '../config/database';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 
@@ -24,6 +25,21 @@ export class TeamController {
       rank: rank as string,
     });
     sendSuccess(res, result.data, undefined, 200, result.meta);
+  });
+
+  listMine = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const teams = await prisma.team.findMany({
+      where: { members: { some: { userId: req.user!.userId } } },
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, profile: { select: { username: true, displayName: true, avatar: true } } } },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+    sendSuccess(res, teams);
   });
 
   update = asyncHandler(async (req: AuthRequest, res: Response) => {

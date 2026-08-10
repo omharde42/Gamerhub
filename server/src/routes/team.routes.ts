@@ -3,6 +3,7 @@ import { teamController } from '../controllers/team.controller';
 import { authenticate } from '../middleware/auth';
 const router = Router();
 router.get('/', authenticate, teamController.list);
+router.get('/mine', authenticate, teamController.listMine);
 router.get('/:id', authenticate, teamController.getById);
 router.post('/', authenticate, teamController.create);
 router.put('/:id', authenticate, teamController.update);

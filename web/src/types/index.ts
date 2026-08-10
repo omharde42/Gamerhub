@@ -22,5 +22,33 @@ export interface Organization { id: string; name: string; slug: string; descript
 export interface OrganizationMember { id: string; role: string; user: { id: string; profile: Profile | null }; }
 export interface Subscription { id: string; tier: 'PRO' | 'ELITE' | 'TEAM_PRO'; status: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean; }
 export interface AIRecommendation { userId: string; username: string; avatar: string | null; rank: string | null; role: string | null; winRate: number; compatibility: number; reasons: string[]; }
+export type ChallengeStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED' | 'EXPIRED' | 'COMPLETED';
+export type ChallengeType = 'ONE_VS_ONE' | 'TEAM_VS_TEAM';
+export interface ChallengePublicUser { id: string; profile: Pick<Profile, 'username' | 'displayName' | 'avatar'> | null; }
+export interface ChallengeParticipant { id: string; user: ChallengePublicUser; }
+export interface ChallengeTeam {
+  id: string;
+  teamRole: 'CHALLENGER' | 'OPPONENT';
+  name: string | null;
+  captain: ChallengePublicUser;
+  members: ChallengeParticipant[];
+}
+export interface Challenge {
+  id: string;
+  game: string;
+  challengeType: ChallengeType;
+  gameMode: string;
+  message: string | null;
+  status: ChallengeStatus;
+  scheduledAt: string;
+  expiresAt: string;
+  result: string | null;
+  createdAt: string;
+  challenger: ChallengePublicUser;
+  opponent: ChallengePublicUser;
+  teams?: ChallengeTeam[];
+  participants?: ChallengeParticipant[];
+}
+export interface ChallengeGameMode { game: string; name: string; icon: string; modes: string[]; }
 export interface ApiResponse<T = any> { success: boolean; message?: string; data?: T; error?: string; errors?: Record<string, string[]>; }
 export interface PaginatedResponse<T> { success: boolean; data: T[]; meta: { page: number; limit: number; total: number; totalPages: number; hasNext: boolean; hasPrev: boolean; }; }

@@ -78,6 +78,13 @@ model User {
   createdEvents       ServerEvent[]
   gameRequests        GameRequest[]
   gameAccounts        GameAccount[]
+  challengesSent      Challenge[] @relation("ChallengesSent")
+  challengesReceived  Challenge[] @relation("ChallengesReceived")
+  challengeTeams      ChallengeTeam[]
+  challengeParticipants ChallengeParticipant[]
+  challengeNotifications ChallengeNotification[]
+  userBlocks          UserBlock[]  @relation("UserBlocks")
+  blockedBy           UserBlock[]  @relation("BlockedBy")
   @@index([email])
   @@index([role])
 }
@@ -1075,6 +1082,12 @@ enum NotificationType {
   JOB_APPLICATION
   ACHIEVEMENT
   MATCH_FOUND
+  CHALLENGE_RECEIVED
+  CHALLENGE_ACCEPTED
+  CHALLENGE_DECLINED
+  CHALLENGE_CANCELLED
+  CHALLENGE_EXPIRED
+  CHALLENGE_COMPLETED
 }
 
 enum ReportReason {
@@ -1124,6 +1137,34 @@ enum GameRequestStatus {
   REJECTED
 }
 
+enum ChallengeType {
+  ONE_VS_ONE
+  TEAM_VS_TEAM
+}
+
+enum ChallengeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+  COMPLETED
+}
+
+enum ChallengeTeamRole {
+  CHALLENGER
+  OPPONENT
+}
+
+enum ChallengeNotificationType {
+  NEW_CHALLENGE
+  CHALLENGE_ACCEPTED
+  CHALLENGE_DECLINED
+  CHALLENGE_CANCELLED
+  CHALLENGE_EXPIRED
+  CHALLENGE_COMPLETED
+}
+
 model GameRequest {
   id          String            @id @default(uuid())
   gameName    String
@@ -1137,4 +1178,88 @@ model GameRequest {
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([status])
   @@index([userId])
+}
+
+// ─── Direct Matchmaking & Challenge System (Clash of Clans / PUBG) ─────────
+
+model Challenge {
+  id            String             @id @default(uuid())
+  game          String
+  challengeType ChallengeType
+  gameMode      String
+  message       String?
+  status        ChallengeStatus    @default(PENDING)
+  scheduledAt   DateTime
+  expiresAt     DateTime
+  result        String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  challengerId  String
+  challenger    User               @relation("ChallengesSent", fields: [challengerId], references: [id], onDelete: Cascade)
+  opponentId    String
+  opponent      User               @relation("ChallengesReceived", fields: [opponentId], references: [id], onDelete: Cascade)
+  teams         ChallengeTeam[]
+  participants  ChallengeParticipant[]
+  notifications ChallengeNotification[]
+
+  @@index([challengerId])
+  @@index([opponentId])
+  @@index([status])
+  @@index([game])
+  @@index([expiresAt])
+}
+
+model ChallengeTeam {
+  id          String                @id @default(uuid())
+  teamRole    ChallengeTeamRole
+  name        String?
+  challengeId String
+  challenge   Challenge             @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  captainId   String
+  captain     User                  @relation(fields: [captainId], references: [id], onDelete: Cascade)
+  members     ChallengeParticipant[]
+
+  @@index([challengeId])
+  @@index([captainId])
+}
+
+model ChallengeParticipant {
+  id          String         @id @default(uuid())
+  challengeId String
+  challenge   Challenge      @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  teamId      String?
+  team        ChallengeTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+  @@index([challengeId])
+  @@index([userId])
+}
+
+model ChallengeNotification {
+  id          String                    @id @default(uuid())
+  type        ChallengeNotificationType
+  isRead      Boolean                   @default(false)
+  createdAt   DateTime                  @default(now())
+  challengeId String
+  challenge   Challenge                 @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([challengeId])
+  @@index([userId])
+}
+
+model UserBlock {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  blockerId String
+  blocker   User     @relation("UserBlocks", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
 }

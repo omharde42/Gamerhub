@@ -1,0 +1,41 @@
+name: Keep GamerZHub API Alive
+
+on:
+  schedule:
+    # Every 5 minutes (UTC). Keeps the free-tier Render service from spinning down.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    # Allow manual runs from the Actions tab: Actions -> "Keep GamerZHub API Alive" -> Run workflow
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  keep-alive:
+    name: Ping /health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send health check and verify response body
+        run: |
+          # Live Render backend URL (matches web/src/lib/constants.ts).
+          # --fail turns any HTTP >= 400 into a non-zero exit code, failing this job.
+          # --max-time aborts hung requests (e.g. while Render is waking the service).
+          curl --fail --silent --show-error --max-time 30 \
+            --output /tmp/health.json \
+            --write-out "health_check http_code=%{http_code} time=%{time_total}s\n" \
+            https://gamerhub-api-6lga.onrender.com/health
+
+          # Verify the response body matches the expected shape: {"status":"ok",...}
+          # (whitespace-tolerant, e.g. {"status": "ok"} is accepted). The backend's
+          # GET /health must return this shape (see server/src/index.ts) - until the
+          # updated backend is deployed to Render, this job will stay red.
+          BODY="$(cat /tmp/health.json)"
+          if ! grep -q '"status"[[:space:]]*:[[:space:]]*"ok"' /tmp/health.json; then
+            echo "::error::Unexpected /health response. Expected \"status\":\"ok\" in body. Got: $BODY"
+            exit 1
+          fi
+          echo "health_check body OK: $BODY"

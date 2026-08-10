@@ -9,12 +9,9 @@ import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAutoHideNav } from '@/hooks/useAutoHideNav';
 import toast from 'react-hot-toast';
-<<<<<<< HEAD
 import { UpdateChecker } from '../common/update-checker';
 import { PanelHost } from './panel-host';
 import { useOverlayActive } from '@/store/overlayStore';
-=======
->>>>>>> 185fc85d5d3e25e8786a8f54f848c69940c3be9a
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -138,12 +135,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       )}
       {/* Progress bar + scroll-to-top FAB appear while the nav bars are auto-hidden */}
       {!isAuthOrLanding && !isMessages && <ScrollControls hidden={navHidden} />}
-<<<<<<< HEAD
       {/* Premium overlay host: renders page-level features as panels */}
       <PanelHost />
       <UpdateChecker />
-=======
->>>>>>> 185fc85d5d3e25e8786a8f54f848c69940c3be9a
     </div>
   );
 }

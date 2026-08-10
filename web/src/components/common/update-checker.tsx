@@ -1,5 +1,4 @@
 'use client';
-<<<<<<< HEAD
 import { useEffect, useState } from 'react';
 import { Download, Sparkles, Shield, ArrowRight } from 'lucide-react';
 import api from '@/lib/api';
@@ -7,8 +6,24 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PremiumModal } from '@/components/ui/premium-modal';
 import { useAuthStore } from '@/store/authStore';
-=======
->>>>>>> 185fc85d5d3e25e8786a8f54f848c69940c3be9a
+
+const DISMISSED_VERSION_KEY = 'gh_update_dismissed_version';
+
+const getDismissedVersion = (): string | null => {
+  try {
+    return localStorage.getItem(DISMISSED_VERSION_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const setDismissedVersion = (version: string): void => {
+  try {
+    localStorage.setItem(DISMISSED_VERSION_KEY, version);
+  } catch {
+    // ignore storage errors (private mode etc.)
+  }
+};
 
 export const CURRENT_APP_VERSION = '1.0.0';
 
@@ -23,7 +38,6 @@ export function isNewerVersion(latest: string, current: string): boolean {
 }
 
 export function UpdateChecker() {
-<<<<<<< HEAD
   const [updateData, setUpdateData] = useState<{
     latestVersion: string;
     apkUrl: string;
@@ -163,7 +177,4 @@ export function UpdateChecker() {
       )}
     </PremiumModal>
   );
-=======
-  return null;
->>>>>>> 185fc85d5d3e25e8786a8f54f848c69940c3be9a
 }
