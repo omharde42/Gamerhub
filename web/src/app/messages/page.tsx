@@ -530,7 +530,7 @@ function DiscordMessagesPage() {
   return (
     <div className={cn(
       "flex border-0 md:border md:border-border/40 rounded-none md:rounded-2xl overflow-hidden bg-card/45 backdrop-blur-md shadow-2xl w-full max-w-full md:max-w-7xl mx-auto relative group/container",
-      selectedChat ? "fixed inset-0 z-40 bg-background md:relative md:inset-auto md:z-auto h-dvh md:h-[calc(100vh-7rem)]" : "h-[calc(100dvh-4.5rem)] md:h-[calc(100vh-7rem)]"
+      selectedChat ? "fixed inset-0 z-40 bg-background md:relative md:inset-auto md:z-auto h-dvh md:h-[calc(100vh-7rem)]" : "h-[calc(100dvh-5.5rem)] md:h-[calc(100vh-7rem)]"
     )}>
       {/* Server sidebar (Desktop only) */}
       <div className="w-16 bg-muted/40 border-r border-border/40 hidden md:flex flex-col items-center py-4 gap-3 shrink-0">
@@ -609,7 +609,7 @@ function DiscordMessagesPage() {
 
       {/* Channel list (DM list) */}
       <div className={cn(
-        "w-full md:w-60 border-r border-border/40 bg-card/30 flex flex-col shrink-0 transition-all duration-300",
+        "w-full md:w-60 border-r border-border/40 bg-card/30 flex flex-col shrink-0 transition-all duration-300 h-full overflow-hidden",
         selectedChat ? "hidden md:flex" : "flex"
       )}>
         <div className="p-4 border-b border-border/40 space-y-3">
@@ -638,7 +638,7 @@ function DiscordMessagesPage() {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-2 py-2">
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
           {(() => {
             const filteredChats = chats?.filter((chat: any) => {
               if (!chatSearchQuery.trim()) return true;
@@ -750,7 +750,7 @@ function DiscordMessagesPage() {
             );
           })()}
         </div>
-        <div className="p-3 border-t border-border/40 bg-muted/20">
+        <div className="p-3 border-t border-border/40 bg-muted/20 shrink-0 mt-auto">
           <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-card/40 border border-border/30 shadow-sm transition-colors">
             <Avatar className="h-8 w-8" status="online">
               <AvatarImage src={user?.profile?.avatar || ''} />
