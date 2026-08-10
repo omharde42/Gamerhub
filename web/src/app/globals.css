@@ -4,114 +4,111 @@
 
 @layer base {
   :root, .dark {
-    /* AAA GAMING DESIGN SYSTEM - DARK PALETTE */
-    --background: 231 47% 4%; /* #05070E */
-    --background-secondary: 218 37% 8%; /* #0B1220 */
+    /* GAMERZ HUB CONCEPT ART DESIGN SYSTEM - OBSIDIAN & NEON EMERALD PALETTE */
+    --background: 222 47% 4%; /* #030509 Deep Obsidian Dark Space */
+    --background-secondary: 222 40% 7%; /* #0A0E17 */
     --foreground: 0 0% 100%; /* #FFFFFF */
     
-    --card: 217 33% 11%; /* #111827 */
+    --card: 222 40% 8%; /* #0B101D Frosted Obsidian Glass */
     --card-foreground: 0 0% 100%;
-    --popover: 217 33% 11%;
+    --popover: 222 40% 8%;
     --popover-foreground: 0 0% 100%;
     
-    --primary: 263 84% 58%; /* #7C3AED - Electric Purple */
+    --primary: 160 84% 45%; /* #10B981 - Electric Neon Emerald Green */
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 25 100% 50%; /* #FF6B00 - Vibrant Cyber Orange */
+    --secondary: 263 84% 58%; /* #7C3AED - Deep Cyberpunk Purple */
     --secondary-foreground: 0 0% 100%;
     
-    --muted: 218 37% 14%;
+    --muted: 222 35% 12%;
     --muted-foreground: 215 16% 65%; /* #94A3B8 */
     
-    --accent: 263 60% 18%;
-    --accent-foreground: 263 84% 75%;
+    --accent: 160 84% 12%;
+    --accent-foreground: 160 84% 75%;
     
     --destructive: 345 100% 62%; /* #FF3D71 */
     --destructive-foreground: 0 0% 100%;
     
-    --success: 151 100% 45%; /* #00E676 */
+    --success: 160 84% 45%; /* #10B981 */
     --success-foreground: 0 0% 100%;
     
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     
-    --border: 217 33% 20%;
-    --input: 218 37% 14%;
-    --ring: 263 84% 58%;
+    --border: 222 30% 16%;
+    --input: 222 35% 12%;
+    --ring: 160 84% 45%;
     --radius: 1.25rem;
 
-    --glass-bg: rgba(17, 24, 39, 0.75);
+    --glass-bg: rgba(10, 14, 23, 0.75);
     --glass-border: rgba(255, 255, 255, 0.12);
   }
 
   .light {
-    /* AAA LIGHT GAMING DESIGN SYSTEM - PRESTIGE LIGHT PALETTE (LINKEDIN/DISCORD LIGHT LEVEL) */
+    /* LIGHT MODE OBSIDIAN EMERALD HYBRID */
     --background: 215 28% 97%; /* #F1F5F9 Slate 100 */
     --background-secondary: 210 40% 94%; /* #E2E8F0 */
-    --foreground: 222 47% 11%; /* #0F172A Slate 900 */
+    --foreground: 222 47% 11%; /* #0F172A */
     
-    --card: 0 0% 100%; /* #FFFFFF Pure Elevated White */
+    --card: 0 0% 100%; /* #FFFFFF */
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
     
-    --primary: 263 84% 58%; /* #7C3AED - Electric Purple */
+    --primary: 160 84% 40%; /* #10B981 */
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 25 100% 50%; /* #FF6B00 */
+    --secondary: 263 84% 58%;
     --secondary-foreground: 0 0% 100%;
     
-    --muted: 210 40% 95%; /* #F1F5F9 */
-    --muted-foreground: 215 20% 35%; /* #334155 Deep Slate Text - High Contrast */
+    --muted: 210 40% 95%;
+    --muted-foreground: 215 20% 35%;
     
-    --accent: 263 84% 96%;
-    --accent-foreground: 263 84% 45%;
+    --accent: 160 84% 94%;
+    --accent-foreground: 160 84% 35%;
     
     --destructive: 345 100% 55%;
     --destructive-foreground: 0 0% 100%;
     
-    --success: 151 100% 35%;
+    --success: 160 84% 40%;
     --success-foreground: 0 0% 100%;
     
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     
-    --border: 214 32% 86%; /* #CBD5E1 Slate Border */
+    --border: 214 32% 86%;
     --input: 214 32% 90%;
-    --ring: 263 84% 58%;
+    --ring: 160 84% 40%;
 
-    --glass-bg: rgba(255, 255, 255, 0.95);
-    --glass-border: rgba(124, 58, 237, 0.2);
+    --glass-bg: rgba(255, 255, 255, 0.92);
+    --glass-border: rgba(16, 185, 129, 0.2);
   }
 
   .gray {
-    /* AAA OBSIDIAN GRAY DESIGN SYSTEM */
-    --background: 222 47% 11%; /* #0F172A */
-    --background-secondary: 217 33% 15%;
+    /* OBSIDIAN GRAY MODE */
+    --background: 222 47% 8%; /* #0F172A */
+    --background-secondary: 217 33% 12%;
     --foreground: 210 40% 98%;
     
-    --card: 215 28% 17%;
+    --card: 215 28% 14%;
     --card-foreground: 210 40% 98%;
-    --popover: 215 28% 17%;
+    --popover: 215 28% 14%;
     --popover-foreground: 210 40% 98%;
     
-    --primary: 263 84% 58%;
+    --primary: 160 84% 45%;
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 25 100% 50%;
+    --secondary: 263 84% 58%;
     --secondary-foreground: 0 0% 100%;
     
-    --muted: 217 33% 20%;
+    --muted: 217 33% 18%;
     --muted-foreground: 215 20% 65%;
     
-    --accent: 215 28% 25%;
-    --accent-foreground: 210 40% 98%;
-    
-    --border: 217 33% 25%;
-    --input: 217 33% 22%;
-    --ring: 263 84% 58%;
+    --border: 217 33% 20%;
+    --input: 217 33% 18%;
+    --ring: 160 84% 45%;
 
-    --glass-bg: rgba(30, 41, 59, 0.82);
+    --glass-bg: rgba(30, 41, 59, 0.85);
     --glass-border: rgba(255, 255, 255, 0.12);
   }
 
@@ -137,18 +134,20 @@
   body {
     @apply antialiased;
     font-family: var(--font-inter), sans-serif;
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    /* Dynamic Aurora Mesh Glow */
+    background-color: #030509;
+    /* Concept Art Cosmic Grid & Organic Glow Mesh */
     background-image: 
-      radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.08) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(255, 107, 0, 0.06) 0px, transparent 50%),
-      radial-gradient(at 50% 100%, rgba(0, 230, 118, 0.04) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.14) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(124, 58, 237, 0.12) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%),
+      linear-gradient(rgba(16, 185, 129, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(16, 185, 129, 0.04) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
     background-attachment: fixed;
   }
 
   ::selection {
-    background: rgba(124, 58, 237, 0.3);
+    background: rgba(16, 185, 129, 0.3);
     color: hsl(var(--foreground));
   }
 
@@ -157,7 +156,7 @@
     letter-spacing: -0.01em;
   }
 
-  /* --- LIGHT MODE SPECIFIC HIGH-CONTRAST OVERRIDES --- */
+  /* --- LIGHT MODE OVERRIDES --- */
   .light body {
     background-color: #F1F5F9 !important;
     color: #0F172A !important;
@@ -169,55 +168,13 @@
     background-color: #FFFFFF !important;
     color: #0F172A !important;
     border-color: #CBD5E1 !important;
-    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04) !important;
+    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08) !important;
   }
 
   .light .gaming-card:hover,
   .light .glass-card:hover {
-    border-color: #7C3AED !important;
-    box-shadow: 0 20px 40px -10px rgba(124, 58, 237, 0.2) !important;
-  }
-
-  .light .aurora-hero,
-  .light [class*="from-indigo-900"] {
-    background: linear-gradient(135deg, #2E1065 0%, #6D28D9 50%, #4C1D95 100%) !important;
-    color: #FFFFFF !important;
-    border-color: rgba(124, 58, 237, 0.4) !important;
-    box-shadow: 0 20px 40px -10px rgba(109, 40, 217, 0.35) !important;
-  }
-
-  .light [class*="from-indigo-900"] h1,
-  .light [class*="from-indigo-900"] h2,
-  .light [class*="from-indigo-900"] p,
-  .light [class*="from-indigo-900"] span {
-    color: #FFFFFF !important;
-  }
-
-  .light aside nav a:not([class*="bg-"]),
-  .light aside nav button:not([class*="bg-"]) {
-    color: #334155 !important;
-  }
-
-  .light aside nav a:hover,
-  .light aside nav button:hover {
-    color: #0F172A !important;
-    background-color: #E2E8F0 !important;
-  }
-
-  .light .text-muted-foreground {
-    color: #334155 !important;
-  }
-
-  .light input,
-  .light select,
-  .light textarea {
-    background-color: #F8FAFC !important;
-    color: #0F172A !important;
-    border-color: #CBD5E1 !important;
-  }
-
-  .light input::placeholder {
-    color: #64748B !important;
+    border-color: #10B981 !important;
+    box-shadow: 0 20px 40px -10px rgba(16, 185, 129, 0.25) !important;
   }
 }
 
@@ -229,98 +186,101 @@
   .font-jakarta { font-family: var(--font-jakarta), sans-serif; }
   .font-inter { font-family: var(--font-inter), sans-serif; }
 
-  /* Premium Glassmorphism UI System for Modals, Cards & Popups */
+  /* Concept Art Obsidian Glassmorphism Panels */
   .gaming-card {
-    background-color: hsl(var(--card));
+    background-color: rgba(10, 14, 23, 0.75);
     color: hsl(var(--card-foreground));
-    border: 1px solid hsl(var(--border));
-    border-radius: 1.25rem;
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border-radius: 1.5rem;
+    box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .gaming-card:hover {
-    border-color: hsl(var(--primary) / 0.4);
-    box-shadow: 0 20px 40px -15px hsl(var(--primary) / 0.2);
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.25);
     transform: translateY(-3px);
   }
 
   /* Ultra Glass Overlay & Popup System */
   .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.2);
+    background: rgba(10, 14, 23, 0.72);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.4);
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .glass-card:hover {
-    border-color: hsl(var(--primary) / 0.4);
-    box-shadow: 0 25px 60px -10px hsl(var(--primary) / 0.25);
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.25);
     transform: translateY(-2px);
   }
 
   .glass-strong {
-    background: var(--glass-bg);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3);
+    background: rgba(10, 14, 23, 0.85);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.6);
   }
 
   .glass-popup {
-    background: var(--glass-bg);
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 30px 80px -20px hsl(var(--primary) / 0.25);
+    background: rgba(10, 14, 23, 0.88);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    box-shadow: 0 30px 80px -20px rgba(16, 185, 129, 0.3);
     border-radius: 1.5rem;
   }
 
-  /* 5% Aurora Gradient Headers & Hero Sections */
+  /* Neon Emerald Active Glass Pill */
+  .active-neon-pill {
+    background: rgba(16, 185, 129, 0.18);
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    color: #10B981;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+  }
+
+  /* Aurora & Hero Sections */
   .aurora-hero {
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(255, 107, 0, 0.12), hsl(var(--card) / 0.9));
-    border: 1px solid rgba(124, 58, 237, 0.25);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(124, 58, 237, 0.15), rgba(10, 14, 23, 0.95));
+    border: 1px solid rgba(16, 185, 129, 0.3);
   }
 
   /* AAA Button Gradients */
   .btn-gradient-primary {
-    background: linear-gradient(135deg, #7C3AED 0%, #FF6B00 100%);
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
     color: #FFFFFF;
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35);
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .btn-gradient-primary:hover {
-    box-shadow: 0 6px 25px rgba(255, 107, 0, 0.45);
+    box-shadow: 0 6px 25px rgba(16, 185, 129, 0.55);
     transform: translateY(-2px);
   }
   
   .btn-gradient-secondary {
-    background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+    background: linear-gradient(135deg, #7C3AED 0%, #10B981 100%);
     color: #FFFFFF;
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35);
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .btn-gradient-secondary:hover {
-    box-shadow: 0 6px 25px rgba(236, 72, 153, 0.45);
+    box-shadow: 0 6px 25px rgba(124, 58, 237, 0.55);
     transform: translateY(-2px);
-  }
-
-  /* Bento Layout Grid */
-  .bento-layout {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.25rem;
   }
 
   /* Text Gradient Accents */
   .text-gradient-purple-orange {
-    background: linear-gradient(135deg, #7C3AED, #FF6B00);
+    background: linear-gradient(135deg, #10B981, #7C3AED);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .text-gradient-cyan-purple {
-    background: linear-gradient(135deg, #00E676, #7C3AED);
+    background: linear-gradient(135deg, #10B981, #00E676);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
