@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { Input } from '@/components/ui/input';
 import { PremiumModal } from '@/components/ui/premium-modal';
 import { usePanelNav } from '@/hooks/usePanelNav';
-import { getInitials } from '@/lib/utils';
+import { getInitials, cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -180,16 +180,19 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
               const isMessages = item.href === '/messages';
               return (
                 <Link key={item.href} href={item.href}
-                  className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 min-w-[70px] relative
-                    ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}>
-                  <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary animate-bounce-in' : ''}`} />
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 relative",
+                    isActive
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.35)]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/10"
+                  )}>
+                  <Icon className={cn("h-4 w-4 transition-transform duration-200", isActive ? "text-emerald-400 scale-110" : "text-muted-foreground")} />
                   <span>{item.label}</span>
                   {isMessages && totalChatUnread > 0 && (
-                    <span className="absolute -top-1 right-2 h-[18px] min-w-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-scale-in shadow-lg shadow-destructive/30">
+                    <span className="h-4 min-w-[16px] px-1 rounded-full bg-emerald-500 text-black text-[9px] font-extrabold flex items-center justify-center shadow-md">
                       {totalChatUnread > 9 ? '9+' : totalChatUnread}
                     </span>
                   )}
-                  {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />}
                 </Link>
               );
             })}

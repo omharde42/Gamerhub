@@ -113,12 +113,18 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <header role="banner" className={isMessages || isSearch ? "hidden" : "block"}>
+    <div className="min-h-screen bg-[#030509] text-foreground overflow-x-hidden relative">
+      {/* Background Floating Cybernetic Artifact Glow */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-30">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full bg-gradient-to-tr from-emerald-500/20 via-purple-600/20 to-transparent blur-[120px]" />
+      </div>
+
+      <header role="banner" className={isMessages || isSearch ? "hidden" : "block relative z-30"}>
         <Navbar hidden={navHidden} />
       </header>
-      <div className={`w-full transition-[padding,transform] duration-300 ease-in-out ${overlayActive && !isMessages && !isSearch ? 'scale-[0.985]' : ''} ${!isLanding ? (isMessages || isSearch ? 'pt-0 pb-0' : (navHidden ? 'pt-0 pb-0' : 'pt-16 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0')) : ''}`}>
-        <div className={`w-full mx-auto flex gap-3 lg:gap-4 ${isMessages || isSearch ? 'px-0 py-0' : 'px-3 md:px-6 py-3 md:py-4'}`}>
+      
+      <div className={`w-full transition-[padding,transform] duration-300 ease-in-out relative z-10 ${overlayActive && !isMessages && !isSearch ? 'scale-[0.985]' : ''} ${!isLanding ? (isMessages || isSearch ? 'pt-0 pb-0' : (navHidden ? 'pt-0 pb-0' : 'pt-16 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0')) : ''}`}>
+        <div className={`w-full max-w-7xl mx-auto flex gap-3 lg:gap-4.5 ${isMessages || isSearch ? 'px-0 py-0' : 'px-2 sm:px-4 md:px-6 py-2.5 md:py-5'}`}>
           {!hideSidebar && !isServerPage && !isMessages && (
             <aside aria-label="Control Panel" className="hidden md:block shrink-0">
               <Sidebar />
