@@ -78,50 +78,32 @@ export function PremiumModal({
   const unregisterOverlay = useOverlayStore((s) => s.unregisterOverlay);
   const reduceMotion = useReducedMotion();
   const sheetControls = useAnimationControls();
-  const contentRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  // True while the close (exit) animation is still playing — keeps the overlay
-  // (dim/blur/scale + scroll lock) registered until the panel is fully gone.
+  const [registered, setRegistered] = useState(false);
   const [closing, setClosing] = useState(false);
-  useEffect(() => {
-    if (open) setClosing(false);
-  }, [open]);
 
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
-  );
+  const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)');
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 639px)');
     const update = () => setIsMobile(mq.matches);
     update();
     mq.addEventListener('change', update);
     return () => mq.removeEventListener('change', update);
   }, []);
 
-  const registered = open || closing;
-
-  // Dim/blur/scale the application behind the overlay while open (and during exit).
   useEffect(() => {
-    if (!registered || !dimBackground) return;
-    registerOverlay();
-    return () => unregisterOverlay();
-  }, [registered, dimBackground, registerOverlay, unregisterOverlay]);
-
-  // Escape key closes.
-  useEffect(() => {
-    if (!open || !closeOnEscape) return;
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
+      if (closeOnEscape && e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, closeOnEscape, onClose]);
 
-  // Move keyboard focus into the dialog while it is open.
   useEffect(() => {
     if (open) panelRef.current?.focus();
   }, [open]);
@@ -133,18 +115,12 @@ export function PremiumModal({
   const useBottomSheetDesktop = isBottomSheet && !isMobile;
   const swipeEnabled = swipeToClose ?? isBottomSheet;
 
-  // Slide the mobile bottom sheet in when it opens (driven through the
-  // animation controls so the swipe-to-close handler can share them).
   useEffect(() => {
     if (open && useBottomSheetMobile && swipeEnabled) {
       sheetControls.start({ y: 0, transition: { duration: 0.32, ease: EASE } });
     }
   }, [open, useBottomSheetMobile, swipeEnabled, sheetControls]);
 
-  // --- Manual swipe-to-close (bottom sheets only) -------------------------
-  // Uses pointer events instead of framer's drag so the sheet's scrollable
-  // content keeps native touch scrolling (framer sets touch-action: pan-x on
-  // drag elements, which would block vertical scrolling of inner content).
   const dragStart = useRef<{ y: number; time: number; lastY: number; lastTime: number } | null>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -167,7 +143,7 @@ export function PremiumModal({
       if (!start) return;
       const dy = e.clientY - start.y;
       const dt = Math.max(1, Date.now() - start.lastTime);
-      const velocity = (e.clientY - start.lastY) / dt; // px per ms
+      const velocity = (e.clientY - start.lastY) / dt;
       if (dy > SWIPE_THRESHOLD || (dy > 40 && velocity > SWIPE_VELOCITY / 1000)) {
         onClose();
       } else {
@@ -186,13 +162,11 @@ export function PremiumModal({
 
   const handlePanelPointerDown = (e: React.PointerEvent) => {
     if (!useBottomSheetMobile || !swipeEnabled || !e.isPrimary) return;
-    // Never hijack the gesture while the content is scrolled.
     if (contentRef.current && contentRef.current.scrollTop > 0) return;
     dragStart.current = { y: e.clientY, time: Date.now(), lastY: e.clientY, lastTime: Date.now() };
     setDragging(true);
   };
 
-  // --- Animations ----------------------------------------------------------
   const overlayTransition = { duration: transitionDuration, ease: EASE };
 
   const panelVariants = (() => {
@@ -202,17 +176,17 @@ export function PremiumModal({
     switch (variant) {
       case 'center':
         return {
-          initial: { opacity: 0, scale: 0.95, y: 14 },
+          initial: { opacity: 0, scale: 0.96, y: 10 },
           animate: { opacity: 1, scale: 1, y: 0 },
-          exit: { opacity: 0, scale: 0.95, y: 14 },
+          exit: { opacity: 0, scale: 0.96, y: 10 },
         };
       case 'bottom':
         return useBottomSheetMobile
           ? { initial: { y: '100%' }, animate: { y: 0 }, exit: { y: '100%' } }
           : {
-              initial: { opacity: 0, scale: 0.97, y: 36, x: '-50%' },
-              animate: { opacity: 1, scale: 1, y: 0, x: '-50%' },
-              exit: { opacity: 0, scale: 0.97, y: 36, x: '-50%' },
+              initial: { opacity: 0, scale: 0.97, y: 36 },
+              animate: { opacity: 1, scale: 1, y: 0 },
+              exit: { opacity: 0, scale: 0.97, y: 36 },
             };
       case 'left':
         return { initial: { x: '-100%' }, animate: { x: 0 }, exit: { x: '-100%' } };
@@ -225,9 +199,9 @@ export function PremiumModal({
 
   const panelClasses = cn(
     'relative flex flex-col overflow-hidden bg-card text-foreground shadow-2xl border-border/40',
-    variant === 'center' && cn('w-full max-h-[85dvh] rounded-3xl border', SIZE_MAX_W[size]),
+    variant === 'center' && cn('w-full h-full sm:h-auto max-h-full sm:max-h-[85dvh] rounded-none sm:rounded-3xl border-0 sm:border', SIZE_MAX_W[size]),
     useBottomSheetMobile && 'absolute inset-x-0 bottom-0 w-full max-h-[92dvh] rounded-t-3xl border-t',
-    useBottomSheetDesktop && 'absolute left-1/2 top-1/2 w-full h-[min(85dvh,52rem)] rounded-3xl border',
+    useBottomSheetDesktop && 'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[min(85dvh,52rem)] rounded-3xl border',
     variant === 'left' && 'absolute inset-y-0 left-0 w-[min(85vw,20rem)] rounded-r-3xl border-r',
     variant === 'right' && 'absolute inset-y-0 right-0 w-[min(85vw,20rem)] rounded-l-3xl border-l',
     variant === 'full' && 'absolute inset-0 h-full w-full rounded-none border-0',
@@ -244,7 +218,7 @@ export function PremiumModal({
       {open && (
         <motion.div
           key="premium-modal-root"
-          className="fixed inset-0"
+          className="fixed inset-0 flex items-center justify-center p-0 sm:p-4 overflow-hidden"
           style={{ zIndex }}
           role="dialog"
           aria-modal="true"
@@ -279,7 +253,7 @@ export function PremiumModal({
             )}
 
             {!bare && header !== undefined && (
-              <div className="flex shrink-0 items-center gap-2 border-b border-border/40 bg-card/80 px-3 py-2.5 backdrop-blur-xl">
+              <div className="flex shrink-0 items-center gap-2 border-b border-border/40 bg-card/80 px-4 py-3 backdrop-blur-xl">
                 {header}
               </div>
             )}
@@ -299,7 +273,7 @@ export function PremiumModal({
             ) : (
               <div
                 ref={contentRef}
-                className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+                className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 scrollbar-none"
               >
                 {children}
               </div>
