@@ -113,15 +113,7 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {isOwner && (
-            <Link href="/connections">
-              <Button variant="outline" size="sm" className="text-xs font-bold gap-1.5 rounded-2xl h-10 border-white/15 hover:border-white/40">
-                <Plus className="h-3.5 w-3.5" /> Manage
-              </Button>
-            </Link>
-          )}
-
-          {/* Three Dots Menu for Popular Games */}
+          {/* Three Dots Menu for Popular Games & Managing Connections */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
