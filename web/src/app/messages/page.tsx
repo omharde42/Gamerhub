@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Search, Send, Paperclip, Image as ImageIcon, Camera, MoreVertical, Plus, Loader2,
   MessageSquare, UserPlus, Phone, Video, Mic, Headphones, Settings,
-  Hash, Users, ChevronLeft, Heart, Smile, Reply,
+  Hash, Users, ChevronLeft, ArrowLeft, Heart, Smile, Reply,
   Trash2, Play, Pause, Square, Volume2, X, Link as LinkIcon, Lock
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -613,12 +613,19 @@ function DiscordMessagesPage() {
         selectedChat ? "hidden md:flex" : "flex"
       )}>
         <div className="p-4 border-b border-border/40 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-sm flex items-center gap-1.5 text-foreground uppercase tracking-wider">
-              <Hash className="h-4 w-4 text-primary animate-pulse" />
-              Direct Messages
-            </h2>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl" onClick={() => setNewChatOpen(true)}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Link href="/feed">
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-accent rounded-xl shrink-0" aria-label="Back to feed">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <h2 className="font-bold text-sm flex items-center gap-1.5 text-foreground uppercase tracking-wider truncate">
+                <Hash className="h-4 w-4 text-primary animate-pulse shrink-0" />
+                <span>Direct Messages</span>
+              </h2>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl shrink-0" onClick={() => setNewChatOpen(true)}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
