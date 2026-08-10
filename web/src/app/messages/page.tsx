@@ -33,7 +33,11 @@ function DiscordMessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userIdParam = searchParams ? searchParams.get('userId') : null;
-  const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  const chatParam = searchParams ? searchParams.get('chat') : null;
+  // The active conversation is derived from the URL (?chat=<id>) so the browser
+  // Back button and the app's history system work naturally on mobile:
+  // previous page → chat list → conversation → back → chat list → back → previous page.
+  const selectedChat = chatParam;
   const [message, setMessage] = useState('');
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
@@ -215,7 +219,8 @@ function DiscordMessagesPage() {
     onSuccess: (res) => {
       const chat = res.data.data;
       queryClient.invalidateQueries({ queryKey: ['chats'] });
-      setSelectedChat(chat.id);
+      // Open the new conversation through the router so browser history stays consistent.
+      router.replace(`/messages?chat=${chat.id}`, { scroll: false });
       setNewChatOpen(false);
       setUserSearch('');
     },
@@ -223,10 +228,12 @@ function DiscordMessagesPage() {
   });
 
   useEffect(() => {
-    if (userIdParam) {
+    // Only auto-create a direct chat when arriving with ?userId= and no
+    // conversation is already pinned via ?chat= (e.g. a shared chat link).
+    if (userIdParam && !chatParam) {
       createDirectChat.mutate(userIdParam);
     }
-  }, [userIdParam]);
+  }, [userIdParam, chatParam]);
 
   const sendViaApi = useMutation({
     mutationFn: (data: { chatId: string; content: string; media?: string[]; voiceNote?: string }) =>
@@ -521,16 +528,36 @@ function DiscordMessagesPage() {
   const getOtherParticipant = (chat: any) => chat.participants?.find((p: any) => p.user?.id !== user?.id)?.user;
 
   const handleSelectChat = (chatId: string) => {
-    setSelectedChat(chatId);
+    // Navigate through the router so the chat opens as a history entry and the
+    // Back button returns to the conversation list first, then the previous page.
+    // On mobile we push so Back walks back through chats to the list; on desktop
+    // we replace so the browser history isn't polluted by chat switches.
+    const url = `/messages?chat=${chatId}`;
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      router.push(url, { scroll: false });
+    } else {
+      router.replace(url, { scroll: false });
+    }
     socket?.emit('messages:read', { chatId });
   };
 
   const isOnline = (userId: string) => onlineUsers.has(userId);
 
+  // Shared history-aware back: use the real browser history when available so
+  // the user returns to the exact previous page; fall back to a sensible
+  // destination when there is no history (e.g. landed directly on a deep link).
+  const goBackOr = useCallback((fallback: string) => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.replace(fallback, { scroll: false });
+    }
+  }, [router]);
+
   return (
     <div className={cn(
       "flex border-0 md:border md:border-border/40 rounded-none md:rounded-2xl overflow-hidden bg-card/45 backdrop-blur-md shadow-2xl w-full max-w-full md:max-w-7xl mx-auto relative group/container",
-      selectedChat ? "fixed inset-0 z-40 bg-background md:relative md:inset-auto md:z-auto h-dvh md:h-[calc(100vh-7rem)]" : "h-[calc(100dvh-4.5rem)] md:h-[calc(100vh-7rem)]"
+      selectedChat ? "fixed inset-0 z-40 bg-background md:relative md:inset-auto md:z-auto h-dvh md:h-[calc(100vh-7rem)]" : "h-dvh md:h-[calc(100vh-7rem)]"
     )}>
       {/* Server sidebar (Desktop only) */}
       <div className="w-16 bg-muted/40 border-r border-border/40 hidden md:flex flex-col items-center py-4 gap-3 shrink-0">
@@ -612,6 +639,12 @@ function DiscordMessagesPage() {
         "w-full md:w-60 border-r border-border/40 bg-card/30 flex flex-col shrink-0 transition-all duration-300",
         selectedChat ? "hidden md:flex" : "flex"
       )}>
+        {/* Mobile-only back button so the user can always return to the previous page */}
+        <BackHeader
+          title="Messages"
+          onBack={() => goBackOr('/feed')}
+          className="md:hidden"
+        />
         <div className="p-4 border-b border-border/40 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-sm flex items-center gap-1.5 text-foreground uppercase tracking-wider">
@@ -788,7 +821,7 @@ function DiscordMessagesPage() {
                       variant="ghost" 
                       size="icon" 
                       className="md:hidden h-11 w-11 text-muted-foreground hover:text-foreground mr-1 rounded-xl shrink-0 flex items-center justify-center"
-                      onClick={() => setSelectedChat(null)}
+                      onClick={() => goBackOr('/messages')}
                       aria-label="Back to conversations list"
                     >
                       <ChevronLeft className="h-6 w-6" />
@@ -805,7 +838,7 @@ function DiscordMessagesPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-extrabold text-foreground truncate max-w-[120px] sm:max-w-[180px]">{other?.profile?.displayName || other?.profile?.username || 'User'}</p>
-                          <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 flex items-center gap-1 shrink-0">
+                          <Badge variant="outline" className="hidden sm:inline-flex text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 px-1.5 items-center gap-1 shrink-0">
                             <Lock className="w-2.5 h-2.5 text-emerald-400" />
                             E2EE
                           </Badge>
@@ -869,7 +902,7 @@ function DiscordMessagesPage() {
                           </div>
                         )}
                         {!showHeader && <div className="w-8 shrink-0" />}
-                        <div className={cn("flex flex-col min-w-0 max-w-[70%]", isOwn ? 'items-end' : '')}>
+                        <div className={cn("flex flex-col min-w-0 max-w-[85%] sm:max-w-[70%]", isOwn ? 'items-end' : '')}>
                           {showHeader && (
                             <div className={cn("flex items-center gap-2 mb-1", isOwn ? 'flex-row-reverse' : '')}>
                               <span className="text-xs font-bold hover:text-primary cursor-pointer transition-colors text-foreground">{msg.sender?.profile?.username}</span>
@@ -880,8 +913,8 @@ function DiscordMessagesPage() {
                             <div className="flex flex-wrap gap-1 mb-1">
                               {msg.media.map((url: string, i: number) => (
                                 url.match(/\.(mp4|webm|ogg)$/i)
-                                  ? <video key={i} src={url} controls className="max-w-60 max-h-40 rounded-xl border border-border/30 shadow-md animate-scale-in" />
-                                  : <img key={i} src={getMediaUrl(url)} alt="" className="max-w-60 max-h-40 rounded-xl object-cover border border-border/30 shadow-md hover:scale-[1.02] transition-transform duration-300 cursor-zoom-in animate-scale-in" onClick={() => {
+                                  ? <video key={i} src={url} controls className="w-auto max-w-[min(240px,72vw)] max-h-40 rounded-xl border border-border/30 shadow-md animate-scale-in" />
+                                  : <img key={i} src={getMediaUrl(url)} alt="" className="w-auto max-w-[min(240px,72vw)] max-h-40 rounded-xl object-cover border border-border/30 shadow-md hover:scale-[1.02] transition-transform duration-300 cursor-zoom-in animate-scale-in" onClick={() => {
                                       const imageUrls = msg.media.filter((u: string) => !u.match(/\.(mp4|webm|ogg)$/i));
                                       const imageIndex = imageUrls.indexOf(url);
                                       openLightbox(imageUrls, imageIndex !== -1 ? imageIndex : 0);
@@ -891,7 +924,7 @@ function DiscordMessagesPage() {
                           )}
                           {msg.voiceNote && (
                             <div className="mb-1.5 animate-scale-in max-w-full overflow-x-auto">
-                              <audio src={msg.voiceNote || ''} controls className="max-w-[240px] xs:max-w-[260px] h-9 rounded-xl border border-border/30 bg-card" />
+                              <audio src={msg.voiceNote || ''} controls className="w-full max-w-[min(260px,72vw)] h-9 rounded-xl border border-border/30 bg-card" />
                             </div>
                           )}
                           {msg.content && (
@@ -982,7 +1015,8 @@ function DiscordMessagesPage() {
             <div 
               className="shrink-0 border-t border-border/40 bg-card/85 backdrop-blur-md shadow-lg transition-all duration-200"
               style={{ 
-                paddingBottom: isKeyboardOpen ? `${keyboardHeight}px` : undefined,
+                // Account for the on-screen keyboard, plus the iOS/Android safe area.
+                paddingBottom: isKeyboardOpen ? `${keyboardHeight}px` : 'max(env(safe-area-inset-bottom), 0px)',
               }}
             >
               <div className="p-3 md:p-4">
