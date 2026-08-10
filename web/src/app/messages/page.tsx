@@ -198,7 +198,7 @@ function DiscordMessagesPage() {
     refetchInterval: 10000,
   });
 
-  const { data: messagesData, refetch: refetchMessages } = useQuery({
+  const { data: messagesData, refetch: refetchMessages, isLoading: messagesLoading } = useQuery({
     queryKey: ['messages', selectedChat],
     queryFn: () => api.get(`/chat/${selectedChat}/messages`).then(r => r.data.data),
     enabled: !!selectedChat,
@@ -837,8 +837,46 @@ function DiscordMessagesPage() {
             {/* Messages list - Fully optimized standard div with native scrolling */}
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 bg-grid bg-[length:40px_40px]">
               <div className="py-6 space-y-3 max-w-4xl mx-auto">
-                <AnimatePresence initial={false}>
-                  {(decryptedMessages.length > 0 ? decryptedMessages : messages)?.map((msg: any, idx: number) => {
+                {messagesLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-3">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-xs text-muted-foreground">Loading conversation...</p>
+                  </div>
+                ) : (decryptedMessages.length > 0 ? decryptedMessages : messages)?.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 px-4 text-center space-y-4 max-w-md mx-auto">
+                    <div className="w-16 h-16 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xl">
+                      <MessageSquare className="h-8 w-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-base font-extrabold text-foreground flex items-center justify-center gap-1.5">
+                        End-to-End Encrypted Chat <Lock className="h-4 w-4 text-emerald-400" />
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Say hello to start the conversation! Your messages are protected with real-time end-to-end encryption.
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMessage('Hey 👋')}
+                        className="text-xs font-bold rounded-xl gap-1"
+                      >
+                        👋 Say 👋
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMessage("Hey, let's team up and play!")}
+                        className="text-xs font-bold rounded-xl gap-1"
+                      >
+                        🎮 Team Up
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <AnimatePresence initial={false}>
+                    {(decryptedMessages.length > 0 ? decryptedMessages : messages)?.map((msg: any, idx: number) => {
                     const isOwn = msg.sender?.id === user?.id;
                     const prev = messages[idx - 1];
                     const showHeader = !prev || prev.sender?.id !== msg.sender?.id;
@@ -954,6 +992,7 @@ function DiscordMessagesPage() {
                     );
                   })}
                 </AnimatePresence>
+              )}
 
                 {/* Typing indicator */}
                 {selectedChat && typingUsers[selectedChat]?.length > 0 && (
