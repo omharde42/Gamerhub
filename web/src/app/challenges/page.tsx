@@ -72,20 +72,20 @@ export default function ChallengesPage() {
       <BackHeader title="My Challenges" />
 
       {/* Hero */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#0B1220] to-[#151033] border border-[#7C3AED]/30 p-5 relative overflow-hidden">
+      <div className="rounded-[28px] bg-card/80 border border-emerald-500/40 p-5 relative overflow-hidden backdrop-blur-2xl shadow-xl">
         <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none" />
         <div className="relative z-10 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#FF3D71] flex items-center justify-center shadow-lg shadow-[#7C3AED]/30">
-            <Swords className="h-6 w-6 text-white" />
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center shadow-lg shadow-emerald-500/30 shrink-0">
+            <Swords className="h-6 w-6 text-emerald-400" />
           </div>
           <div className="flex-1">
-            <h1 className="text-lg font-extrabold tracking-tight">Challenge Arena</h1>
-            <p className="text-xs text-muted-foreground">
-              Direct matchmaking for <span className="text-amber-400 font-semibold">Clash of Clans</span> &{' '}
-              <span className="text-amber-500 font-semibold">PUBG PC/Console</span> — challenge anyone, friends not required.
+            <h1 className="text-lg font-extrabold tracking-tight text-foreground">Challenge Arena</h1>
+            <p className="text-xs text-slate-300">
+              Direct matchmaking for <span className="text-emerald-400 font-bold">Clash of Clans</span> &{' '}
+              <span className="text-emerald-400 font-bold">PUBG PC/Console</span> — challenge anyone, friends not required.
             </p>
           </div>
-          <Badge className="hidden sm:flex bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1">
+          <Badge className="hidden sm:flex bg-emerald-500/15 text-emerald-400 border-emerald-500/40 gap-1 font-mono font-bold">
             <Shield className="h-3 w-3" /> Spam protected
           </Badge>
         </div>
@@ -93,24 +93,19 @@ export default function ChallengesPage() {
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList className="w-full bg-muted/30 p-1 rounded-xl grid grid-cols-3">
-          <TabsTrigger value="incoming" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg gap-1.5 text-xs">
+        <TabsList className="w-full bg-card/60 border border-white/10 p-1 rounded-2xl grid grid-cols-3 gap-1">
+          <TabsTrigger value="incoming" className="rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold gap-1.5 text-xs">
             <Bell className="h-3.5 w-3.5" /> Incoming
             {counts?.incoming > 0 && (
-              <span className="h-4 min-w-[16px] px-1 rounded-full bg-[#FF3D71] text-white text-[9px] font-extrabold flex items-center justify-center">
+              <span className="h-4 min-w-[16px] px-1 rounded-full bg-emerald-500 text-black text-[9px] font-extrabold flex items-center justify-center">
                 {counts.incoming}
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="sent" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg gap-1.5 text-xs">
+          <TabsTrigger value="sent" className="rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold gap-1.5 text-xs">
             <Send className="h-3.5 w-3.5" /> Sent
-            {counts?.outgoing > 0 && (
-              <span className="h-4 min-w-[16px] px-1 rounded-full bg-[#7C3AED] text-white text-[9px] font-extrabold flex items-center justify-center">
-                {counts.outgoing}
-              </span>
-            )}
           </TabsTrigger>
-          <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg gap-1.5 text-xs">
+          <TabsTrigger value="history" className="rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold gap-1.5 text-xs">
             <Clock className="h-3.5 w-3.5" /> History
           </TabsTrigger>
         </TabsList>
