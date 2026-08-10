@@ -7,10 +7,14 @@ import { GAMES_CATALOG } from '@/config/gamesCatalog';
 import { GameRenderer } from '@/components/games';
 import { PopularGamesModal } from '@/components/games/PopularGamesModal';
 import { GamerPassportEmptyState } from '@/components/games/GamerPassportEmptyState';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Sparkles, Gamepad2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Plus, MoreVertical, Gamepad2, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -109,14 +113,6 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsPopularGamesOpen(true)}
-            className="text-xs font-bold gap-1.5 rounded-2xl h-10 border-primary/30 hover:border-primary text-primary"
-          >
-            <Gamepad2 className="h-3.5 w-3.5" /> Popular Games
-          </Button>
           {isOwner && (
             <Link href="/connections">
               <Button variant="outline" size="sm" className="text-xs font-bold gap-1.5 rounded-2xl h-10 border-white/15 hover:border-white/40">
@@ -124,6 +120,37 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
               </Button>
             </Link>
           )}
+
+          {/* Three Dots Menu for Popular Games */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10 rounded-2xl border-white/15 hover:border-primary/40 text-foreground"
+                aria-label="More options"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 rounded-2xl glass-strong border-border/40 p-1.5 z-50">
+              <DropdownMenuItem
+                onClick={() => setIsPopularGamesOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl cursor-pointer hover:bg-primary/10 text-primary"
+              >
+                <Gamepad2 className="h-4 w-4 text-primary" />
+                Popular Games
+              </DropdownMenuItem>
+              {isOwner && (
+                <DropdownMenuItem asChild>
+                  <Link href="/connections" className="flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl cursor-pointer hover:bg-accent">
+                    <Settings className="h-4 w-4 text-muted-foreground" />
+                    Manage Connections
+                  </Link>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
