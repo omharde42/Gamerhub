@@ -43,6 +43,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const hideBottomNav = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
   const isServerPage = pathname?.startsWith('/servers/');
   const isMessages = pathname?.startsWith('/messages');
+  const isSearch = pathname?.startsWith('/search');
 
   useEffect(() => {
     // Check if the auth store is already hydrated from localStorage
@@ -113,11 +114,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      <header role="banner" className={isMessages ? "hidden md:block" : "block"}>
+      <header role="banner" className={isMessages || isSearch ? "hidden" : "block"}>
         <Navbar hidden={navHidden} />
       </header>
-      <div className={`w-full transition-[padding,transform] duration-300 ease-in-out ${overlayActive && !isMessages ? 'scale-[0.985]' : ''} ${!isLanding ? (isMessages ? 'pt-0 md:pt-16 pb-0' : (navHidden ? 'pt-0 pb-0' : 'pt-16 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0')) : ''}`}>
-        <div className={`w-full mx-auto flex gap-3 lg:gap-4 ${isMessages ? 'px-0 md:px-6 py-0 md:py-4' : 'px-3 md:px-6 py-3 md:py-4'}`}>
+      <div className={`w-full transition-[padding,transform] duration-300 ease-in-out ${overlayActive && !isMessages && !isSearch ? 'scale-[0.985]' : ''} ${!isLanding ? (isMessages || isSearch ? 'pt-0 pb-0' : (navHidden ? 'pt-0 pb-0' : 'pt-16 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0')) : ''}`}>
+        <div className={`w-full mx-auto flex gap-3 lg:gap-4 ${isMessages || isSearch ? 'px-0 py-0' : 'px-3 md:px-6 py-3 md:py-4'}`}>
           {!hideSidebar && !isServerPage && !isMessages && (
             <aside aria-label="Control Panel" className="hidden md:block shrink-0">
               <Sidebar />

@@ -157,16 +157,16 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
         </Link>
 
         {/* Center: Maximized Search Bar on mobile, redirects to the dedicated full-screen search experience */}
-        <div className="flex relative flex-1 mx-1 md:mx-0 max-w-full md:max-w-sm cursor-pointer">
+        <div className="flex relative flex-1 mx-1 md:mx-0 max-w-full md:max-w-sm cursor-pointer" onClick={() => router.push('/search')}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full cursor-pointer"
+            className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full cursor-pointer pointer-events-auto"
             placeholder="Search players, teams..."
             variant="ghost" 
             value=""
             readOnly
-            onClick={() => openPanelFromNav('search')}
-            onFocus={() => openPanelFromNav('search')}
+            onClick={() => router.push('/search')}
+            onFocus={() => router.push('/search')}
           />
         </div>
 
