@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* AAA GAMING DESIGN SYSTEM - PRECISE PALETTE */
+  :root, .dark {
+    /* AAA GAMING DESIGN SYSTEM - DARK PALETTE */
     --background: 231 47% 4%; /* #05070E */
     --background-secondary: 218 37% 8%; /* #0B1220 */
     --foreground: 0 0% 100%; /* #FFFFFF */
@@ -20,7 +20,7 @@
     --secondary: 25 100% 50%; /* #FF6B00 - Vibrant Cyber Orange */
     --secondary-foreground: 0 0% 100%;
     
-    --muted: 218 37% 12%;
+    --muted: 218 37% 14%;
     --muted-foreground: 215 16% 65%; /* #94A3B8 */
     
     --accent: 263 60% 18%;
@@ -35,54 +35,121 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     
-    --border: 0 0% 100%; /* Opacity controlled via utility rgba(255,255,255,0.08) */
+    --border: 217 33% 20%;
     --input: 218 37% 14%;
     --ring: 263 84% 58%;
     --radius: 1.25rem;
 
-    /* Custom Accent Hex values */
-    --color-bg-main: #05070E;
-    --color-bg-secondary: #0B1220;
-    --color-card: #111827;
-    --color-primary: #7C3AED;
-    --color-secondary: #FF6B00;
-    --color-success: #00E676;
-    --color-error: #FF3D71;
+    --glass-bg: rgba(17, 24, 39, 0.75);
+    --glass-border: rgba(255, 255, 255, 0.12);
+  }
+
+  .light {
+    /* AAA LIGHT GAMING DESIGN SYSTEM - PRESTIGE LIGHT PALETTE */
+    --background: 220 33% 98%; /* #F8FAFC */
+    --background-secondary: 210 40% 96%; /* #F1F5F9 */
+    --foreground: 222 47% 11%; /* #0F172A */
+    
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    --primary: 263 84% 58%; /* #7C3AED - Electric Purple */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 25 100% 50%; /* #FF6B00 */
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 210 40% 94%;
+    --muted-foreground: 215 16% 40%; /* #475569 */
+    
+    --accent: 263 84% 96%;
+    --accent-foreground: 263 84% 45%;
+    
+    --destructive: 345 100% 62%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --success: 151 100% 40%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --border: 214 32% 88%; /* #CBD5E1 */
+    --input: 214 32% 91%;
+    --ring: 263 84% 58%;
+
+    --glass-bg: rgba(255, 255, 255, 0.88);
+    --glass-border: rgba(124, 58, 237, 0.18);
+  }
+
+  .gray {
+    /* AAA OBSIDIAN GRAY DESIGN SYSTEM */
+    --background: 222 47% 11%; /* #0F172A */
+    --background-secondary: 217 33% 15%;
+    --foreground: 210 40% 98%;
+    
+    --card: 215 28% 17%;
+    --card-foreground: 210 40% 98%;
+    --popover: 215 28% 17%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 263 84% 58%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 25 100% 50%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 217 33% 20%;
+    --muted-foreground: 215 20% 65%;
+    
+    --accent: 215 28% 25%;
+    --accent-foreground: 210 40% 98%;
+    
+    --border: 217 33% 25%;
+    --input: 217 33% 22%;
+    --ring: 263 84% 58%;
+
+    --glass-bg: rgba(30, 41, 59, 0.82);
+    --glass-border: rgba(255, 255, 255, 0.12);
   }
 
   * {
-    border-color: rgba(255, 255, 255, 0.08);
+    border-color: hsl(var(--border));
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
   }
 
   *::-webkit-scrollbar { width: 6px; height: 6px; }
   *::-webkit-scrollbar-track { background: transparent; }
-  *::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 6px; }
-  *::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.5); }
+  *::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.2); border-radius: 6px; }
+  *::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.5); }
 
   html, body {
     max-width: 100vw;
     overflow-x: hidden;
-    background-color: #05070E;
-    color: #FFFFFF;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   body {
     @apply antialiased;
     font-family: var(--font-inter), sans-serif;
-    background-color: #05070E;
-    /* Subtle 5% Aurora background glow mesh */
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    /* Dynamic Aurora Mesh Glow */
     background-image: 
-      radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.07) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(255, 107, 0, 0.05) 0px, transparent 50%),
-      radial-gradient(at 50% 100%, rgba(0, 230, 118, 0.03) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(255, 107, 0, 0.06) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(0, 230, 118, 0.04) 0px, transparent 50%);
     background-attachment: fixed;
   }
 
   ::selection {
     background: rgba(124, 58, 237, 0.3);
-    color: #FFFFFF;
+    color: hsl(var(--foreground));
   }
 
   h1, h2, h3, .font-heading {
@@ -99,35 +166,60 @@
   .font-jakarta { font-family: var(--font-jakarta), sans-serif; }
   .font-inter { font-family: var(--font-inter), sans-serif; }
 
-  /* 70% Dark Gaming Card System */
+  /* Premium Glassmorphism UI System for Modals, Cards & Popups */
   .gaming-card {
-    background-color: #111827;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
     border-radius: 1.25rem;
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.15);
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .gaming-card:hover {
-    border-color: rgba(124, 58, 237, 0.4);
-    box-shadow: 0 20px 40px -15px rgba(124, 58, 237, 0.15);
+    border-color: hsl(var(--primary) / 0.4);
+    box-shadow: 0 20px 40px -15px hsl(var(--primary) / 0.2);
     transform: translateY(-3px);
   }
 
-  /* 10% Glassmorphism overlays */
-  .glass-overlay {
-    background: rgba(17, 24, 39, 0.65);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+  /* Ultra Glass Overlay & Popup System */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .glass-card:hover {
+    border-color: hsl(var(--primary) / 0.4);
+    box-shadow: 0 25px 60px -10px hsl(var(--primary) / 0.25);
+    transform: translateY(-2px);
+  }
+
+  .glass-strong {
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3);
+  }
+
+  .glass-popup {
+    background: var(--glass-bg);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 30px 80px -20px hsl(var(--primary) / 0.25);
+    border-radius: 1.5rem;
   }
 
   /* 5% Aurora Gradient Headers & Hero Sections */
   .aurora-hero {
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(255, 107, 0, 0.15), rgba(11, 18, 32, 0.9));
-    border: 1px solid rgba(124, 58, 237, 0.3);
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(255, 107, 0, 0.12), hsl(var(--card) / 0.9));
+    border: 1px solid rgba(124, 58, 237, 0.25);
   }
 
-  /* AAA Button Gradients (Purple -> Orange & Purple -> Pink) */
+  /* AAA Button Gradients */
   .btn-gradient-primary {
     background: linear-gradient(135deg, #7C3AED 0%, #FF6B00 100%);
     color: #FFFFFF;

@@ -3,11 +3,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
+import { useTheme } from 'next-themes';
 import {
   LayoutDashboard, Newspaper, Users, Trophy, Briefcase,
   MessageSquare, BarChart3, Bot, Crown,
   Settings, LogOut, Gamepad2, Compass, Bookmark, Bell,
-  Shield, Globe, Film, Swords
+  Shield, Globe, Film, Swords, Sun, Moon, Palette
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +53,8 @@ export function Sidebar() {
   const totalChatUnread = Object.values(chatUnreadData || {}).reduce((sum: number, c: any) => sum + (c as number), 0);
 
   if (pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/')) return null;
+
+  const { theme: activeTheme, setTheme } = useTheme();
 
   const handleLogout = () => {
     logout();
@@ -152,6 +155,36 @@ export function Sidebar() {
               </Link>
             );
           })}
+
+          {/* Theme Quick Switcher */}
+          <div className="pt-2 px-1">
+            <div className="flex items-center justify-between p-1 rounded-xl bg-card/60 border border-border/40 gap-1">
+              <button
+                onClick={() => setTheme('light')}
+                className={cn('flex-1 py-1.5 flex items-center justify-center rounded-lg text-xs font-bold transition-all', activeTheme === 'light' ? 'bg-primary text-white shadow-md' : 'text-muted-foreground hover:text-foreground')}
+                title="Light Mode"
+              >
+                <Sun className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline ml-1 text-[10px]">Light</span>
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={cn('flex-1 py-1.5 flex items-center justify-center rounded-lg text-xs font-bold transition-all', activeTheme === 'dark' ? 'bg-primary text-white shadow-md' : 'text-muted-foreground hover:text-foreground')}
+                title="Dark Mode"
+              >
+                <Moon className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline ml-1 text-[10px]">Dark</span>
+              </button>
+              <button
+                onClick={() => setTheme('gray')}
+                className={cn('flex-1 py-1.5 flex items-center justify-center rounded-lg text-xs font-bold transition-all', activeTheme === 'gray' ? 'bg-primary text-white shadow-md' : 'text-muted-foreground hover:text-foreground')}
+                title="Obsidian Gray"
+              >
+                <Palette className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline ml-1 text-[10px]">Gray</span>
+              </button>
+            </div>
+          </div>
 
           {/* Logout Button */}
           {user && (
