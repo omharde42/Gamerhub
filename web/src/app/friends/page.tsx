@@ -173,12 +173,12 @@ export default function FriendsPage() {
           </motion.div>
 
           <Tabs defaultValue="online">
-            <TabsList className="bg-muted/30 p-1 rounded-xl flex md:inline-flex overflow-x-auto whitespace-nowrap scrollbar-none justify-start">
-              <TabsTrigger value="online" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg">Online</TabsTrigger>
-              <TabsTrigger value="all" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg">All Friends</TabsTrigger>
-              <TabsTrigger value="pending" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg relative">
+            <TabsList className="bg-card/60 border border-white/10 p-1 rounded-2xl flex md:inline-flex overflow-x-auto whitespace-nowrap scrollbar-none justify-start gap-1">
+              <TabsTrigger value="online" className="shrink-0 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 data-[state=active]:shadow-[0_0_20px_rgba(16,185,129,0.35)] font-bold">Online</TabsTrigger>
+              <TabsTrigger value="all" className="shrink-0 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 data-[state=active]:shadow-[0_0_20px_rgba(16,185,129,0.35)] font-bold">All Friends</TabsTrigger>
+              <TabsTrigger value="pending" className="shrink-0 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 data-[state=active]:shadow-[0_0_20px_rgba(16,185,129,0.35)] font-bold relative">
                 Pending
-                {requests?.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-[10px] rounded-full bg-primary text-primary-foreground">{requests.length}</span>}
+                {requests?.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-500 text-black font-extrabold">{requests.length}</span>}
               </TabsTrigger>
             </TabsList>
 

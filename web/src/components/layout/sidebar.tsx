@@ -134,12 +134,12 @@ export function Sidebar() {
                 className={cn(
                   'flex items-center gap-3.5 px-3.5 py-2.5 rounded-2xl text-xs font-semibold tracking-wide transition-all duration-200 relative justify-center lg:justify-start group',
                   isActive
-                    ? 'text-white bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg shadow-purple-500/25 font-extrabold scale-[1.02]'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.35)] font-extrabold scale-[1.02]'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/10'
                 )}
               >
                 <div className="relative shrink-0">
-                  <Icon className={cn('h-4 w-4 transition-all duration-200 group-hover:scale-110', isActive ? 'text-white' : 'text-[#94A3B8] group-hover:text-white')} />
+                  <Icon className={cn('h-4 w-4 transition-all duration-200 group-hover:scale-110', isActive ? 'text-emerald-400' : 'text-[#94A3B8] group-hover:text-white')} />
                   {item.href === '/messages' && totalChatUnread > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] px-1 rounded-full bg-[#FF3D71] text-white text-[9px] font-extrabold flex items-center justify-center shadow-md">
                       {totalChatUnread > 9 ? '9+' : totalChatUnread}

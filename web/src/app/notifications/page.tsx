@@ -86,27 +86,27 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
+            <Bell className="h-5 w-5 text-emerald-400" />
             Inbox
           </h1>
           <p className="text-xs text-muted-foreground">Stay updated with your activity</p>
         </div>
         {unreadCount > 0 && (
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => markAllRead.mutate()}>
+          <Button variant="outline" size="sm" className="gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20" onClick={() => markAllRead.mutate()}>
             <CheckCircle className="h-4 w-4" /> Mark all read
           </Button>
         )}
       </div>
 
-      <Card>
+      <Card variant="glass">
         <CardContent className="p-0">
           <Tabs value={tab} onValueChange={setTab}>
             <div className="px-4 pt-4">
-              <TabsList className="w-full">
-                <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
-                <TabsTrigger value="like" className="flex-1">Likes</TabsTrigger>
-                <TabsTrigger value="comment" className="flex-1">Comments</TabsTrigger>
-                <TabsTrigger value="follow" className="flex-1">Follows</TabsTrigger>
+              <TabsList className="w-full bg-card/60 border border-white/10 p-1 rounded-2xl gap-1">
+                <TabsTrigger value="all" className="flex-1 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold">All</TabsTrigger>
+                <TabsTrigger value="like" className="flex-1 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold">Likes</TabsTrigger>
+                <TabsTrigger value="comment" className="flex-1 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold">Comments</TabsTrigger>
+                <TabsTrigger value="follow" className="flex-1 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold">Follows</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value={tab} className="mt-0">
