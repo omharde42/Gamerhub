@@ -68,7 +68,7 @@ export function Sidebar() {
     <aside aria-label="Control Panel" className="w-16 lg:w-64 shrink-0 transition-all duration-300">
       <div className="sticky top-20 flex flex-col gap-4 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-none pr-1">
         {/* User Card / Auth Card */}
-        <div className="rounded-2xl bg-card border border-border/60 overflow-hidden shadow-sm relative group">
+        <div className="rounded-[26px] bg-card/75 backdrop-blur-2xl border border-white/10 dark:border-white/10 border-slate-200 overflow-hidden shadow-xl relative group">
           <div className="h-14 bg-gradient-to-r from-indigo-600 via-primary to-purple-600 relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_70%)]" />
           </div>
@@ -110,16 +110,11 @@ export function Sidebar() {
               </div>
             </>
           ) : (
-            <div className="p-3 lg:p-6 text-center space-y-3 flex flex-col items-center">
-              <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
-                <Gamepad2 className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
-              </div>
-              <p className="text-xs font-semibold hidden lg:block">Welcome!</p>
-              <p className="text-[10px] text-muted-foreground hidden lg:block">Sign in to access all features</p>
-              <Link href="/auth/login" className="w-full">
-                <Button variant="gradient" size="sm" className="w-full h-8 lg:h-9 text-[10px] lg:text-xs">
-                  <span className="hidden lg:inline">Sign In</span>
-                  <span className="lg:hidden">In</span>
+            <div className="p-4 text-center space-y-3 pt-6">
+              <p className="text-xs text-muted-foreground">Join GamerZ Hub to connect with pro gamers!</p>
+              <Link href="/auth/login" className="block">
+                <Button variant="default" size="sm" className="w-full text-xs font-bold rounded-xl">
+                  Sign In
                 </Button>
               </Link>
             </div>
@@ -127,7 +122,7 @@ export function Sidebar() {
         </div>
 
         {/* Navigation Items (Direct Full-Page Navigation) */}
-        <nav aria-label="Sidebar Navigation" className="space-y-1">
+        <nav aria-label="Sidebar Navigation" className="space-y-1 bg-card/65 backdrop-blur-2xl p-2 rounded-[26px] border border-white/10 dark:border-white/10 border-slate-200 shadow-xl">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
@@ -137,14 +132,14 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 relative justify-center lg:justify-start group',
+                  'flex items-center gap-3.5 px-3.5 py-2.5 rounded-2xl text-xs font-semibold tracking-wide transition-all duration-200 relative justify-center lg:justify-start group',
                   isActive
-                    ? 'text-white bg-[#7C3AED]/20 border-l-4 border-[#7C3AED] shadow-[0_0_20px_rgba(124,58,237,0.3)] font-bold'
-                    : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.06] border-l-4 border-transparent'
+                    ? 'text-white bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg shadow-purple-500/25 font-extrabold scale-[1.02]'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                 )}
               >
                 <div className="relative shrink-0">
-                  <Icon className={cn('h-4 w-4 transition-all duration-200 group-hover:scale-110', isActive ? 'text-[#7C3AED]' : 'text-[#94A3B8] group-hover:text-white')} />
+                  <Icon className={cn('h-4 w-4 transition-all duration-200 group-hover:scale-110', isActive ? 'text-white' : 'text-[#94A3B8] group-hover:text-white')} />
                   {item.href === '/messages' && totalChatUnread > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] px-1 rounded-full bg-[#FF3D71] text-white text-[9px] font-extrabold flex items-center justify-center shadow-md">
                       {totalChatUnread > 9 ? '9+' : totalChatUnread}
