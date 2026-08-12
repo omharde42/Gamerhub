@@ -556,7 +556,7 @@ analytics_events
 ## 👨‍💻 Contributors
 
 - **Om Harde** (@omharde42) — Founder & CEO
-- **Yash** (@YASH544847) — Collaborator
+- **Yash** (@YASH544847) — Founder of Gamerzhub
 - **Purvesh Bhadale** — Co-Founder & Collaborator
 
   ---
