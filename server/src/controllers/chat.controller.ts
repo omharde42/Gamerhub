@@ -46,6 +46,7 @@ export class ChatController {
   getChatMessages = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { page, limit } = req.query;
     const result = await chatService.getChatMessages(
+      req.user!.userId,
       req.params.id,
       page ? parseInt(page as string) : undefined,
       limit ? parseInt(limit as string) : undefined,
