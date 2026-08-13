@@ -16,7 +16,7 @@ const buttonVariants = cva(
         ghost: 'hover:bg-muted/80 hover:text-foreground active:scale-[0.98]',
         link: 'text-primary underline-offset-4 hover:underline active:opacity-80',
         neon: 'border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 hover:shadow-md hover:shadow-cyan-500/20 active:bg-cyan-500/25 focus-visible:ring-2 focus-visible:ring-cyan-500 shadow-sm',
-        gradient: 'bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white hover:from-indigo-500 hover:to-pink-500 hover:shadow-lg hover:shadow-indigo-500/25 active:from-indigo-700 active:to-pink-700 focus-visible:ring-2 focus-visible:ring-indigo-500 shadow-sm',
+        gradient: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-teal-500 hover:shadow-lg hover:shadow-emerald-500/30 active:from-emerald-600 active:to-teal-600 focus-visible:ring-2 focus-visible:ring-emerald-500 shadow-md font-bold',
         neumorphic: 'bg-gradient-to-b from-card to-secondary border border-white/10 text-foreground neumorphic-btn hover:text-primary active:scale-[0.98]',
         cyber: 'bg-cyan-500/10 border border-cyan-400/40 text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400 cyber-glow active:scale-[0.98]',
       },

@@ -36,7 +36,11 @@
     "stripe": "^17.5.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+<<<<<<< HEAD
     "uuid": "^11.1.1",
+=======
+    "uuid": "^14.0.1",
+>>>>>>> b6317c53c8195069fbe2d4eb38b387ae4b35c4c9
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -238,11 +238,24 @@ export default function FeedPage() {
                   ))}
                 </div>
               ) : newsData?.length > 0 ? newsData.map((article: any, i: number) => (
-                <a key={i} href={article.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/60 transition-all group">
-                  {article.image && <img src={article.image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-border/40" />}
+                <a key={i} href={article.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2.5 p-2 rounded-xl hover:bg-white/10 transition-all group">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                    {article.image ? (
+                      <img
+                        src={article.image}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e: any) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <Gamepad2 className="h-5 w-5 text-emerald-400" />
+                    )}
+                  </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-medium line-clamp-2 group-hover:text-primary transition-colors leading-relaxed">{article.title}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{article.source || 'Gaming News'}</p>
+                    <p className="text-xs font-semibold line-clamp-2 group-hover:text-emerald-400 transition-colors leading-relaxed">{article.title}</p>
+                    <p className="text-[10px] text-emerald-400/80 font-mono mt-0.5">{article.source || 'Gaming News'}</p>
                   </div>
                 </a>
               )) : (

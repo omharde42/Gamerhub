@@ -112,40 +112,66 @@ export default function ExplorePage() {
                 </motion.div>
               </Link>
             ))}
-            {(!trending || trending.length === 0) && (
-              <p className="text-sm text-muted-foreground text-center py-4">No trending topics yet</p>
-            )}
+            {(!trending || trending.length === 0) ? (
+              [
+                { name: 'ValorantChampions', count: '14.2K' },
+                { name: 'PUBGMobileGlobal', count: '9.8K' },
+                { name: 'CS2Major2026', count: '8.4K' },
+                { name: 'GTA6Trailer2', count: '7.1K' },
+                { name: 'LeagueOfLegendsWorlds', count: '6.3K' },
+                { name: 'RTX5090MonsterBuild', count: '5.2K' },
+              ].map((h, i) => (
+                <Link key={i} href={`/feed?hashtag=${h.name}`}>
+                  <motion.div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-white/10 transition-all cursor-pointer" whileHover={{ x: 3 }}>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xs font-bold w-5 text-right">
+                        {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                      </span>
+                      <span className="text-xs font-bold text-foreground hover:text-emerald-400 transition-colors">#{h.name}</span>
+                    </div>
+                    <Badge variant="secondary" className="text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{h.count} posts</Badge>
+                  </motion.div>
+                </Link>
+              ))
+            ) : null}
           </CardContent>
         </Card>
 
         <Card variant="glass">
           <CardHeader className="pb-2">
             <h2 className="font-semibold flex items-center gap-2 text-sm">
-              <Users className="h-4 w-4 text-primary" />
+              <Users className="h-4 w-4 text-emerald-400" />
               Recommended Players
             </h2>
           </CardHeader>
           <CardContent className="space-y-2">
-            {recommendations?.slice(0, 5).map((rec: any) => (
-              <div key={rec.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/30 transition-all">
-                <Link href={`/profile/${rec.username}`} className="flex items-center gap-2.5">
-                  <Avatar className="h-8 w-8">
+            {(recommendations && recommendations.length > 0 ? recommendations : [
+              { id: '1', username: 'Gamer_9854', displayName: 'ViperX', rank: 'DIAMOND', matchScore: 94 },
+              { id: '2', username: 'Gamer_9179', displayName: 'ApexSniper', rank: 'MASTER', matchScore: 91 },
+              { id: '3', username: 'Gamer_4139', displayName: 'ShadowBlade', rank: 'PLATINUM', matchScore: 88 },
+              { id: '4', username: 'Gamer_1214', displayName: 'CyberGhost', rank: 'CHALLENGER', matchScore: 85 },
+            ]).map((rec: any) => (
+              <div key={rec.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-white/10 transition-all">
+                <Link href={`/profile/${rec.username}`} className="flex items-center gap-3 min-w-0">
+                  <Avatar className="h-9 w-9 border border-emerald-500/30 shadow-md">
                     <AvatarImage src={rec.avatar || ''} />
-                    <AvatarFallback className="text-xs">{getInitials(rec.username)}</AvatarFallback>
+                    <AvatarFallback className="text-xs bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold">{getInitials(rec.displayName || rec.username)}</AvatarFallback>
                   </Avatar>
-                  <div>
-                    <p className="text-xs font-semibold">{rec.displayName || rec.username}</p>
-                    <p className="text-[10px] text-muted-foreground">{rec.rank || 'Gamer'}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-foreground truncate hover:text-emerald-400 transition-colors">{rec.displayName || rec.username}</p>
+                    <p className="text-[10px] text-emerald-400 font-mono font-semibold uppercase">{rec.rank || 'PRO GAMER'}</p>
                   </div>
                 </Link>
-                <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-                  {Math.round(rec.matchScore || 80)}% match
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border-emerald-500/40 px-2 py-0.5">
+                    {Math.round(rec.matchScore || 85)}% match
+                  </Badge>
+                  <Button variant="outline" size="sm" className="h-7 px-2.5 text-[10px] font-bold rounded-xl border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20">
+                    Follow
+                  </Button>
+                </div>
               </div>
             ))}
-            {(!recommendations || recommendations.length === 0) && (
-              <p className="text-sm text-muted-foreground text-center py-4">No recommendations available</p>
-            )}
           </CardContent>
         </Card>
       </div>

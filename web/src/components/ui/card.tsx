@@ -10,14 +10,14 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(({ className, variant = 'default', hover = true, glow = false, ...props }, ref) => {
   const classes = cn(
-    'rounded-2xl border border-border/60 bg-card/70 text-card-foreground shadow-sm transition-all duration-300',
-    hover && 'hover:-translate-y-1 hover:shadow-xl hover:border-border/80',
-    variant === 'glass' && 'bg-card/40 backdrop-blur-xl border border-white/10 shadow-lg shadow-black/20',
-    variant === 'bento' && 'bg-card/50 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-xl hover:border-primary/40 hover:shadow-primary/10',
-    variant === 'game' && 'bg-card/80 backdrop-blur-md border border-indigo-500/10 shadow-md hover:border-indigo-500/30',
-    variant === 'premium' && 'bg-gradient-to-br from-card via-card to-primary/10 border border-primary/30 shadow-lg shadow-primary/10 hover:border-primary/50',
+    'rounded-[26px] border border-white/10 dark:border-white/10 border-slate-200 bg-card/75 backdrop-blur-2xl text-card-foreground shadow-xl transition-all duration-300',
+    hover && 'hover:-translate-y-1.5 hover:shadow-2xl hover:border-primary/40 hover:shadow-primary/10',
+    variant === 'glass' && 'bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/70 dark:border-white/10 shadow-xl shadow-black/10',
+    variant === 'bento' && 'bg-white/65 dark:bg-slate-900/65 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-[28px] p-6 shadow-2xl hover:border-primary/50 hover:shadow-primary/15',
+    variant === 'game' && 'bg-card/85 backdrop-blur-xl border border-indigo-500/20 shadow-lg hover:border-indigo-500/40',
+    variant === 'premium' && 'bg-gradient-to-br from-card via-card to-primary/15 border border-primary/40 shadow-xl shadow-primary/15 hover:border-primary/60',
     variant === 'cyber' && 'cyber-card',
-    glow && 'shadow-[0_0_25px_rgba(99,102,241,0.2)] border-primary/40',
+    glow && 'shadow-[0_0_30px_rgba(124,58,237,0.3)] border-primary/50',
     className
   );
   return hover ? (

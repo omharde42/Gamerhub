@@ -67,41 +67,43 @@ export default function DashboardPage() {
 
   return (
     <motion.div className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      {/* Hybrid Aurora Banner Header */}
+      {/* Concept Art Obsidian Glass Hero Banner with Floating Cybernetic Artifact */}
       <motion.div
-        className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-r from-indigo-900/40 via-purple-900/30 to-pink-900/30 p-6 md:p-8 backdrop-blur-2xl shadow-2xl"
+        className="relative overflow-hidden rounded-[32px] border border-emerald-500/40 bg-gradient-to-r from-[#030509]/95 via-[#0A0E1D]/90 to-[#0F172A]/95 p-6 md:p-8 backdrop-blur-3xl shadow-[0_25px_60px_-15px_rgba(16,185,129,0.25)] text-white"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-cyan-500/10 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-64 md:w-80 h-64 md:h-80 rounded-full overflow-hidden opacity-40 pointer-events-none mix-blend-screen animate-pulse shrink-0 hidden sm:block">
+          <img src="/cybernetic-artifact.jpg" alt="Cybernetic Artifact" className="w-full h-full object-cover rounded-full" />
+        </div>
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2">
+          <div className="space-y-2 max-w-xl">
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="bg-cyan-500/10 border-cyan-400/30 text-cyan-300 text-xs font-mono font-bold px-2.5 py-0.5">
+              <Badge variant="outline" className="bg-emerald-500/15 border-emerald-400/40 text-emerald-400 text-xs font-mono font-bold px-3 py-1 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)]">
                 ⚡ GAMER PASSPORT DASHBOARD
               </Badge>
-              <Badge variant="secondary" className="bg-purple-500/10 border-purple-500/20 text-purple-300 text-xs font-mono">
-                HYBRID HYPER-UI v2.5
+              <Badge variant="secondary" className="bg-purple-500/15 border-purple-500/30 text-purple-300 text-xs font-mono rounded-full px-3 py-1">
+                OBSIDIAN HYPER-UI v3.0
               </Badge>
             </div>
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
-              Welcome back, <span className="text-aurora">{user?.profile?.username || 'Gamer'}</span>
-              <Sparkles className="h-6 w-6 text-amber-400 animate-pulse" />
+              Welcome back, <span className="text-emerald-400 font-mono">{user?.profile?.username || 'Gamer'}</span>
+              <Sparkles className="h-6 w-6 text-emerald-400 animate-pulse" />
             </h1>
-            <p className="text-sm text-blue-200/80 max-w-xl">
+            <p className="text-sm text-slate-300 max-w-xl leading-relaxed">
               Your esports hub performance summary, Steam achievements, AI recommendations, and live matchmaking queue.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-3 w-full md:w-auto relative z-20">
             <Link href="/profile/settings" className="flex-1 md:flex-none">
-              <Button variant="neumorphic" size="sm" className="w-full font-semibold rounded-xl">
+              <Button variant="outline" size="sm" className="w-full font-bold rounded-2xl border-white/20 hover:border-emerald-400">
                 Edit Profile
               </Button>
             </Link>
             <Link href="/matchmaking" className="flex-1 md:flex-none">
-              <Button variant="gradient" size="sm" className="w-full font-bold gap-2 rounded-xl shadow-lg shadow-indigo-500/25" animate>
+              <Button variant="gradient" size="sm" className="w-full font-extrabold gap-2 rounded-2xl shadow-lg shadow-emerald-500/30 bg-gradient-to-r from-emerald-500 to-teal-600 text-white" animate>
                 <Zap className="h-4 w-4" /> Find Match
               </Button>
             </Link>
