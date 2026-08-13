@@ -21,7 +21,15 @@ export class SubscriptionController {
     }
     try {
       const stripe = new Stripe(config.stripe.secretKey, { apiVersion: '2025-02-24.acacia' as any });
-      const event = stripe.webhooks.constructEvent(req.body, sig, config.stripe.webhookSecret);
+      // Signature verification must use the raw request body captured by the
+      // express.json verify hook. Passing the parsed JSON object here means the
+      // signature can never validate and every webhook would be rejected (or,
+      // worse, verification silently skipped).
+      const rawBody = (req as any).rawBody;
+      if (!rawBody) {
+        throw new AppError('Raw request body unavailable for webhook verification', 400);
+      }
+      const event = stripe.webhooks.constructEvent(rawBody, sig, config.stripe.webhookSecret);
       await subscriptionService.handleWebhook(event);
       res.json({ received: true });
     } catch (error: any) {
