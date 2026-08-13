@@ -2,6 +2,8 @@
  * Verification helpers for OAuth provider callbacks.
  */
 
+import crypto from 'crypto';
+
 const STEAM_OPENID_ENDPOINT = 'https://steamcommunity.com/openid/login';
 
 export interface SteamOpenIdParams {
@@ -62,4 +64,54 @@ export async function verifySteamOpenIdResponse(
 
   const text = await res.text();
   return /\bis_valid:true\b/.test(text);
+}
+
+export interface OAuthStatePayload {
+  action: string;
+  userId?: string;
+  nonce: string;
+  iat: number;
+}
+
+const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
+
+/**
+ * Signs an OAuth state payload so the callback can trust it.
+ *
+ * The state is the only thing carrying `userId` into the Discord callback.
+ * If it were unsigned base64 (as before), an attacker could craft
+ * { action: 'link', userId: '<victim>' } and link their own Discord account
+ * to a victim's GamerHub account, then log in as the victim.
+ */
+export function signOAuthState(payload: OAuthStatePayload, secret: string): string {
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  return `${encoded}.${sig}`;
+}
+
+/**
+ * Verifies a signed OAuth state and returns the payload, or null if the state
+ * was tampered with, expired, or malformed. Fails closed.
+ */
+export function verifyOAuthState(state: string, secret: string, maxAgeMs: number = OAUTH_STATE_MAX_AGE_MS): OAuthStatePayload | null {
+  const parts = state.split('.');
+  if (parts.length !== 2) return null;
+
+  const [encoded, sig] = parts;
+  const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  const sigBuf = Buffer.from(sig);
+  const expectedBuf = Buffer.from(expected);
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as OAuthStatePayload;
+    if (typeof payload.action !== 'string' || typeof payload.iat !== 'number') return null;
+    const now = Date.now();
+    if (now - payload.iat > maxAgeMs || payload.iat > now + 60_000) return null;
+    return payload;
+  } catch {
+    return null;
+  }
 }

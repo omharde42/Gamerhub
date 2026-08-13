@@ -4,7 +4,8 @@ import { AuthRequest } from '../types';
 import prisma from '../config/database';
 import { config } from '../config';
 import { NotFoundError, ValidationError } from '../utils/errors';
-import { verifySteamOpenIdResponse, SteamOpenIdParams } from '../utils/oauth';
+import { verifySteamOpenIdResponse, SteamOpenIdParams, signOAuthState, verifyOAuthState, OAuthStatePayload } from '../utils/oauth';
+import crypto from 'crypto';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 
@@ -189,21 +190,18 @@ export class AuthController {
     res.redirect(`${clientUrl}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
   });
 
-  discordRedirect = asyncHandler(async (req: Request, res: Response) => {
-    const action = (req.query.action as string) || 'login';
-    const userId = (req.query.userId as string) || '';
-    const host = req.get('host') || 'localhost:4000';
-    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-
-    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  discordRedirect = asyncHandler(async (_req: Request, res: Response) => {
+    // Login flow only. Account linking goes through the authenticated
+    // POST /auth/discord/link endpoint (see discordLinkInitiate) — the old
+    // query-driven `?action=link&userId=` flow let an attacker link their own
+    // Discord account to a victim's account and then log in as the victim.
+    const clientUrl = config.frontendUrl;
     const clientId = config.discord.clientId || process.env.DISCORD_CLIENT_ID;
+    const redirectUri = config.discord.redirectUri || `${config.apiUrl}/api/auth/discord/callback`;
 
-    // Use backend callback URL or custom redirect URI
-    const redirectUri = config.discord.redirectUri || `${protocol}://${host}/api/auth/discord/callback`;
-
-    // Encode state parameter for CSRF prevention & action tracking
-    const statePayload = JSON.stringify({ action, userId, nonce: Date.now() });
-    const state = Buffer.from(statePayload).toString('base64url');
+    // Signed state so the callback can trust action/nonce values.
+    const statePayload: OAuthStatePayload = { action: 'login', nonce: crypto.randomBytes(16).toString('hex'), iat: Date.now() };
+    const state = signOAuthState(statePayload, config.jwt.secret);
 
     if (!clientId) {
       // In dev or when Client ID is unconfigured, fallback gracefully so local testing never breaks
@@ -216,13 +214,8 @@ export class AuthController {
         email: `discord_dev@gamerhub.local`,
       };
 
-      if (action === 'link' && userId) {
-        await authService.linkDiscordAccount(userId, mockProfile);
-        return res.redirect(`${clientUrl}/profile/settings?linked=discord`);
-      } else {
-        const result = await authService.discordLogin(mockProfile);
-        return res.redirect(`${clientUrl}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
-      }
+      const result = await authService.discordLogin(mockProfile);
+      return res.redirect(`${clientUrl}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
     }
 
     const discordAuthUrl = new URL('https://discord.com/api/oauth2/authorize');
@@ -235,34 +228,75 @@ export class AuthController {
     res.redirect(discordAuthUrl.toString());
   });
 
+  discordLinkInitiate = asyncHandler(async (req: AuthRequest, res: Response) => {
+    // Authenticated initiation of the Discord linking flow. The signed state
+    // binds the link to the CURRENT authenticated user, so a victim's userId
+    // can never be injected into the flow by an attacker.
+    const clientId = config.discord.clientId || process.env.DISCORD_CLIENT_ID;
+    const redirectUri = config.discord.redirectUri || `${config.apiUrl}/api/auth/discord/callback`;
+
+    if (!clientId) {
+      // Dev fallback: link a mock Discord identity directly.
+      const mockDiscordId = `discord_dev_${Date.now()}`;
+      const mockProfile = {
+        id: mockDiscordId,
+        username: `DiscordDev_${mockDiscordId.slice(-4)}`,
+        globalName: 'Discord Dev User',
+        avatar: 'https://cdn.discordapp.com/embed/avatars/0.png',
+        email: 'discord_dev@gamerhub.local',
+      };
+      await authService.linkDiscordAccount(req.user!.userId, mockProfile);
+      return sendSuccess(res, { linked: true }, 'Discord account linked successfully (dev mock)');
+    }
+
+    const statePayload: OAuthStatePayload = {
+      action: 'link',
+      userId: req.user!.userId,
+      nonce: crypto.randomBytes(16).toString('hex'),
+      iat: Date.now(),
+    };
+    const state = signOAuthState(statePayload, config.jwt.secret);
+
+    const discordAuthUrl = new URL('https://discord.com/api/oauth2/authorize');
+    discordAuthUrl.searchParams.append('client_id', clientId);
+    discordAuthUrl.searchParams.append('redirect_uri', redirectUri);
+    discordAuthUrl.searchParams.append('response_type', 'code');
+    discordAuthUrl.searchParams.append('scope', 'identify email');
+    discordAuthUrl.searchParams.append('state', state);
+
+    sendSuccess(res, { url: discordAuthUrl.toString() });
+  });
+
   discordCallback = asyncHandler(async (req: Request, res: Response) => {
     const { code, state, error, error_description } = req.query;
-    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const clientUrl = config.frontendUrl;
 
     if (error || !code) {
       const errorMsg = (error_description as string) || (error as string) || 'Discord authentication was cancelled or failed';
       return res.redirect(`${clientUrl}/auth/callback?error=${encodeURIComponent(errorMsg)}`);
     }
 
+    // Only trust a state that carries a valid HMAC signature from this server;
+    // an unsigned/tampered/expired state is treated as a login (no userId) and
+    // can never trigger an account link.
     let action = 'login';
     let userId = '';
 
     if (state && typeof state === 'string') {
-      try {
-        const decodedState = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
-        action = decodedState.action || 'login';
-        userId = decodedState.userId || '';
-      } catch (e) {
-        console.warn('Could not parse Discord OAuth state parameter:', e);
+      const verifiedState = verifyOAuthState(state, config.jwt.secret);
+      if (verifiedState) {
+        action = verifiedState.action || 'login';
+        userId = verifiedState.userId || '';
+      } else {
+        console.warn('Discord OAuth state failed verification; ignoring it');
       }
     }
 
     try {
       const clientId = config.discord.clientId || process.env.DISCORD_CLIENT_ID || '';
       const clientSecret = config.discord.clientSecret || process.env.DISCORD_CLIENT_SECRET || '';
-      const host = req.get('host') || 'localhost:4000';
-      const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-      const redirectUri = config.discord.redirectUri || `${protocol}://${host}/api/auth/discord/callback`;
+      // Must match the redirect_uri used when building the authorize URL.
+      const redirectUri = config.discord.redirectUri || `${config.apiUrl}/api/auth/discord/callback`;
 
       // 1. Exchange code for access token
       const tokenRes = await fetch('https://discord.com/api/oauth2/token', {

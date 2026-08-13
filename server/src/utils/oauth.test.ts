@@ -1,4 +1,4 @@
-import { verifySteamOpenIdResponse, SteamOpenIdParams } from './oauth';
+import { verifySteamOpenIdResponse, SteamOpenIdParams, signOAuthState, verifyOAuthState } from './oauth';
 
 const EXPECTED_RETURN_TO = 'https://api.gamerhub.example/api/auth/steam/callback';
 
@@ -68,5 +68,40 @@ describe('verifySteamOpenIdResponse', () => {
   it('fails closed when the verification round trip errors', async () => {
     const ok = await verifySteamOpenIdResponse(validParams(), EXPECTED_RETURN_TO, mockFetch(null));
     expect(ok).toBe(false);
+  });
+});
+
+describe('signOAuthState / verifyOAuthState', () => {
+  const SECRET = 'test-oauth-state-secret';
+  const payload = { action: 'link', userId: 'victim-user-id', nonce: 'abc123', iat: Date.now() };
+
+  it('round-trips a signed state', () => {
+    const state = signOAuthState(payload, SECRET);
+    const verified = verifyOAuthState(state, SECRET);
+    expect(verified).not.toBeNull();
+    expect(verified!.action).toBe('link');
+    expect(verified!.userId).toBe('victim-user-id');
+  });
+
+  it('rejects a state signed with a different secret', () => {
+    const state = signOAuthState(payload, 'attacker-secret');
+    expect(verifyOAuthState(state, SECRET)).toBeNull();
+  });
+
+  it('rejects a tampered payload (attacker swaps userId)', () => {
+    // Simulate the old attack: base64-encode { action: 'link', userId: victim } and use a valid-looking but wrong sig
+    const forged = Buffer.from(JSON.stringify({ action: 'link', userId: 'victim-user-id', nonce: 'x', iat: Date.now() })).toString('base64url');
+    expect(verifyOAuthState(`${forged}.c2lnbmF0dXJl`, SECRET)).toBeNull();
+  });
+
+  it('rejects an expired state', () => {
+    const expired = { ...payload, iat: Date.now() - 11 * 60 * 1000 };
+    const state = signOAuthState(expired, SECRET);
+    expect(verifyOAuthState(state, SECRET)).toBeNull();
+  });
+
+  it('rejects malformed state strings', () => {
+    expect(verifyOAuthState('not-a-signed-state', SECRET)).toBeNull();
+    expect(verifyOAuthState('a.b.c', SECRET)).toBeNull();
   });
 });

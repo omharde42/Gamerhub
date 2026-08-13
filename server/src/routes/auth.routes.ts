@@ -14,6 +14,7 @@ router.post('/google', authController.googleLogin);
 router.get('/steam', authController.steamRedirect);
 router.get('/steam/callback', authController.steamCallback);
 router.get('/discord', authController.discordRedirect);
+router.post('/discord/link', authenticate, authController.discordLinkInitiate);
 router.get('/discord/callback', authController.discordCallback);
 router.post('/discord/disconnect', authenticate, authController.discordDisconnect);
 router.get('/accounts', authenticate, authController.getLinkedAccounts);
