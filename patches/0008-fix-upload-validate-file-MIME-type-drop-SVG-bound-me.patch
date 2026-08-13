@@ -1,0 +1,131 @@
+From 78a8b62e0d614270429ae8fe0cd7822c8ebb689f Mon Sep 17 00:00:00 2001
+From: "omharde@4" <you@example.com>
+Date: Thu, 13 Aug 2026 11:18:53 +0530
+Subject: [PATCH 08/12] fix(upload): validate file MIME type, drop SVG, bound
+ memory usage
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- SVG uploads were allowed based on extension alone; SVG is executable
+  content served as image/svg+xml, so a crafted file could run scripts when
+  opened or embedded (stored XSS / content spoofing).
+- The filter checked only the filename extension, so a renamed executable
+  (evil.exe -> evil.png) passed. It now requires the declared MIME type to
+  match the extension category, failing closed.
+- uploadMedia allowed 10 x 50MB in memory per request (~500MB peak). Reduced
+  to 6 x 25MB to bound per-request memory (multer memory storage).
+
+Tests: server/src/middleware/upload.test.ts - accepts matching
+image/video/audio; rejects SVG, renamed executables, mismatched MIME, and
+unsupported extensions.
+
+Run: cd server && npx jest src/middleware/upload.test.ts
+
+🤖 Generated with Codebuff
+Co-Authored-By: Codebuff <noreply@codebuff.com>
+---
+ server/src/middleware/upload.test.ts | 43 ++++++++++++++++++++++++++++
+ server/src/middleware/upload.ts      | 31 ++++++++++++++------
+ 2 files changed, 65 insertions(+), 9 deletions(-)
+ create mode 100644 server/src/middleware/upload.test.ts
+
+diff --git a/server/src/middleware/upload.test.ts b/server/src/middleware/upload.test.ts
+new file mode 100644
+index 0000000..2346265
+--- /dev/null
++++ b/server/src/middleware/upload.test.ts
+@@ -0,0 +1,43 @@
++import { fileFilter } from './upload';
++import { AppError } from '../utils/errors';
++
++function callFileFilter(filename: string, mimetype: string): Promise<boolean> {
++  return new Promise((resolve, reject) => {
++    const file = { originalname: filename, mimetype } as Express.Multer.File;
++    fileFilter(null, file, (err) => {
++      if (err) reject(err);
++      else resolve(true);
++    });
++  });
++}
++
++describe('upload fileFilter', () => {
++  it('accepts an image with a matching extension and MIME type', async () => {
++    await expect(callFileFilter('avatar.png', 'image/png')).resolves.toBe(true);
++  });
++
++  it('rejects SVG files (executable content / stored XSS risk)', async () => {
++    await expect(callFileFilter('logo.svg', 'image/svg+xml')).rejects.toThrow(AppError);
++  });
++
++  it('rejects a renamed executable (mismatched extension and MIME)', async () => {
++    // Old behavior: extension check only -> evil.png with application/octet-stream passed.
++    await expect(callFileFilter('evil.png', 'application/x-msdownload')).rejects.toThrow(AppError);
++  });
++
++  it('rejects an image extension with a non-image MIME type', async () => {
++    await expect(callFileFilter('photo.jpg', 'text/html')).rejects.toThrow(AppError);
++  });
++
++  it('rejects files with an unsupported extension', async () => {
++    await expect(callFileFilter('notes.txt', 'text/plain')).rejects.toThrow(AppError);
++  });
++
++  it('accepts a video with matching extension and MIME type', async () => {
++    await expect(callFileFilter('clip.mp4', 'video/mp4')).resolves.toBe(true);
++  });
++
++  it('accepts audio with matching extension and MIME type', async () => {
++    await expect(callFileFilter('note.mp3', 'audio/mpeg')).resolves.toBe(true);
++  });
++});
+diff --git a/server/src/middleware/upload.ts b/server/src/middleware/upload.ts
+index f1226ce..3e36b12 100644
+--- a/server/src/middleware/upload.ts
++++ b/server/src/middleware/upload.ts
+@@ -1,20 +1,33 @@
+ import multer from 'multer';
+ import path from 'path';
+ import { AppError } from '../utils/errors';
++
+ const storage = multer.memoryStorage();
+-const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+-  const allowedImageTypes = /jpeg|jpg|png|gif|webp|svg/; 
+-  const allowedVideoTypes = /mp4|webm|mov|ogg|avi|mkv|flv/; 
+-  const allowedAudioTypes = /mp3|wav|ogg|aac|flac/;
++
++// SVG is deliberately excluded: SVG files can contain scripts and are served
++// as image/svg+xml, which browsers will execute when opened directly or
++// embedded via <iframe> — a stored-XSS vector.
++const IMAGE_TYPES = /jpeg|jpg|png|gif|webp/;
++const VIDEO_TYPES = /mp4|webm|mov|ogg|avi|mkv|flv/;
++const AUDIO_TYPES = /mp3|wav|ogg|aac|flac/;
++
++export const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
++  // Validate BOTH the extension and the declared MIME type so a renamed
++  // executable (e.g. evil.exe -> evil.png) cannot pass the filter.
+   const ext = path.extname(file.originalname).toLowerCase().slice(1);
+-  const isImage = allowedImageTypes.test(ext); 
+-  const isVideo = allowedVideoTypes.test(ext); 
+-  const isAudio = allowedAudioTypes.test(ext);
+-  if (isImage || isVideo || isAudio) cb(null, true); 
++  const mime = file.mimetype || '';
++
++  const isImage = IMAGE_TYPES.test(ext) && mime.startsWith('image/');
++  const isVideo = VIDEO_TYPES.test(ext) && mime.startsWith('video/');
++  const isAudio = AUDIO_TYPES.test(ext) && mime.startsWith('audio/');
++
++  if (isImage || isVideo || isAudio) cb(null, true);
+   else cb(new AppError(`Invalid file type: .${ext}. Allowed: images (jpeg, png, gif, webp), videos (mp4, webm, mov, ogg, avi), audio (mp3, wav, ogg)`, 400));
+ };
++
+ export const uploadAvatar = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter }).single('avatar');
+ export const uploadBanner = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter }).single('banner');
+-export const uploadMedia = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 }, fileFilter }).array('media', 10);
++// Memory-backed uploads: keep the per-request ceiling bounded (6 x 25MB).
++export const uploadMedia = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 }, fileFilter }).array('media', 6);
+ export const uploadVoice = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter }).single('voiceNote');
+ export const uploadScreenshot = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter }).single('screenshot');
+-- 
+2.54.0.windows.1
+

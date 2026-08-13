@@ -1,0 +1,38 @@
+From 87fecd56d64c4e3ff7d4580cf9a3687d927987b9 Mon Sep 17 00:00:00 2001
+From: "omharde@4" <you@example.com>
+Date: Thu, 13 Aug 2026 11:23:40 +0530
+Subject: [PATCH 12/12] fix(auth): require providerId claim in verified
+ Supabase token
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Follow-up to the signature-verification fix: after verifySupabaseJwt, the
+providerId (sub) claim must be present before it is used as a unique key for
+account lookups. Missing sub now yields a validation error instead of an
+undefined-key Prisma query.
+
+Validation: cd server && npx tsc --noEmit; npx jest.
+
+🤖 Generated with Codebuff
+Co-Authored-By: Codebuff <noreply@codebuff.com>
+---
+ server/src/services/auth.service.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/server/src/services/auth.service.ts b/server/src/services/auth.service.ts
+index e6986ff..7fa8b0b 100644
+--- a/server/src/services/auth.service.ts
++++ b/server/src/services/auth.service.ts
+@@ -132,7 +132,7 @@ export class AuthService {
+ 
+     const { email, sub: providerId, user_metadata } = decoded;
+ 
+-    if (!email) {
++    if (!email || !providerId) {
+       throw new ValidationError({ email: ['Supabase token payload does not contain an email'] });
+     }
+ 
+-- 
+2.54.0.windows.1
+

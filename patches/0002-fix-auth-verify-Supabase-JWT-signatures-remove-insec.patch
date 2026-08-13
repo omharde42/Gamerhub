@@ -1,0 +1,201 @@
+From b6dea614dfb7abf9c9faaf88598042ec69c1e8f5 Mon Sep 17 00:00:00 2001
+From: "omharde@4" <you@example.com>
+Date: Thu, 13 Aug 2026 11:06:34 +0530
+Subject: [PATCH 02/12] fix(auth): verify Supabase JWT signatures - remove
+ insecure decode fallback
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+socialLogin() fell back to jwt.decode() (which ignores signatures) whenever
+jwt.verify() threw, so any attacker could mint a token with an arbitrary email
+claim and take over any account. This is an authentication-bypass /
+account-takeover issue (critical).
+
+- Added server/src/utils/supabaseAuth.ts with verifySupabaseJwt() that fails
+  closed: missing secret or bad signature => 401. No decode fallback.
+- socialLogin() now uses it; removed the hard-coded dev fallback secret from
+  the verification path.
+- Fixed AppError so subclasses keep their own prototype (Object.setPrototypeOf
+  used AppError.prototype, breaking instanceof for UnauthorizedError and
+  friends in the auth middleware).
+
+Tests: server/src/utils/supabaseAuth.test.ts - accepts valid tokens; rejects
+tokens signed with another secret, the legacy hard-coded secret, unsigned
+tokens, and missing-secret configurations.
+
+Run: cd server && npx jest src/utils/supabaseAuth.test.ts
+
+🤖 Generated with Codebuff
+Co-Authored-By: Codebuff <noreply@codebuff.com>
+---
+ server/src/services/auth.service.ts   | 20 ++-------
+ server/src/utils/errors.ts            |  2 +-
+ server/src/utils/supabaseAuth.test.ts | 65 +++++++++++++++++++++++++++
+ server/src/utils/supabaseAuth.ts      | 34 ++++++++++++++
+ 4 files changed, 104 insertions(+), 17 deletions(-)
+ create mode 100644 server/src/utils/supabaseAuth.test.ts
+ create mode 100644 server/src/utils/supabaseAuth.ts
+
+diff --git a/server/src/services/auth.service.ts b/server/src/services/auth.service.ts
+index 05ef4e3..e6986ff 100644
+--- a/server/src/services/auth.service.ts
++++ b/server/src/services/auth.service.ts
+@@ -2,6 +2,7 @@ import prisma from '../config/database';
+ import { hashPassword, comparePassword, generateToken, generateRefreshToken, sanitizeUser } from '../utils/helpers';
+ import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from '../utils/errors';
+ import { sendEmail } from './email.service';
++import { verifySupabaseJwt } from '../utils/supabaseAuth';
+ import { redis } from '../config/redis';
+ import crypto from 'crypto';
+ import speakeasy from 'speakeasy';
+@@ -125,22 +126,9 @@ export class AuthService {
+       throw new ValidationError({ token: ['Supabase token is required'] });
+     }
+ 
+-    let decoded: { email: string; sub: string; user_metadata?: Record<string, unknown> } | null = null;
+-    try {
+-      const jwtSecret = process.env.SUPABASE_JWT_SECRET || 'dev-jwt-secret-change-in-production';
+-      const jwt = await import('jsonwebtoken');
+-      decoded = jwt.verify(supabaseToken, jwtSecret) as unknown as { email: string; sub: string; user_metadata?: Record<string, unknown> };
+-    } catch (err: any) {
+-      const jwt = await import('jsonwebtoken');
+-      decoded = jwt.decode(supabaseToken) as unknown as { email: string; sub: string; user_metadata?: Record<string, unknown> } | null;
+-      if (!decoded || typeof decoded !== 'object') {
+-        throw new UnauthorizedError('Invalid or expired Supabase authentication token');
+-      }
+-    }
+-
+-    if (!decoded) {
+-      throw new UnauthorizedError('Invalid or expired Supabase authentication token');
+-    }
++    // Fail closed: the token must carry a valid signature from Supabase.
++    // No fallback to jwt.decode() — an unsigned/forged token must never be accepted.
++    const decoded = verifySupabaseJwt(supabaseToken);
+ 
+     const { email, sub: providerId, user_metadata } = decoded;
+ 
+diff --git a/server/src/utils/errors.ts b/server/src/utils/errors.ts
+index 50d2507..acf7ba3 100644
+--- a/server/src/utils/errors.ts
++++ b/server/src/utils/errors.ts
+@@ -1,4 +1,4 @@
+-export class AppError extends Error { public statusCode: number; public isOperational: boolean; constructor(message: string, statusCode: number = 500) { super(message); this.statusCode = statusCode; this.isOperational = true; Object.setPrototypeOf(this, AppError.prototype); } }
++export class AppError extends Error { public statusCode: number; public isOperational: boolean; constructor(message: string, statusCode: number = 500) { super(message); this.statusCode = statusCode; this.isOperational = true; Object.setPrototypeOf(this, new.target.prototype); } }
+ export class NotFoundError extends AppError { constructor(resource: string = 'Resource') { super(`${resource} not found`, 404); } }
+ export class UnauthorizedError extends AppError { constructor(message: string = 'Unauthorized') { super(message, 401); } }
+ export class ForbiddenError extends AppError { constructor(message: string = 'Forbidden') { super(message, 403); } }
+diff --git a/server/src/utils/supabaseAuth.test.ts b/server/src/utils/supabaseAuth.test.ts
+new file mode 100644
+index 0000000..2f1ce53
+--- /dev/null
++++ b/server/src/utils/supabaseAuth.test.ts
+@@ -0,0 +1,65 @@
++import jwt from 'jsonwebtoken';
++import { verifySupabaseJwt } from './supabaseAuth';
++import { UnauthorizedError } from './errors';
++
++const SUPABASE_JWT_SECRET = 'test-supabase-jwt-secret-please-change';
++const ATTESTED_SECRET = 'attacker-known-secret';
++
++describe('verifySupabaseJwt', () => {
++  const realSecret = process.env.SUPABASE_JWT_SECRET;
++
++  afterEach(() => {
++    if (realSecret === undefined) {
++      delete process.env.SUPABASE_JWT_SECRET;
++    } else {
++      process.env.SUPABASE_JWT_SECRET = realSecret;
++    }
++  });
++
++  it('accepts a token signed with the configured Supabase secret', () => {
++    process.env.SUPABASE_JWT_SECRET = SUPABASE_JWT_SECRET;
++    const token = jwt.sign({ email: 'user@example.com', sub: '123' }, SUPABASE_JWT_SECRET);
++
++    const claims = verifySupabaseJwt(token);
++    expect(claims.email).toBe('user@example.com');
++    expect(claims.sub).toBe('123');
++  });
++
++  it('rejects a token signed with a different (attacker-known) secret', () => {
++    process.env.SUPABASE_JWT_SECRET = SUPABASE_JWT_SECRET;
++    // Old vulnerable code path: verification fails, then jwt.decode() accepts
++    // this token because it ignores the signature entirely.
++    const forgedToken = jwt.sign(
++      { email: 'victim@example.com', sub: 'attacker-controlled-sub' },
++      ATTESTED_SECRET
++    );
++
++    expect(() => verifySupabaseJwt(forgedToken)).toThrow(UnauthorizedError);
++  });
++
++  it('rejects a token signed with the old hard-coded dev fallback secret', () => {
++    process.env.SUPABASE_JWT_SECRET = SUPABASE_JWT_SECRET;
++    // Regression test for the removed 'dev-jwt-secret-change-in-production' fallback:
++    // even a token "signed" with that publicly-known string must be rejected.
++    const legacyToken = jwt.sign(
++      { email: 'victim@example.com', sub: 'attacker-controlled-sub' },
++      'dev-jwt-secret-change-in-production'
++    );
++
++    expect(() => verifySupabaseJwt(legacyToken)).toThrow(UnauthorizedError);
++  });
++
++  it('rejects an unsigned token', () => {
++    process.env.SUPABASE_JWT_SECRET = SUPABASE_JWT_SECRET;
++    const unsignedToken = jwt.sign({ email: 'victim@example.com', sub: 'x' }, '', { algorithm: 'none' });
++
++    expect(() => verifySupabaseJwt(unsignedToken)).toThrow(UnauthorizedError);
++  });
++
++  it('fails closed when the Supabase secret is not configured', () => {
++    delete process.env.SUPABASE_JWT_SECRET;
++    const token = jwt.sign({ email: 'user@example.com', sub: '123' }, SUPABASE_JWT_SECRET);
++
++    expect(() => verifySupabaseJwt(token)).toThrow(UnauthorizedError);
++  });
++});
+diff --git a/server/src/utils/supabaseAuth.ts b/server/src/utils/supabaseAuth.ts
+new file mode 100644
+index 0000000..16b41ff
+--- /dev/null
++++ b/server/src/utils/supabaseAuth.ts
+@@ -0,0 +1,34 @@
++import jwt from 'jsonwebtoken';
++import { UnauthorizedError } from './errors';
++
++export interface SupabaseClaims {
++  email?: string;
++  sub?: string;
++  user_metadata?: Record<string, unknown>;
++}
++
++/**
++ * Verifies a Supabase-issued JWT against the project's JWT secret.
++ *
++ * Security: this fails CLOSED. If the secret is missing, or the signature is
++ * invalid/expired, an UnauthorizedError is thrown. There is intentionally no
++ * fallback to jwt.decode() — decoding without verifying the signature would let
++ * an attacker mint arbitrary claims (e.g. any email address) and take over any
++ * account.
++ */
++export function verifySupabaseJwt(token: string): SupabaseClaims {
++  const jwtSecret = process.env.SUPABASE_JWT_SECRET;
++  if (!jwtSecret) {
++    throw new UnauthorizedError('Invalid or expired Supabase authentication token');
++  }
++  try {
++    const decoded = jwt.verify(token, jwtSecret) as unknown;
++    if (!decoded || typeof decoded !== 'object') {
++      throw new UnauthorizedError('Invalid or expired Supabase authentication token');
++    }
++    return decoded as SupabaseClaims;
++  } catch (err) {
++    if (err instanceof UnauthorizedError) throw err;
++    throw new UnauthorizedError('Invalid or expired Supabase authentication token');
++  }
++}
+-- 
+2.54.0.windows.1
+

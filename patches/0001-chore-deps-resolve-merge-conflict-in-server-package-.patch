@@ -1,0 +1,78 @@
+From acde2bdac74c623305bda320015cda0fb1cb2230 Mon Sep 17 00:00:00 2001
+From: "omharde@4" <you@example.com>
+Date: Thu, 13 Aug 2026 11:04:33 +0530
+Subject: [PATCH 01/12] chore(deps): resolve merge conflict in server package
+ files
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Unresolved conflict markers (uuid ^11.1.1 vs ^14.0.1) left server/package.json
+and package-lock.json as invalid JSON, breaking npm install/ci and any tooling
+that parses the manifest.
+
+Kept uuid ^11.1.1 to match the existing "overrides" pins for gaxios and
+teeny-request and @types/uuid. Verified both files parse and `npm ls uuid`
+resolves to 11.1.1.
+
+Related alert: build/install failure (broken manifest).
+Validation: node -e "JSON.parse(...)" on both files; npm ls uuid.
+
+🤖 Generated with Codebuff
+Co-Authored-By: Codebuff <noreply@codebuff.com>
+---
+ server/package-lock.json | 10 ----------
+ server/package.json      |  4 ----
+ 2 files changed, 14 deletions(-)
+
+diff --git a/server/package-lock.json b/server/package-lock.json
+index f0a8fa1..5bb4c84 100644
+--- a/server/package-lock.json
++++ b/server/package-lock.json
+@@ -33,11 +33,7 @@
+         "stripe": "^17.5.0",
+         "tsx": "^4.19.2",
+         "typescript": "^5.7.2",
+-<<<<<<< HEAD
+         "uuid": "^11.1.1",
+-=======
+-        "uuid": "^14.0.1",
+->>>>>>> b6317c53c8195069fbe2d4eb38b387ae4b35c4c9
+         "zod": "^3.23.8"
+       },
+       "devDependencies": {
+@@ -6932,15 +6928,9 @@
+       }
+     },
+     "node_modules/uuid": {
+-<<<<<<< HEAD
+       "version": "11.1.1",
+       "resolved": "https://registry.npmjs.org/uuid/-/uuid-11.1.1.tgz",
+       "integrity": "sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==",
+-=======
+-      "version": "14.0.1",
+-      "resolved": "https://registry.npmjs.org/uuid/-/uuid-14.0.1.tgz",
+-      "integrity": "sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==",
+->>>>>>> b6317c53c8195069fbe2d4eb38b387ae4b35c4c9
+       "funding": [
+         "https://github.com/sponsors/broofa",
+         "https://github.com/sponsors/ctavan"
+diff --git a/server/package.json b/server/package.json
+index 84d8af6..c3e6805 100644
+--- a/server/package.json
++++ b/server/package.json
+@@ -36,11 +36,7 @@
+     "stripe": "^17.5.0",
+     "tsx": "^4.19.2",
+     "typescript": "^5.7.2",
+-<<<<<<< HEAD
+     "uuid": "^11.1.1",
+-=======
+-    "uuid": "^14.0.1",
+->>>>>>> b6317c53c8195069fbe2d4eb38b387ae4b35c4c9
+     "zod": "^3.23.8"
+   },
+   "devDependencies": {
+-- 
+2.54.0.windows.1
+
