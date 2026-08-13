@@ -8,8 +8,14 @@ const getGamingNews = require("./news");
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+// Restrict CORS to the configured frontend origin(s) instead of allowing every
+// origin, which lets any website call this API from the browser.
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+app.use(cors({ origin: allowedOrigins }));
+app.use(express.json({ limit: '1mb' }));
 
 const PORT = process.env.PORT || process.env.port || 5000;
 
@@ -24,10 +30,9 @@ const pubgKey = (
     ""
 ).trim();
 
+// Log presence only - never log key material or its length.
 console.log("Clash API Key loaded:", clashKey ? "YES" : "NO");
-console.log("Clash API Key length:", clashKey.length);
 console.log("PUBG API Key loaded:", pubgKey ? "YES" : "NO");
-console.log("PUBG API Key length:", pubgKey.length);
 
 // Health Endpoint
 app.get("/health", (req, res) => {
