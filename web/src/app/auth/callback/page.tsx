@@ -46,7 +46,20 @@ function AuthCallbackContent() {
 
     const processSession = async () => {
       try {
-        // 1. Direct query parameters (Steam & Backend OAuth redirect)
+        // 1. Hash parameters from Backend OAuth redirects (#accessToken=...)
+        //    Tokens live in the fragment, not the query string, so they never
+        //    reach server logs, browser history, or Referer headers.
+        if (typeof window !== 'undefined' && window.location.hash) {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const hashAccess = hashParams.get('accessToken');
+          const hashRefresh = hashParams.get('refreshToken');
+          if (hashAccess && hashRefresh) {
+            await verifyAndLogin(hashAccess, hashRefresh);
+            return;
+          }
+        }
+
+        // 2. Legacy query parameters (kept for backward compatibility)
         const queryAccess = searchParams.get('accessToken');
         const queryRefresh = searchParams.get('refreshToken');
         if (queryAccess && queryRefresh) {
@@ -54,7 +67,7 @@ function AuthCallbackContent() {
           return;
         }
 
-        // 2. Hash parameters from Direct Google OAuth (#access_token=...)
+        // 3. Hash parameters from Direct Google OAuth (#access_token=...)
         if (typeof window !== 'undefined' && window.location.hash) {
           const hashParams = new URLSearchParams(window.location.hash.substring(1));
           const googleAccessToken = hashParams.get('access_token');
@@ -82,7 +95,7 @@ function AuthCallbackContent() {
           }
         }
 
-        // 3. Supabase Auth session (Google / Discord via Supabase)
+        // 4. Supabase Auth session (Google / Discord via Supabase)
         const { data: { session } } = await supabase.auth.getSession();
         if (session && session.access_token) {
           const provider = session.user?.app_metadata?.provider || 'google';
@@ -99,7 +112,7 @@ function AuthCallbackContent() {
           return;
         }
 
-        // 4. Supabase auth state listener fallback if session hydration takes a moment
+        // 5. Supabase auth state listener fallback if session hydration takes a moment
         const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
           if (newSession && newSession.access_token && isSubscribed) {
             try {

@@ -100,20 +100,13 @@ export class AuthController {
     sendSuccess(res, result, 'Logged in successfully!');
   });
 
-  googleRedirect = asyncHandler(async (req: Request, res: Response) => {
+  googleRedirect = asyncHandler(async (_req: Request, res: Response) => {
     const clientId = process.env.GOOGLE_CLIENT_ID || '1028691049535-cou454qqcspf45t2h0b2lllkqdsus1bi.apps.googleusercontent.com';
 
-    const originHeader = req.get('origin') || req.get('referer');
-    let clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-
-    if (originHeader) {
-      try {
-        const parsed = new URL(originHeader);
-        clientUrl = parsed.origin;
-      } catch {}
-    }
-
-    clientUrl = clientUrl.replace(/\/+$/, '');
+    // Redirect target is configuration-only. Deriving it from the Origin or
+    // Referer header (both attacker-controlled) previously enabled an open
+    // redirect that could send users and OAuth tokens to an attacker's domain.
+    const clientUrl = config.frontendUrl.replace(/\/+$/, '');
     const redirectUri = `${clientUrl}/auth/callback`;
 
     const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
@@ -187,7 +180,9 @@ export class AuthController {
     }
 
     const result = await authService.steamLogin(steamId, personaName, avatarUrl);
-    res.redirect(`${clientUrl}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
+    // Tokens go in the URL fragment, never the query string: query parameters
+    // leak into server access logs, browser history, and Referer headers.
+    res.redirect(`${clientUrl}/auth/callback#accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
   });
 
   discordRedirect = asyncHandler(async (_req: Request, res: Response) => {
@@ -215,7 +210,7 @@ export class AuthController {
       };
 
       const result = await authService.discordLogin(mockProfile);
-      return res.redirect(`${clientUrl}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
+      return res.redirect(`${clientUrl}/auth/callback#accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
     }
 
     const discordAuthUrl = new URL('https://discord.com/api/oauth2/authorize');
@@ -341,7 +336,7 @@ export class AuthController {
         return res.redirect(`${clientUrl}/profile/settings?linked=discord`);
       } else {
         const result = await authService.discordLogin(profile);
-        return res.redirect(`${clientUrl}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
+        return res.redirect(`${clientUrl}/auth/callback#accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
       }
     } catch (err: any) {
       console.error('Discord callback error:', err);
