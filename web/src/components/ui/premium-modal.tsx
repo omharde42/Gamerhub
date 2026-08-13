@@ -199,26 +199,12 @@ export function PremiumModal({
 
   const panelClasses = cn(
     'relative flex flex-col overflow-hidden bg-card text-foreground shadow-2xl border-border/40',
-<<<<<<< HEAD
-    variant === 'center' && cn('w-full max-h-[85dvh] rounded-3xl border', SIZE_MAX_W[size]),
-    // Mobile bottom sheets (and edge-to-edge drawers/full overlays) span to the
-    // screen edges, so pad them clear of the iOS/Android home-indicator safe area.
-    // env() resolves to 0 on desktop/non-notch devices, so this is a no-op there.
-    useBottomSheetMobile && 'absolute inset-x-0 bottom-0 w-full max-h-[92dvh] rounded-t-3xl border-t pb-[env(safe-area-inset-bottom)]',
-    useBottomSheetDesktop && 'absolute left-1/2 top-1/2 w-full h-[min(85dvh,52rem)] rounded-3xl border',
-    variant === 'left' && 'absolute inset-y-0 left-0 w-[min(85vw,20rem)] rounded-r-3xl border-r pb-[env(safe-area-inset-bottom)]',
-    variant === 'right' && 'absolute inset-y-0 right-0 w-[min(85vw,20rem)] rounded-l-3xl border-l pb-[env(safe-area-inset-bottom)]',
-    // Full overlays track the dynamic viewport (dvh) so they never extend behind
-    // the browser URL bar / home indicator on mobile.
-    variant === 'full' && 'absolute inset-x-0 top-0 h-dvh w-full rounded-none border-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]',
-=======
     variant === 'center' && cn('w-full h-full sm:h-auto max-h-full sm:max-h-[85dvh] rounded-none sm:rounded-3xl border-0 sm:border', SIZE_MAX_W[size]),
     useBottomSheetMobile && 'absolute inset-x-0 bottom-0 w-full max-h-[92dvh] rounded-t-3xl border-t',
     useBottomSheetDesktop && 'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[min(85dvh,52rem)] rounded-3xl border',
     variant === 'left' && 'absolute inset-y-0 left-0 w-[min(85vw,20rem)] rounded-r-3xl border-r',
     variant === 'right' && 'absolute inset-y-0 right-0 w-[min(85vw,20rem)] rounded-l-3xl border-l',
     variant === 'full' && 'absolute inset-0 h-full w-full rounded-none border-0',
->>>>>>> 908917fdc5533110f1326c2fcd4d606479dde397
     className
   );
 
