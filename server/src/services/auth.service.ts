@@ -132,7 +132,7 @@ export class AuthService {
 
     const { email, sub: providerId, user_metadata } = decoded;
 
-    if (!email) {
+    if (!email || !providerId) {
       throw new ValidationError({ email: ['Supabase token payload does not contain an email'] });
     }
 
