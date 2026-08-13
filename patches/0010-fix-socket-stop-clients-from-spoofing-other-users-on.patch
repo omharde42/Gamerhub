@@ -1,0 +1,44 @@
+From 7d9b2ea1fd7d82185d6f6e09628a776a5577b5f7 Mon Sep 17 00:00:00 2001
+From: "omharde@4" <you@example.com>
+Date: Thu, 13 Aug 2026 11:20:30 +0530
+Subject: [PATCH 10/12] fix(socket): stop clients from spoofing other users'
+ online presence
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+socket.on('user:online') accepted an arbitrary uid from the client and marked
+it online, so any authenticated client could spoof presence for any user.
+The handler now ignores the payload and announces only the socket's own
+authenticated userId.
+
+Validation: cd server && npx tsc --noEmit.
+
+🤖 Generated with Codebuff
+Co-Authored-By: Codebuff <noreply@codebuff.com>
+---
+ server/src/index.ts | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/server/src/index.ts b/server/src/index.ts
+index 0a2dd29..10df268 100644
+--- a/server/src/index.ts
++++ b/server/src/index.ts
+@@ -99,9 +99,11 @@ io.on('connection', (socket) => {
+   onlineUsers.add(userId);
+   io.emit('user:online', userId);
+ 
+-  socket.on('user:online', (uid: string) => {
+-    onlineUsers.add(uid);
+-    io.emit('user:online', uid);
++  socket.on('user:online', () => {
++    // Ignore any client-supplied uid: a socket may only announce itself as
++    // online, otherwise any user could spoof arbitrary users' presence.
++    onlineUsers.add(userId);
++    io.emit('user:online', userId);
+   });
+ 
+   socket.on('presence:update', (presence: string) => {
+-- 
+2.54.0.windows.1
+

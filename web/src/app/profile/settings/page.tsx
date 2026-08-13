@@ -152,7 +152,19 @@ export default function SettingsPage() {
 
   const handleLinkSocial = async (provider: string) => {
     if (provider === 'discord') {
-      window.location.href = `${API_URL}/auth/discord?action=link&userId=${user?.id}`;
+      // Authenticated initiation: the server signs a state bound to the current
+      // user, so the link can never be hijacked to attach to another account.
+      try {
+        const { data } = await api.post('/auth/discord/link');
+        if (data?.data?.url) {
+          window.location.href = data.data.url;
+        } else if (data?.data?.linked) {
+          refetchAccounts();
+          toast.success('Discord account linked successfully');
+        }
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Failed to start Discord linking');
+      }
       return;
     }
     if (provider === 'steam') {

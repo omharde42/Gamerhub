@@ -93,7 +93,16 @@ export class ChatService {
     return chats;
   }
 
-  async getChatMessages(chatId: string, page: number = 1, limit: number = 50) {
+  async getChatMessages(userId: string, chatId: string, page: number = 1, limit: number = 50) {
+    // Access control: only participants may read a conversation's messages.
+    // Without this check any authenticated user could read private chats by id.
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId },
+      select: { participants: { where: { userId }, select: { userId: true } } },
+    });
+    if (!chat) throw new NotFoundError('Chat not found');
+    if (chat.participants.length === 0) throw new ForbiddenError('Not a participant in this chat');
+
     const [messages, total] = await Promise.all([
       prisma.message.findMany({
         where: { chatId, isDeleted: false },
@@ -148,6 +157,12 @@ export class ChatService {
   }
 
   async markAsRead(chatId: string, userId: string) {
+    const membership = await prisma.chatParticipant.findFirst({
+      where: { chatId, userId },
+      select: { id: true },
+    });
+    if (!membership) throw new ForbiddenError('Not a participant in this chat');
+
     const unreadMessages = await prisma.message.findMany({
       where: { chatId, senderId: { not: userId }, readBy: { none: { userId } } },
       select: { id: true },

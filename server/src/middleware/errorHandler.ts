@@ -28,19 +28,27 @@ export const errorHandler = (err: Error, _req: Request, res: Response, _next: Ne
     return;
   }
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    // Log details server-side but never return raw Prisma messages to clients:
+    // they can reveal table/column names and internal schema details.
+    console.error('Prisma error:', err.code, err.message);
     const statusMap: Record<string, number> = {
       P2002: 409,
       P2003: 400,
       P2023: 400,
       P2025: 404,
     };
-    res.status(statusMap[err.code] || 400).json({ success: false, message: err.message });
+    const messageMap: Record<string, string> = {
+      P2002: 'A record with these details already exists',
+      P2003: 'Invalid reference provided',
+      P2023: 'Invalid data provided',
+      P2025: 'Record not found',
+    };
+    res.status(statusMap[err.code] || 400).json({ success: false, message: messageMap[err.code] || 'Database operation failed' });
     return;
   }
   if (err instanceof Prisma.PrismaClientValidationError) {
     console.error('Prisma Validation Error:', err.message);
-    const lastLine = err.message.split('\n').filter(Boolean).pop() || 'Invalid database input';
-    res.status(400).json({ success: false, message: `Database validation error: ${lastLine}` });
+    res.status(400).json({ success: false, message: 'Invalid database input' });
     return;
   }
   console.error('Unhandled error:', err);

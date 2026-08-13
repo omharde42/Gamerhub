@@ -99,9 +99,11 @@ io.on('connection', (socket) => {
   onlineUsers.add(userId);
   io.emit('user:online', userId);
 
-  socket.on('user:online', (uid: string) => {
-    onlineUsers.add(uid);
-    io.emit('user:online', uid);
+  socket.on('user:online', () => {
+    // Ignore any client-supplied uid: a socket may only announce itself as
+    // online, otherwise any user could spoof arbitrary users' presence.
+    onlineUsers.add(userId);
+    io.emit('user:online', userId);
   });
 
   socket.on('presence:update', (presence: string) => {
@@ -286,8 +288,16 @@ if (!fs.existsSync(bannersDir)) {
   fs.mkdirSync(bannersDir, { recursive: true });
 }
 app.use(cookieParser());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Keep the raw request body available: Stripe webhook signature verification
+// (stripe.webhooks.constructEvent) must run against the exact bytes received,
+// not the JSON-parsed object (re-serialization would break the HMAC).
+app.use(express.json({
+  limit: '10mb',
+  verify: (req: any, _res, buf: Buffer) => {
+    req.rawBody = buf;
+  },
+}));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
 app.use(generalLimiter);
