@@ -2,6 +2,7 @@ import prisma from '../config/database';
 import { hashPassword, comparePassword, generateToken, generateRefreshToken, sanitizeUser } from '../utils/helpers';
 import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from '../utils/errors';
 import { sendEmail } from './email.service';
+import { verifySupabaseJwt } from '../utils/supabaseAuth';
 import { redis } from '../config/redis';
 import crypto from 'crypto';
 import speakeasy from 'speakeasy';
@@ -125,22 +126,9 @@ export class AuthService {
       throw new ValidationError({ token: ['Supabase token is required'] });
     }
 
-    let decoded: { email: string; sub: string; user_metadata?: Record<string, unknown> } | null = null;
-    try {
-      const jwtSecret = process.env.SUPABASE_JWT_SECRET || 'dev-jwt-secret-change-in-production';
-      const jwt = await import('jsonwebtoken');
-      decoded = jwt.verify(supabaseToken, jwtSecret) as unknown as { email: string; sub: string; user_metadata?: Record<string, unknown> };
-    } catch (err: any) {
-      const jwt = await import('jsonwebtoken');
-      decoded = jwt.decode(supabaseToken) as unknown as { email: string; sub: string; user_metadata?: Record<string, unknown> } | null;
-      if (!decoded || typeof decoded !== 'object') {
-        throw new UnauthorizedError('Invalid or expired Supabase authentication token');
-      }
-    }
-
-    if (!decoded) {
-      throw new UnauthorizedError('Invalid or expired Supabase authentication token');
-    }
+    // Fail closed: the token must carry a valid signature from Supabase.
+    // No fallback to jwt.decode() — an unsigned/forged token must never be accepted.
+    const decoded = verifySupabaseJwt(supabaseToken);
 
     const { email, sub: providerId, user_metadata } = decoded;
 
