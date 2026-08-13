@@ -99,9 +99,11 @@ io.on('connection', (socket) => {
   onlineUsers.add(userId);
   io.emit('user:online', userId);
 
-  socket.on('user:online', (uid: string) => {
-    onlineUsers.add(uid);
-    io.emit('user:online', uid);
+  socket.on('user:online', () => {
+    // Ignore any client-supplied uid: a socket may only announce itself as
+    // online, otherwise any user could spoof arbitrary users' presence.
+    onlineUsers.add(userId);
+    io.emit('user:online', userId);
   });
 
   socket.on('presence:update', (presence: string) => {
