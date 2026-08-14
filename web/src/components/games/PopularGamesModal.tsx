@@ -30,9 +30,16 @@ export function PopularGamesModal({
   // Map user connected games
   const connectedGameIds = new Set<string>();
   userConnections.forEach((acc: any) => {
-    const raw = (acc.game || '').toLowerCase();
-    if (raw.includes('clash')) connectedGameIds.add('clash_of_clans');
-    if (raw.includes('pubg')) connectedGameIds.add('pubg');
+    const raw = (acc.game || '').toLowerCase().replace(/_/g, '');
+    if (raw.includes('clashroyale') || raw === 'cr') connectedGameIds.add('clash_royale');
+    else if (raw.includes('clash')) connectedGameIds.add('clash_of_clans');
+    if (raw.includes('brawlstars') || raw === 'bs') connectedGameIds.add('brawl_stars');
+    else if (raw.includes('pubg') && raw.includes('mobile')) connectedGameIds.add('bgmi');
+    else if (raw.includes('pubg')) connectedGameIds.add('pubg');
+    if (raw.includes('freefire')) connectedGameIds.add('freefire');
+    if (raw.includes('valorant')) connectedGameIds.add('valorant');
+    if (raw.includes('steam')) connectedGameIds.add('steam');
+    if (raw.includes('bgmi')) connectedGameIds.add('bgmi');
   });
 
   const filteredGames = GAMES_CATALOG.filter((game) => {

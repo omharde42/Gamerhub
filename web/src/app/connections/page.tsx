@@ -9,12 +9,45 @@ import api from '@/lib/api';
 import { GAMES_CATALOG } from '@/config/gamesCatalog';
 import { PopularGamesModal } from '@/components/games/PopularGamesModal';
 import { GamerPassportEmptyState } from '@/components/games/GamerPassportEmptyState';
-import { ClashOfClansRenderer } from '@/components/games/clashofclans/ClashOfClansRenderer';
-import { PubgRenderer } from '@/components/games/pubg/PubgRenderer';
-import { Sparkles, Trash2, CheckCircle2, Gamepad2, Plus } from 'lucide-react';
+import { GameRenderer } from '@/components/games';
+import { Sparkles, Trash2, CheckCircle2, Gamepad2, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { PremiumModal } from '@/components/ui/premium-modal';
+
+// Catalog id -> connector key used by /game/:game/* routes
+const CONNECTOR_KEY: Record<string, string> = {
+  clash_of_clans: 'clashofclans',
+  clash_royale: 'clashroyale',
+  brawl_stars: 'brawlstars',
+  pubg: 'pubg',
+  valorant: 'valorant',
+  steam: 'steam',
+  freefire: 'freefire',
+  bgmi: 'bgmi',
+};
+
+function normalizeGameKey(game: string): string {
+  let key = (game || '').toLowerCase().replace(/_/g, '');
+  if (key.includes('clashroyale') || key === 'cr') key = 'clash_royale';
+  else if (key.includes('clash')) key = 'clash_of_clans';
+  else if (key.includes('brawlstars') || key === 'bs') key = 'brawl_stars';
+  else if (key.includes('pubg') && key.includes('mobile')) key = 'bgmi';
+  else if (key.includes('pubg')) key = 'pubg';
+  else if (key.includes('freefire')) key = 'freefire';
+  else if (key.includes('valorant')) key = 'valorant';
+  else if (key.includes('steam')) key = 'steam';
+  else if (key.includes('bgmi')) key = 'bgmi';
+  return key;
+}
+
+function catalogFor(key: string) {
+  return GAMES_CATALOG.find((g) => g.id === key) || {
+    id: key,
+    name: key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    icon: '🎮',
+    color: '#3B82F6',
+  };
+}
 
 export default function ConnectionsPage() {
   const queryClient = useQueryClient();
@@ -30,15 +63,11 @@ export default function ConnectionsPage() {
     },
   });
 
-  // Map connected games
-  const connectedMap = new Map<string, any>();
-  userAccounts.forEach((acc: any) => {
-    const key = (acc.game || '').toLowerCase().replace(/_/g, '');
-    connectedMap.set(key, acc);
+  // Map connected games to catalog items
+  const connectedGames = userAccounts.map((acc: any) => {
+    const key = normalizeGameKey(acc.game || '');
+    return { account: acc, config: catalogFor(key), key };
   });
-
-  const cocAccount = userAccounts.find((a: any) => (a.game || '').toUpperCase().includes('CLASH'));
-  const pubgAccount = userAccounts.find((a: any) => (a.game || '').toUpperCase().includes('PUBG'));
 
   const connectedCount = userAccounts.length;
 
@@ -58,6 +87,9 @@ export default function ConnectionsPage() {
     },
   });
 
+  const isConnecting = Boolean(connectingGameId);
+  const isConnectingAlreadyConnected = connectedGames.some((x: any) => x.key === connectingGameId);
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
       {/* Header Banner */}
@@ -75,7 +107,7 @@ export default function ConnectionsPage() {
                 Connected Games & Gamer Passport <Sparkles className="h-5 w-5 text-amber-400" />
               </h1>
               <p className="text-xs md:text-sm text-muted-foreground max-w-xl">
-                Connect official Clash of Clans and PUBG PC accounts. Real verified player data is synchronized directly to your Gamer Passport!
+                Connect your game accounts — Clash of Clans, Clash Royale, Brawl Stars, PUBG PC, Valorant, Free Fire, BGMI & more. Verified player data syncs directly to your Gamer Passport!
               </p>
             </div>
 
@@ -90,7 +122,7 @@ export default function ConnectionsPage() {
       </Card>
 
       {/* Main Content Area */}
-      {connectedCount === 0 && !connectingGameId ? (
+      {connectedCount === 0 && !isConnecting ? (
         <GamerPassportEmptyState onOpenPopularGames={() => setIsPopularGamesOpen(true)} />
       ) : (
         <div className="space-y-6">
@@ -109,47 +141,50 @@ export default function ConnectionsPage() {
             </Button>
           </div>
 
-          {/* Connected Game Cards */}
+          {/* Connected Game Sections */}
           <div className="space-y-6">
-            {/* Clash of Clans Section */}
-            {(cocAccount || connectingGameId === 'clash_of_clans') && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-muted-foreground">Clash of Clans Connector</span>
-                  {cocAccount && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => disconnectMutation.mutate('clashofclans')}
-                      disabled={disconnectMutation.isPending}
-                      className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7 px-2.5 rounded-lg gap-1"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Disconnect Clash
-                    </Button>
-                  )}
+            {connectedGames.map(({ account, config, key }: any) => (
+              <div key={key} className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 min-w-0">
+                    <span className="text-sm">{config.icon}</span>
+                    <span className="truncate">{config.name} Connector</span>
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] gap-1 shrink-0">
+                      <CheckCircle2 className="h-3 w-3" /> Connected
+                    </Badge>
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => disconnectMutation.mutate(CONNECTOR_KEY[key] || key)}
+                    disabled={disconnectMutation.isPending}
+                    className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7 px-2.5 rounded-lg gap-1 shrink-0"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Disconnect
+                  </Button>
                 </div>
-                <ClashOfClansRenderer gameKey="clashofclans" gameUid={cocAccount?.inGameUid || ''} isOwner={true} />
+                <GameRenderer gameKey={key} gameUid={account.inGameUid || ''} isOwner={true} />
               </div>
-            )}
+            ))}
 
-            {/* PUBG PC Section */}
-            {(pubgAccount || connectingGameId === 'pubg') && (
+            {/* Connecting a new game */}
+            {isConnecting && !isConnectingAlreadyConnected && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-muted-foreground">PUBG PC / Steam Connector</span>
-                  {pubgAccount && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => disconnectMutation.mutate('pubg')}
-                      disabled={disconnectMutation.isPending}
-                      className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7 px-2.5 rounded-lg gap-1"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Disconnect PUBG
-                    </Button>
-                  )}
+                  <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                    <span className="text-sm">{catalogFor(connectingGameId as string).icon}</span>
+                    {catalogFor(connectingGameId as string).name} Connector
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConnectingGameId(null)}
+                    className="text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 h-7 px-2.5 rounded-lg gap-1"
+                  >
+                    <X className="h-3.5 w-3.5" /> Cancel
+                  </Button>
                 </div>
-                <PubgRenderer gameKey="pubg" gameUid={pubgAccount?.inGameUid || ''} isOwner={true} />
+                <GameRenderer gameKey={connectingGameId as string} gameUid="" isOwner={true} />
               </div>
             )}
           </div>
@@ -163,7 +198,8 @@ export default function ConnectionsPage() {
         userConnections={userAccounts}
         onSelectGameToConnect={(gameId) => {
           setConnectingGameId(gameId);
-          toast.success(`Selected ${gameId === 'clash_of_clans' ? 'Clash of Clans' : 'PUBG PC'}. Enter your details below.`);
+          setIsPopularGamesOpen(false);
+          toast.success(`Selected ${catalogFor(gameId).name}. Enter your details below.`);
         }}
       />
     </div>
