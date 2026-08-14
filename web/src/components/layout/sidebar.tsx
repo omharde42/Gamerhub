@@ -44,6 +44,9 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  // `useTheme` must run on every render (even when the sidebar is hidden) so
+  // the hook order stays stable — the app-wide ThemeProvider always wraps it.
+  const { theme: activeTheme, setTheme } = useTheme();
 
   const { data: chatUnreadData } = useQuery({
     queryKey: ['chat-unread'],
@@ -53,8 +56,6 @@ export function Sidebar() {
   const totalChatUnread = Object.values(chatUnreadData || {}).reduce((sum: number, c: any) => sum + (c as number), 0);
 
   if (pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/')) return null;
-
-  const { theme: activeTheme, setTheme } = useTheme();
 
   const handleLogout = () => {
     logout();

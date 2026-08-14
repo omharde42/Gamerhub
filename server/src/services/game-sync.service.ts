@@ -15,9 +15,9 @@ export class GameSyncService {
   async syncSteam(userId: string, steamId: string): Promise<SyncResult> {
     try {
       let steamLevel = 42;
-      let hoursPlayed = 1280.5;
-      let totalMatches = 540;
-      let winRate = 64.5;
+      const hoursPlayed = 1280.5;
+      const totalMatches = 540;
+      const winRate = 64.5;
       let avatarUrl = '';
       let personaName = `SteamPlayer_${steamId.slice(-4)}`;
 
@@ -297,8 +297,8 @@ export class GameSyncService {
     try {
       let rank = 'Grand Champion';
       let level = 14;
-      let totalMatches = 1450;
-      let winRate = 66.8;
+      const totalMatches = 1450;
+      const winRate = 66.8;
 
       if (subGame === 'CLASH_OF_CLANS') {
         rank = 'Town Hall 16 • Legend League';

@@ -28,6 +28,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { E2EEEngine } from '@/lib/e2ee';
 import { BackHeader } from '@/components/common/back-header';
+import { createSocketErrorHandler } from '@/lib/chat-socket';
 
 function DiscordMessagesPage() {
   const router = useRouter();
@@ -45,6 +46,8 @@ function DiscordMessagesPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<any[]>([]);
+  // Mirror of `messages` for use inside socket handlers without re-subscribing.
+  const messagesRef = useRef<any[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [chatSearchQuery, setChatSearchQuery] = useState('');
@@ -256,6 +259,8 @@ function DiscordMessagesPage() {
     }
   }, [user?.id]);
 
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
   useEffect(() => { if (messagesData) setMessages(messagesData); }, [messagesData]);
 
   // Decrypt incoming E2EE messages in real-time
@@ -416,14 +421,25 @@ function DiscordMessagesPage() {
             : msg
         ));
       };
+
+      // If the server rejects a message (e.g. not a participant, send failed),
+      // mark any pending optimistic message as failed instead of leaving it
+      // stuck in the "sending" state forever.
+      const onSocketError = createSocketErrorHandler({
+        getMessages: () => messagesRef.current,
+        setMessages,
+        toast,
+      });
       
       socket.on('message:new', onMessage);
       socket.on('messages:read', onMessagesRead);
+      socket.on('error', onSocketError);
       
       return () => {
         socket.emit('leave:chat', selectedChat);
         socket.off('message:new', onMessage);
         socket.off('messages:read', onMessagesRead);
+        socket.off('error', onSocketError);
       };
     }
   }, [selectedChat, socket, queryClient, user?.id]);

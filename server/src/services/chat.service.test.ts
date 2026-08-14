@@ -30,7 +30,6 @@ jest.mock('../config/database', () => ({
   },
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
 describe('ChatService access control', () => {

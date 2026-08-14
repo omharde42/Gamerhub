@@ -18,7 +18,6 @@ type SensitiveUserFields = 'password' | 'twoFactorSecret';
 export type SafeUser = Omit<User, SensitiveUserFields>;
 
 export const sanitizeUser = (user: User): SafeUser => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { password, twoFactorSecret, ...sanitized } = user;
   void password; void twoFactorSecret; // explicitly acknowledge unused fields
   return sanitized;

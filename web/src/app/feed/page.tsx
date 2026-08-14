@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Users, Gamepad2, RefreshCw, Newspaper, ExternalLink, Loader2, Zap, Sparkles } from 'lucide-react';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { io } from 'socket.io-client';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { SOCKET_URL } from '@/lib/constants';
@@ -67,7 +68,6 @@ export default function FeedPage() {
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
-    const { io } = require('socket.io-client');
     const socket = io(SOCKET_URL, { auth: { token } });
     socketRef.current = socket;
     

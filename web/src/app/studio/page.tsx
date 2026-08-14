@@ -802,7 +802,7 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
       const stream = canvas.captureStream(30);
       const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
       const chunks: Blob[] = [];
-      let lastProgress = 0;
+      const lastProgress = 0;
       recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
       recorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'video/webm' });

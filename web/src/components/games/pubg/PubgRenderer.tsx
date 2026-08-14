@@ -46,7 +46,7 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
   const isConnected = Boolean(effectiveUid);
 
   // Fetch Live PUBG Profile & Stats
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['game-profile', 'pubg', effectiveUid || nameInput],
     queryFn: async () => {
       const targetName = effectiveUid || nameInput;
@@ -56,7 +56,10 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
     },
     enabled: Boolean(effectiveUid || nameInput),
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
+
+  const fetchError = (error as any)?.response?.data?.message || (error as any)?.message || null;
 
   // Connect / Update Mutation
   const connectMutation = useMutation({
@@ -78,11 +81,19 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
 
   const handleConnectSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nameInput.trim()) {
+    const trimmed = nameInput.trim();
+    if (!trimmed) {
       toast.error('Please enter a valid PUBG Steam Player Name (e.g. TGLTN)');
       return;
     }
-    connectMutation.mutate(nameInput.trim());
+    // PUBG Mobile UIDs are numeric IDs. This integration is PC/Console only,
+    // so reject them up-front with a clear message instead of a confusing
+    // "player not found" from the Steam shard. The backend re-validates too.
+    if (/^\d+$/.test(trimmed)) {
+      toast.error('PUBG Mobile UIDs are not supported for the PC/Console integration. Enter your PUBG PC/Steam player name instead.');
+      return;
+    }
+    connectMutation.mutate(trimmed);
   };
 
   return (
@@ -186,15 +197,15 @@ export function PubgRenderer({ gameUid, isOwner }: PubgRendererProps) {
                 </div>
               ) : isError ? (
                 <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2.5 text-red-300 text-xs font-semibold">
+                  <div className="flex items-center gap-2.5 text-red-300 text-xs font-semibold min-w-0">
                     <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
-                    <span>🔴 Unable to fetch live PUBG API data right now.</span>
+                    <span className="break-words">{fetchError || 'Unable to fetch live PUBG API data right now. The API may be temporarily unavailable.'}</span>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => refetch()}
-                    className="text-xs font-bold text-red-300 border-red-500/40 rounded-xl"
+                    className="text-xs font-bold text-red-300 border-red-500/40 rounded-xl shrink-0"
                   >
                     Retry Sync
                   </Button>

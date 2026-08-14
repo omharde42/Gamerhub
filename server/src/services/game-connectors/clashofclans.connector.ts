@@ -94,3 +94,5 @@ export class ClashOfClansConnector implements IGameConnector {
     return true;
   }
 }
+
+export const clashOfClansConnector = new ClashOfClansConnector();

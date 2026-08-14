@@ -30,6 +30,42 @@ export interface PubgOverviewProps {
 export function PubgOverview({ data }: PubgOverviewProps) {
   const { player, stats } = data;
 
+  // The PUBG API reports no ranked matches for brand-new / unranked accounts.
+  // In that case we show an honest "statistics unavailable" state instead of
+  // displaying zeros as if the player had real stats.
+  const hasStats = (stats?.matches || 0) > 0;
+
+  if (!hasStats) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-3xl bg-gradient-to-r from-amber-950/50 via-black/80 to-zinc-950 border border-amber-500/30 shadow-xl">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-600 flex items-center justify-center text-2xl shadow-lg shadow-amber-500/30 border border-yellow-300/40">
+              🪖
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl font-black text-white tracking-wide">{player.name}</h3>
+                <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold px-2.5 py-0.5">
+                  STEAM (PC)
+                </Badge>
+              </div>
+              <p className="text-xs text-gray-400 font-mono mt-0.5">PUBG ID: {player.id}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-black/40 border border-white/10 flex flex-col items-center text-center space-y-2">
+          <Info className="h-8 w-8 text-amber-400/70" />
+          <p className="text-sm font-bold text-white">Statistics unavailable</p>
+          <p className="text-xs text-gray-400 max-w-md leading-relaxed">
+            This account has no ranked match data yet. Stats appear automatically once the player has played ranked matches on PUBG PC.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const statItems = [
     {
       label: 'K/D Ratio',

@@ -256,7 +256,7 @@ export class ChallengeService {
     }
     if (scheduledAt < now) scheduledAt = now;
 
-    let expiresAt = input.expiresAt
+    const expiresAt = input.expiresAt
       ? new Date(input.expiresAt)
       : new Date(scheduledAt.getTime() + 48 * 60 * 60 * 1000);
     if (Number.isNaN(expiresAt.getTime())) throw new ValidationError({ expiresAt: ['Invalid expiry date'] });
