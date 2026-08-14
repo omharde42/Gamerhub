@@ -18,7 +18,7 @@ const FEATURED_TOURNAMENTS = [
     id: 't-1',
     title: 'Wox Sorning Team Masters',
     game: 'Valorant',
-    status: 'OPEN',
+    status: 'REGISTRATION_OPEN',
     prizePool: 50000,
     teams: 16,
     maxTeams: 16,
@@ -42,7 +42,7 @@ const FEATURED_TOURNAMENTS = [
     id: 't-3',
     title: 'GamerZ Hub Featured Masters',
     game: 'PUBG PC',
-    status: 'OPEN',
+    status: 'REGISTRATION_OPEN',
     prizePool: 15000,
     teams: 24,
     maxTeams: 32,
@@ -52,12 +52,21 @@ const FEATURED_TOURNAMENTS = [
   }
 ];
 
+const STATUS_TABS = [
+  { label: 'All', value: '' },
+  { label: 'Upcoming', value: 'REGISTRATION_OPEN' },
+  { label: 'In Progress', value: 'IN_PROGRESS' },
+  { label: 'Completed', value: 'COMPLETED' },
+];
+
 export default function TournamentsPage() {
   const [search, setSearch] = useState('');
   const [gameFilter, setGameFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const { data: tournamentsData } = useQuery({
-    queryKey: ['tournaments', search, gameFilter],
-    queryFn: () => api.get(`/tournaments?search=${search}&game=${gameFilter}`).then((r) => r.data),
+    queryKey: ['tournaments', search, gameFilter, statusFilter],
+    queryFn: () => api.get(`/tournaments?search=${encodeURIComponent(search)}&game=${encodeURIComponent(gameFilter)}&status=${statusFilter}`).then((r) => r.data),
+    refetchInterval: 30000,
   });
 
   const displayList = (tournamentsData?.data && tournamentsData.data.length > 0) ? tournamentsData.data : FEATURED_TOURNAMENTS;
@@ -79,6 +88,23 @@ export default function TournamentsPage() {
             <Trophy className="h-4 w-4" /> Create Tournament
           </Button>
         </Link>
+      </div>
+
+      {/* Status Filter Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setStatusFilter(tab.value)}
+            className={`shrink-0 px-4 h-9 rounded-2xl text-xs font-bold transition-all border ${
+              statusFilter === tab.value
+                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40'
+                : 'bg-card/60 text-muted-foreground border-white/10 hover:border-white/20'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Search & Filter */}
@@ -154,6 +180,14 @@ export default function TournamentsPage() {
           </motion.div>
         ))}
       </div>
+
+      {displayList.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <Trophy className="h-10 w-10 mx-auto mb-3 opacity-40" />
+          <p className="font-bold text-foreground">No tournaments found</p>
+          <p className="text-xs mt-1">Try a different filter, or create your own tournament.</p>
+        </div>
+      )}
     </div>
   );
 }

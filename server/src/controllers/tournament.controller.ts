@@ -17,19 +17,20 @@ export class TournamentController {
   });
 
   list = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page, limit, status, game } = req.query;
+    const { page, limit, status, game, search } = req.query;
     const result = await tournamentService.list({
       page: page ? parseInt(page as string) : undefined,
       limit: limit ? parseInt(limit as string) : undefined,
       status: status ? (status as TournamentStatus) : undefined,
       game: game as string,
+      search: search as string,
     });
     sendSuccess(res, result.data, undefined, 200, result.meta);
   });
 
   registerTeam = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { teamId } = req.body;
-    const result = await tournamentService.registerTeam(req.params.id, teamId);
+    const result = await tournamentService.registerTeam(req.params.id, teamId, req.user!.userId);
     sendSuccess(res, result);
   });
 

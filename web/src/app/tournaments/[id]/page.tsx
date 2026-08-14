@@ -37,14 +37,16 @@ export default function TournamentDetailPage() {
   const { data: tournament, isLoading } = useQuery({
     queryKey: ['tournament', id],
     queryFn: () => api.get(`/tournaments/${id}`).then((r) => r.data.data),
+    refetchInterval: 15000,
   });
 
   const registerMut = useMutation({
-    mutationFn: () => api.post(`/tournaments/${id}/register`, { teamId: user?.id || '' }),
+    mutationFn: () => api.post(`/tournaments/${id}/register`, {}),
     onSuccess: () => {
       setShowRegModal(false);
-      toast.success('Successfully registered your team for this tournament!');
+      toast.success('Successfully registered for this tournament!');
       queryClient.invalidateQueries({ queryKey: ['tournament', id] });
+      queryClient.invalidateQueries({ queryKey: ['tournaments'] });
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Registration failed'),
   });
@@ -77,6 +79,13 @@ export default function TournamentDetailPage() {
   };
 
   const matchesList = tourney.matches && tourney.matches.length > 0 ? tourney.matches : DEFAULT_MATCHES;
+
+  const teamCount = tourney.teams?.length || 0;
+  const participantCount = tourney.participants?.length || 0;
+  const filledSpots = teamCount + participantCount;
+  const isFull = filledSpots >= (tourney.maxTeams || 16);
+  const isRegistered = !!user && (tourney.participants || []).some((p: any) => p.user?.id === user.id);
+  const registrationOpen = tourney.status === 'REGISTRATION_OPEN' || tourney.status === 'DRAFT' || !tourney.status;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 overflow-x-hidden">
@@ -126,8 +135,10 @@ export default function TournamentDetailPage() {
               size="lg"
               className="font-extrabold rounded-2xl gap-2 shadow-lg shadow-emerald-500/30 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shrink-0"
               onClick={() => setShowRegModal(true)}
+              disabled={isFull || isRegistered || !registrationOpen}
             >
-              <Swords className="h-5 w-5" /> Register Team Now
+              {isRegistered ? <CheckCircle2 className="h-5 w-5" /> : <Swords className="h-5 w-5" />}
+              {isRegistered ? 'Registered' : isFull ? 'Tournament Full' : !registrationOpen ? 'Registration Closed' : 'Register Now'}
             </Button>
           </div>
 
@@ -143,7 +154,7 @@ export default function TournamentDetailPage() {
               <Users className="h-4 w-4 text-emerald-400" />
               <div>
                 <p className="text-[10px] text-muted-foreground font-mono">SQUADS</p>
-                <p className="font-bold text-foreground">{tourney.teams?.length || 4}/{tourney.maxTeams || 16} Teams</p>
+                <p className="font-bold text-foreground">{filledSpots}/{tourney.maxTeams || 16} Teams</p>
               </div>
             </div>
             <div className="flex items-center gap-2.5">
@@ -221,7 +232,7 @@ export default function TournamentDetailPage() {
       <Card variant="glass" className="rounded-[32px]">
         <CardHeader className="pb-3 border-b border-white/10">
           <CardTitle className="text-base font-extrabold flex items-center gap-2">
-            <Users className="h-5 w-5 text-emerald-400" /> Registered Teams Roster ({tourney.teams?.length || 4})
+            <Users className="h-5 w-5 text-emerald-400" /> Registered Teams Roster ({filledSpots}/{tourney.maxTeams || 16})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -243,6 +254,24 @@ export default function TournamentDetailPage() {
                 </Badge>
               </div>
             ))}
+            {(tourney.participants || []).map((pItem: any) => (
+              <div key={pItem.id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-card/60 border border-white/10 transition-all">
+                <Avatar className="h-12 w-12 border border-emerald-500/30 shadow-md">
+                  <AvatarImage src={pItem.user?.profile?.avatar || ''} />
+                  <AvatarFallback className="bg-gradient-to-br from-teal-500 to-emerald-700 text-white font-bold">
+                    {getInitials(pItem.user?.profile?.username || pItem.user?.id || 'P')}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-sm text-foreground truncate">{pItem.user?.profile?.username || 'Player'}</p>
+                  <p className="text-xs text-emerald-400 font-mono font-semibold">Individual Player</p>
+                </div>
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              </div>
+            ))}
+            {filledSpots === 0 && (
+              <p className="text-xs text-muted-foreground col-span-full">No teams registered yet. Be the first!</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -257,7 +286,7 @@ export default function TournamentDetailPage() {
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <p className="text-xs text-slate-300 leading-relaxed">
-              You are registering your squad for <strong className="text-emerald-400">{tourney.title}</strong>. Please confirm your 5 active roster members before submitting.
+              You are registering for <strong className="text-emerald-400">{tourney.title}</strong>. Registration is free and your spot is confirmed immediately.
             </p>
             <div className="p-3.5 rounded-2xl bg-card/60 border border-white/10 space-y-2 text-xs">
               <div className="flex justify-between text-muted-foreground">
@@ -267,6 +296,10 @@ export default function TournamentDetailPage() {
               <div className="flex justify-between text-muted-foreground">
                 <span>Game</span>
                 <span className="font-bold text-emerald-400">{tourney.game}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Spots Left</span>
+                <span className="font-bold text-emerald-400">{Math.max((tourney.maxTeams || 16) - filledSpots, 0)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Entry Fee</span>
@@ -279,7 +312,7 @@ export default function TournamentDetailPage() {
               disabled={registerMut.isPending}
               onClick={() => registerMut.mutate()}
             >
-              {registerMut.isPending ? 'Registering Squad...' : 'Confirm Squad Registration'}
+              {registerMut.isPending ? 'Registering...' : 'Confirm Registration'}
             </Button>
           </div>
         </DialogContent>
