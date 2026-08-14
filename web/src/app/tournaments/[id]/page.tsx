@@ -95,10 +95,11 @@ export default function TournamentDetailPage() {
       {/* Hero Banner */}
       <Card variant="glass" className="overflow-hidden rounded-[32px] border border-emerald-500/40 shadow-2xl relative">
         <div className="h-44 bg-gradient-to-r from-[#030509] via-[#0A0E1D] to-[#0F172A] relative overflow-hidden">
+          <div className="scanlines absolute inset-0 pointer-events-none z-[1]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.25),transparent_70%)]" />
           <div className="absolute top-4 right-4 flex items-center gap-2">
-            <Badge className="bg-emerald-500 text-black font-extrabold text-xs px-3 py-1 rounded-full shadow-lg">
-              ${formatNumber(tourney.prizePool || 50000)} PRIZE POOL
+            <Badge className="bg-emerald-500 text-black font-extrabold text-xs px-3 py-1 rounded-full shadow-[0_0_18px_rgba(16,185,129,0.7)] border border-emerald-300/50 animate-pulse">
+              💰 ${formatNumber(tourney.prizePool || 50000)} PRIZE POOL
             </Badge>
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full bg-black/40 text-white backdrop-blur-md hover:bg-black/60" onClick={() => {
               navigator.clipboard.writeText(window.location.href);
@@ -108,6 +109,7 @@ export default function TournamentDetailPage() {
             </Button>
           </div>
         </div>
+        <div className="hud-corners absolute inset-0 pointer-events-none z-[2]" />
 
         <CardContent className="relative px-6 sm:px-8 pb-6 -mt-12">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-6">
@@ -120,7 +122,7 @@ export default function TournamentDetailPage() {
               <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border-emerald-500/40 px-2.5 py-0.5 font-bold">
-                    🟢 {tourney.status?.replace('_', ' ') || 'REGISTRATION OPEN'}
+                    ⚔️ {tourney.status?.replace('_', ' ') || 'REGISTRATION OPEN'}
                   </Badge>
                   <Badge variant="secondary" className="text-[10px] font-mono bg-card text-slate-300 border border-white/10 px-2.5 py-0.5">
                     {tourney.type?.replace('_', ' ') || 'SINGLE ELIMINATION'}
@@ -142,7 +144,8 @@ export default function TournamentDetailPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-card/60 border border-white/10 text-xs">
+          <div className="clip-hud grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-card/60 border border-white/10 text-xs relative">
+            <span className="hud-corners absolute inset-0 pointer-events-none" style={{ ['--hud-c' as any]: 'rgba(16,185,129,0.6)' }} />
             <div className="flex items-center gap-2.5">
               <Gamepad2 className="h-4 w-4 text-emerald-400" />
               <div>
