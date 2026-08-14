@@ -227,17 +227,17 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
             </button>
           </nav>
 
-          {/* Theme Switcher (Desktop only) */}
-          <div className="hidden md:block">
+          {/* Theme Switcher (Both Mobile & Desktop) */}
+          <div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button aria-label="Switch theme" variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground">
                   {mounted && activeTheme === 'light' ? (
-                    <Sun className="h-4.5 w-4.5" />
+                    <Sun className="h-4.5 w-4.5 text-orange-500" />
                   ) : mounted && activeTheme === 'gray' ? (
-                    <Palette className="h-4.5 w-4.5" />
+                    <Palette className="h-4.5 w-4.5 text-slate-400" />
                   ) : (
-                    <Moon className="h-4.5 w-4.5" />
+                    <Moon className="h-4.5 w-4.5 text-emerald-400" />
                   )}
                 </Button>
               </DropdownMenuTrigger>
@@ -246,10 +246,10 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
                   <Sun className="h-4 w-4 text-orange-500" /> Light Mode
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2 cursor-pointer text-xs font-semibold">
-                  <Moon className="h-4 w-4 text-primary" /> Dark Mode
+                  <Moon className="h-4 w-4 text-emerald-400" /> Dark Mode
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme('gray')} className="gap-2 cursor-pointer text-xs font-semibold">
-                  <Palette className="h-4 w-4 text-muted-foreground" /> Gray Mode
+                  <Palette className="h-4 w-4 text-slate-400" /> Gray Mode
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -377,38 +377,47 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
             <Shield className="h-4 w-4 text-primary" /> AI Resume & Passport
           </Link>
           <div className="my-3 border-t border-border/45" />
-          {/* Theme Switcher */}
-          <div className="p-1.5 rounded-xl bg-muted/40 border border-border/40">
-            <p className="px-2 pt-1 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Palette className="h-3 w-3" /> Theme
-            </p>
-            <div className="flex items-center gap-1.5">
+          {/* Theme Selector Section in Mobile Drawer */}
+          <div className="p-3 rounded-2xl bg-card/60 border border-border/40 space-y-2">
+            <p className="text-[10px] font-mono font-bold uppercase text-muted-foreground tracking-wider px-1">Theme System</p>
+            <div className="grid grid-cols-3 gap-1.5">
               <button
+                type="button"
                 onClick={() => setTheme('light')}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                  mounted && activeTheme === 'light' ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground border border-transparent'
-                }`}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold transition-all border",
+                  mounted && activeTheme === 'light' ? "bg-orange-500/15 text-orange-500 border-orange-500/40 shadow-sm" : "bg-card/40 text-muted-foreground border-transparent hover:bg-card/80"
+                )}
               >
-                <Sun className="h-4 w-4 text-orange-500" /> Light
+                <Sun className="h-4 w-4 text-orange-500" />
+                <span>Light</span>
               </button>
               <button
+                type="button"
                 onClick={() => setTheme('dark')}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                  mounted && activeTheme === 'dark' ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground border border-transparent'
-                }`}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold transition-all border",
+                  mounted && activeTheme === 'dark' ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40 shadow-sm" : "bg-card/40 text-muted-foreground border-transparent hover:bg-card/80"
+                )}
               >
-                <Moon className="h-4 w-4 text-primary" /> Dark
+                <Moon className="h-4 w-4 text-emerald-400" />
+                <span>Dark</span>
               </button>
               <button
+                type="button"
                 onClick={() => setTheme('gray')}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                  mounted && activeTheme === 'gray' ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground border border-transparent'
-                }`}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold transition-all border",
+                  mounted && activeTheme === 'gray' ? "bg-slate-500/15 text-slate-300 border-slate-500/40 shadow-sm" : "bg-card/40 text-muted-foreground border-transparent hover:bg-card/80"
+                )}
               >
-                <Palette className="h-4 w-4 text-muted-foreground" /> Gray
+                <Palette className="h-4 w-4 text-slate-400" />
+                <span>Gray</span>
               </button>
             </div>
           </div>
+
+          <div className="my-3 border-t border-border/45" />
           <Button variant="ghost" onClick={() => { setDrawerOpen(false); handleLogout(); }} className="w-full flex items-center justify-start gap-3 p-3 h-11 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10">
             <LogOut className="h-4 w-4" /> Sign Out
           </Button>
