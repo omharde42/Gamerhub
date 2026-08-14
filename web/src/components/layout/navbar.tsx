@@ -351,6 +351,38 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
             <Shield className="h-4 w-4 text-primary" /> AI Resume & Passport
           </Link>
           <div className="my-3 border-t border-border/45" />
+          {/* Theme Switcher */}
+          <div className="p-1.5 rounded-xl bg-muted/40 border border-border/40">
+            <p className="px-2 pt-1 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Palette className="h-3 w-3" /> Theme
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setTheme('light')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                  mounted && activeTheme === 'light' ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground border border-transparent'
+                }`}
+              >
+                <Sun className="h-4 w-4 text-orange-500" /> Light
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                  mounted && activeTheme === 'dark' ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground border border-transparent'
+                }`}
+              >
+                <Moon className="h-4 w-4 text-primary" /> Dark
+              </button>
+              <button
+                onClick={() => setTheme('gray')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                  mounted && activeTheme === 'gray' ? 'bg-primary/20 text-primary border border-primary/40' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground border border-transparent'
+                }`}
+              >
+                <Palette className="h-4 w-4 text-muted-foreground" /> Gray
+              </button>
+            </div>
+          </div>
           <Button variant="ghost" onClick={() => { setDrawerOpen(false); handleLogout(); }} className="w-full flex items-center justify-start gap-3 p-3 h-11 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10">
             <LogOut className="h-4 w-4" /> Sign Out
           </Button>
