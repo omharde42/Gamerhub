@@ -31,6 +31,20 @@ export class AIController {
     sendSuccess(res, { stats, analysis });
   });
 
+  getCoachingOverview = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const overview = await aiService.getCoachingOverview(req.user!.userId);
+    sendSuccess(res, overview);
+  });
+
+  gameCoaching = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { game } = req.body;
+    if (!game || typeof game !== 'string') {
+      throw new ValidationError({ game: ['Game is required'] });
+    }
+    const advice = await aiService.coachForGame(req.user!.userId, game.trim());
+    sendSuccess(res, { game: game.trim(), advice });
+  });
+
   getTrainingPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
     const profile = await prisma.profile.findUnique({ where: { userId: req.user!.userId } });
     if (!profile) throw new NotFoundError('Profile');

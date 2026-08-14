@@ -286,6 +286,140 @@ Keep responses concise, actionable, and encouraging. Focus on gaming improvement
     }
   }
 
+  /**
+   * Real, verified data about a user's connected games — used to ground coaching
+   * advice. Statistics are only included when the backend actually has them;
+   * nothing is fabricated or defaulted.
+   */
+  async getCoachingOverview(userId: string) {
+    const [profile, gameAccounts, recentMatches] = await Promise.all([
+      prisma.profile.findUnique({ where: { userId } }),
+      prisma.gameAccount.findMany({ where: { userId, verified: true }, orderBy: { updatedAt: 'desc' } }),
+      prisma.matchHistory.findMany({ where: { userId }, orderBy: { playedAt: 'desc' }, take: 20 }),
+    ]);
+
+    const games = (gameAccounts || []).map((acc) => ({
+      game: acc.game,
+      inGameName: acc.inGameName || null,
+      inGameUid: acc.inGameUid || null,
+      rank: acc.rank || null,
+      level: acc.level ?? null,
+      // Only expose stats the backend actually has — null means unavailable.
+      kdRatio: acc.kdRatio ?? null,
+      winRate: acc.winRate ?? null,
+      totalMatches: acc.totalMatches ?? null,
+      region: acc.region || null,
+      lastSyncedAt: acc.lastSyncedAt || null,
+    }));
+
+    const matches = (recentMatches || []).map((m) => ({
+      game: m.game,
+      result: m.result,
+      kills: m.kills,
+      deaths: m.deaths,
+      assists: m.assists,
+      accuracy: m.accuracy,
+      playedAt: m.playedAt,
+    }));
+
+    return {
+      profile: profile
+        ? {
+            mainGames: profile.mainGames || [],
+            rank: profile.rank || null,
+            role: profile.role || null,
+            // Profile fields default to 0 in the schema — only report them as
+            // real stats when the user actually has match history to back them.
+            winRate: matches.length > 0 ? profile.winRate : null,
+            kd: matches.length > 0 ? profile.kd : null,
+          }
+        : null,
+      games,
+      recentMatches: matches,
+    };
+  }
+
+  /**
+   * Generate coaching advice for a specific connected game using ONLY real data.
+   * When the backend has no statistics for the account, returns guidance that
+   * explains data is unavailable instead of inventing numbers.
+   */
+  async coachForGame(userId: string, game: string): Promise<string> {
+    const [account, profile, recentMatches] = await Promise.all([
+      prisma.gameAccount.findUnique({ where: { userId_game: { userId, game } } }),
+      prisma.profile.findUnique({ where: { userId } }),
+      prisma.matchHistory.findMany({ where: { userId, game }, orderBy: { playedAt: 'desc' }, take: 10 }),
+    ]);
+
+    if (!account) {
+      return 'No connected account found for this game. Connect your account first so coaching can use your real statistics.';
+    }
+
+    const hasStats = account.kdRatio != null || account.winRate != null || (account.totalMatches ?? 0) > 0 || recentMatches.length > 0;
+    if (!hasStats) {
+      return `Your ${account.game} account (${account.inGameName || account.inGameUid}) is connected, but we do not have statistics for it yet. Sync your account or play a few matches, then ask again — coaching never invents numbers.`;
+    }
+
+    const matchSummary = recentMatches.length > 0
+      ? recentMatches.map((m) => `${m.result} (${m.kills}K/${m.deaths}D, ${m.accuracy}% acc)`).join('; ')
+      : null;
+
+    const data = {
+      game: account.game,
+      inGameName: account.inGameName,
+      rank: account.rank || null,
+      level: account.level ?? null,
+      kdRatio: account.kdRatio ?? null,
+      winRate: account.winRate ?? null,
+      totalMatches: account.totalMatches ?? null,
+      recentMatches: matchSummary,
+      profileRank: profile?.rank || null,
+      profileRole: profile?.role || null,
+    };
+
+    if (!openai) {
+      return this.localGameCoaching(data);
+    }
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are an expert esports coach. Give concise, actionable coaching using ONLY the real statistics provided. Never invent numbers. If a stat is null, say it is unavailable and give generic fundamentals advice for that part.' },
+          { role: 'user', content: `Coaching request for ${data.game} player ${data.inGameName || 'unknown'}:\nRank: ${data.rank || 'N/A'}\nLevel: ${data.level ?? 'N/A'}\nK/D: ${data.kdRatio ?? 'N/A'}\nWin Rate: ${data.winRate ?? 'N/A'}\nTotal Matches: ${data.totalMatches ?? 'N/A'}\nRecent matches: ${data.recentMatches || 'N/A'}\nProfile rank: ${data.profileRank || 'N/A'}\nRole: ${data.profileRole || 'N/A'}\nProvide: 1. Quick assessment 2. Top 3 focus areas 3. One drill for this week.` },
+        ],
+        max_tokens: 500,
+      });
+      return completion.choices[0]?.message?.content || this.localGameCoaching(data);
+    } catch (error) {
+      logAIError('game coaching', error);
+      return this.localGameCoaching(data);
+    }
+  }
+
+  private localGameCoaching(data: {
+    game: string;
+    rank?: string | null;
+    kdRatio?: number | null;
+    winRate?: number | null;
+    totalMatches?: number | null;
+    recentMatches?: string | null;
+  }): string {
+    const parts: string[] = [`🎯 Coaching for ${data.game}`];
+    if (data.rank) parts.push(`Rank: ${data.rank}`);
+    if (data.kdRatio != null) {
+      parts.push(`K/D ${data.kdRatio} — ${data.kdRatio > 1.2 ? 'solid mechanics; focus on game sense and positioning to convert frags into wins.' : 'work on crosshair placement, movement and taking favorable engagements.'}`);
+    }
+    if (data.winRate != null) {
+      parts.push(`Win rate ${data.winRate}% — ${data.winRate > 55 ? 'above average; maintain consistency and shotcalling.' : data.winRate > 40 ? 'solid; identify the maps/scenarios where you underperform.' : 'focus on fundamentals and play conservatively until consistency improves.'}`);
+    }
+    if ((data.totalMatches ?? 0) > 0 && data.totalMatches! < 20) {
+      parts.push('You have few matches logged — sample size is small, so keep playing before judging trends.');
+    }
+    if (data.recentMatches) parts.push(`Recent: ${data.recentMatches}`);
+    parts.push('Top 3 focus areas: 1) Review your last match before queuing again 2) Drill one mechanic daily (aim/movement/utility) 3) Communicate clearly with teammates. Weekly drill: 20 minutes of focused warmup + one VOD review.');
+    return parts.join('\n');
+  }
+
   async summarizeNews(articles: { title: string; url?: string; source?: string }[]): Promise<string> {
     if (!openai || !articles.length) return '';
     try {

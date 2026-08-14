@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Newspaper, Users, Trophy, Briefcase,
   MessageSquare, BarChart3, Bot, Crown,
   Settings, LogOut, Gamepad2, Compass, Bookmark, Bell,
-  Shield, Globe, Film, Swords, Sun, Moon, Palette
+  Shield, Globe, Film, Swords, Sun, Moon, Palette, Medal, Handshake
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +32,8 @@ const getNavItems = (username: string) => [
   { href: '/teams', label: 'Teams', icon: Trophy },
   { href: '/tournaments', label: 'Tournaments', icon: Gamepad2 },
   { href: '/challenges', label: 'Challenges', icon: Swords },
+  { href: '/leaderboards', label: 'Leaderboards', icon: Medal },
+  { href: '/partnership', label: 'Partnership', icon: Handshake },
   { href: '/jobs', label: 'Jobs', icon: Briefcase },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/saved', label: 'Saved Posts', icon: Bookmark },

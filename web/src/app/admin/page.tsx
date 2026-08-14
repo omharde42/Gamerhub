@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   Shield, Users, Trophy, Briefcase, Building2, AlertTriangle,
-  Ban, CheckCircle, FileText, Gamepad2, Clock, XCircle, Loader2
+  Ban, CheckCircle, FileText, Gamepad2, Clock, XCircle, Loader2, Handshake
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
@@ -25,6 +25,10 @@ export default function AdminPage() {
   const { data: gameRequests, isLoading: grLoading } = useQuery({
     queryKey: ['admin-game-requests'],
     queryFn: () => api.get('/game-requests/all').then(r => r.data.data),
+  });
+  const { data: partnershipApps, isLoading: pLoading } = useQuery({
+    queryKey: ['admin-partnerships'],
+    queryFn: () => api.get('/partnerships/admin').then(r => r.data.data || []),
   });
 
   const banUser = useMutation({
@@ -50,7 +54,18 @@ export default function AdminPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed'),
   });
 
+  const reviewPartnership = useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: 'APPROVED' | 'REJECTED' }) =>
+      api.post(`/partnerships/admin/${id}/review`, { decision, adminNote: adminNotes[id] || '' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partnerships'] });
+      toast.success('Application reviewed');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed'),
+  });
+
   const pendingGames = gameRequests?.filter((r: any) => r.status === 'PENDING') || [];
+  const pendingPartnerships = partnershipApps?.filter((r: any) => r.status === 'PENDING') || [];
 
   const statCards = [
     { label: 'Users', value: stats?.users || 0, icon: Users, color: 'text-blue-500' },
@@ -96,6 +111,12 @@ export default function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="users" className="gap-1"><Users className="h-4 w-4" /> Users</TabsTrigger>
           <TabsTrigger value="reports" className="gap-1"><AlertTriangle className="h-4 w-4" /> Reports</TabsTrigger>
+          <TabsTrigger value="partnerships" className="gap-1">
+            <Handshake className="h-4 w-4" /> Partnerships
+            {pendingPartnerships.length > 0 && (
+              <Badge variant="destructive" className="ml-1 text-[9px] px-1.5 py-0">{pendingPartnerships.length}</Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Game Requests Tab */}
@@ -216,6 +237,89 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Partnerships Tab */}
+        <TabsContent value="partnerships">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Handshake className="h-5 w-5 text-gaming-purple" />
+                Partnership & Sponsorship Applications
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6">
+              {pLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                </div>
+              ) : !partnershipApps || partnershipApps.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground space-y-2">
+                  <Handshake className="h-10 w-10 mx-auto text-muted-foreground/30" />
+                  <p className="font-semibold text-foreground">No applications</p>
+                  <p className="text-xs">No partnership or sponsorship applications yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {partnershipApps.map((app: any) => {
+                    const isPending = app.status === 'PENDING';
+                    return (
+                      <div key={app.id} className={`flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-xl border transition-all duration-200 ${isPending ? 'border-yellow-500/20 bg-yellow-500/5' : app.status === 'APPROVED' ? 'border-green-500/10 bg-green-500/5' : 'border-red-500/10 bg-red-500/5'}`}>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-sm text-foreground">{app.organizationName}</h4>
+                            <Badge variant="outline" className="text-[9px] px-2 py-0 bg-primary/10 text-primary border-primary/20">
+                              {app.type === 'PARTNERSHIP' ? '🤝 Partnership' : '📢 Sponsorship'}
+                            </Badge>
+                            <Badge variant="outline" className={`text-[10px] font-semibold ${isPending ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : app.status === 'APPROVED' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                              {app.status}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {app.user?.profile?.username || 'Unknown'}</span>
+                            <span className="text-border">•</span>
+                            <span>{app.contactName} &lt;{app.contactEmail}&gt;</span>
+                            {app.website && <><span className="text-border">•</span><a href={app.website} target="_blank" rel="noreferrer" className="text-primary hover:underline">{app.website}</a></>}
+                          </div>
+                          <p className="text-xs text-foreground/80 mt-2 leading-relaxed">{app.description}</p>
+                          {app.audience && <p className="text-[11px] text-muted-foreground mt-1">Audience: {app.audience}</p>}
+                          <p className="text-[10px] text-muted-foreground mt-1.5">Submitted {formatDate(app.createdAt)}{app.adminNote ? ` • Note: ${app.adminNote}` : ''}</p>
+                        </div>
+
+                        {isPending && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Input
+                              value={adminNotes[app.id] || ''}
+                              onChange={(e) => setAdminNotes(prev => ({ ...prev, [app.id]: e.target.value }))}
+                              placeholder="Admin note (optional)"
+                              className="h-9 text-xs border-primary/20 w-40 lg:w-48"
+                            />
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white h-9 gap-1 text-xs"
+                              onClick={() => reviewPartnership.mutate({ id: app.id, decision: 'APPROVED' })}
+                              disabled={reviewPartnership.isPending}
+                            >
+                              <CheckCircle className="h-3.5 w-3.5" /> Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-9 gap-1 text-xs"
+                              onClick={() => reviewPartnership.mutate({ id: app.id, decision: 'REJECTED' })}
+                              disabled={reviewPartnership.isPending}
+                            >
+                              <XCircle className="h-3.5 w-3.5" /> Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -85,6 +85,7 @@ model User {
   challengeNotifications ChallengeNotification[]
   userBlocks          UserBlock[]  @relation("UserBlocks")
   blockedBy           UserBlock[]  @relation("BlockedBy")
+  partnershipApplications PartnershipApplication[]
   @@index([email])
   @@index([role])
 }
@@ -1088,6 +1089,7 @@ enum NotificationType {
   CHALLENGE_CANCELLED
   CHALLENGE_EXPIRED
   CHALLENGE_COMPLETED
+  PARTNERSHIP_UPDATED
 }
 
 enum ReportReason {
@@ -1262,4 +1264,37 @@ model UserBlock {
   @@unique([blockerId, blockedId])
   @@index([blockerId])
   @@index([blockedId])
+}
+
+model PartnershipApplication {
+  id              String   @id @default(uuid())
+  type            PartnershipApplicationType
+  organizationName String
+  contactName     String
+  contactEmail    String
+  website         String?
+  description     String
+  audience        String?
+  status          PartnershipApplicationStatus @default(PENDING)
+  adminNote       String?
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+}
+
+enum PartnershipApplicationType {
+  PARTNERSHIP
+  SPONSORSHIP
+}
+
+enum PartnershipApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

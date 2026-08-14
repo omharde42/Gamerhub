@@ -1,11 +1,8 @@
 'use client';
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Swords } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { normalizeGameKey } from './challenge-utils';
 import { CreateChallengeModal } from './create-challenge-modal';
 
 export function ChallengeButton({
@@ -22,19 +19,10 @@ export function ChallengeButton({
   const { user } = useAuthStore();
   const [open, setOpen] = useState(false);
 
-  const { data: opponentAccounts = [] } = useQuery({
-    queryKey: ['user-game-connections', opponentId],
-    queryFn: () => api.get(`/game/user-connections?userId=${opponentId}`).then((r) => r.data.data || []),
-    enabled: !!opponentId && !!user,
-  });
-
-  const hasSupportedGame = useMemo(
-    () => (opponentAccounts as any[]).some((acc) => normalizeGameKey(acc.game || '') !== null),
-    [opponentAccounts]
-  );
-
   if (!user || !opponentId) return null;
-  if (!hasSupportedGame) return null;
+  // Community games (e.g. Smash Karts) don't require a connected account, so a
+  // challenge is always possible — the modal offers community games plus any
+  // connected official games the opponent has.
 
   return (
     <>
@@ -44,7 +32,7 @@ export function ChallengeButton({
         animate
         onClick={() => setOpen(true)}
         className="gap-1.5 min-w-[110px] w-full sm:w-auto h-11 relative overflow-hidden"
-        title="Challenge this gamer to Clash of Clans or PUBG — no friendship required"
+        title="Challenge this gamer to Clash of Clans, PUBG or Smash Karts — no friendship required"
       >
         <Swords className="h-4 w-4" />
         Challenge
