@@ -256,8 +256,8 @@ export default function FeedPage() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold line-clamp-2 group-hover:text-emerald-400 transition-colors leading-relaxed">{article.title}</p>
-                    <p className="text-[10px] text-emerald-400/80 font-mono mt-0.5">{article.source || 'Gaming News'}</p>
+                    <p className="text-xs font-semibold line-clamp-2 group-hover:text-primary transition-colors leading-relaxed">{article.title}</p>
+                    <p className="text-[10px] text-primary font-mono font-semibold mt-0.5">{article.source || 'Gaming News'}</p>
                   </div>
                 </a>
               )) : (
