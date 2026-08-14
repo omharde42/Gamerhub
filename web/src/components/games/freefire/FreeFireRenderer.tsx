@@ -4,12 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Flame, Trophy, Star, CheckCircle2, Shield } from 'lucide-react';
+import { Flame, Trophy, Star, CheckCircle2, Shield, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { GameRendererProps } from '../clashofclans/ClashOfClansRenderer';
+import { GameConnectForm } from '../GameConnectForm';
 
 export function FreeFireRenderer({ gameUid }: GameRendererProps) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['game-profile', 'freefire', gameUid],
     queryFn: async () => {
       const res = await api.get(`/game/freefire/profile?uid=${encodeURIComponent(gameUid)}`);
@@ -18,6 +19,18 @@ export function FreeFireRenderer({ gameUid }: GameRendererProps) {
     enabled: Boolean(gameUid),
     staleTime: 5 * 60 * 1000,
   });
+
+  if (!gameUid) {
+    return (
+      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
+        <Card variant="glass" className="border-orange-500/30 bg-gradient-to-br from-[#241009] via-[#0F0A06] to-black">
+          <CardContent className="p-6 space-y-5">
+            <GameConnectForm gameKey="freefire" fieldName="uid" placeholder="Free Fire UID (e.g. 567890123)" gameLabel="Free Fire" accent="amber" />
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -29,6 +42,18 @@ export function FreeFireRenderer({ gameUid }: GameRendererProps) {
           <div className="h-24 bg-white/5 rounded-2xl" />
           <div className="h-24 bg-white/5 rounded-2xl" />
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5 text-red-300 text-xs font-semibold">
+          <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
+          <span>{(error as any)?.response?.data?.message || 'Unable to fetch Free Fire data right now.'}</span>
+        </div>
+        <button onClick={() => refetch()} className="text-xs font-bold text-red-300 border border-red-500/40 rounded-xl px-3 py-1.5">Retry</button>
       </div>
     );
   }
