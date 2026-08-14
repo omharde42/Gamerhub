@@ -17,6 +17,9 @@ import {
   RefreshCw, Circle, Pointer, Laugh
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type Clip = {
@@ -217,6 +220,7 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
+  const pathname = usePathname();
   const previewRef = useRef<HTMLVideoElement>(null);
   const cameraPreviewRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -529,6 +533,22 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
 
   return (
     <div className="flex-1 flex flex-col">
+      {/* Studio sub-nav: Recorder | Clip Library | Montages */}
+      <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-border/50 bg-background/60 backdrop-blur-md max-w-6xl mx-auto w-full">
+        <Badge className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border-emerald-500/40">STUDIO</Badge>
+        <Link href="/studio" className={cn("px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors",
+          pathname === '/studio' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50" : "text-muted-foreground hover:text-foreground")}>
+          Recorder
+        </Link>
+        <Link href="/studio/clips" className={cn("px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors",
+          pathname?.startsWith('/studio/clips') ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50" : "text-muted-foreground hover:text-foreground")}>
+          Clip Library
+        </Link>
+        <Link href="/studio/projects" className={cn("px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors",
+          pathname?.startsWith('/studio/projects') ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50" : "text-muted-foreground hover:text-foreground")}>
+          Montages
+        </Link>
+      </div>
       <div ref={containerRef} className="flex-1 relative bg-black/90 flex items-center justify-center overflow-hidden">
         {screenStream ? (
           <>

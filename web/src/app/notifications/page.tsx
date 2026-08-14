@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bell, Heart, MessageCircle, UserPlus, Trophy, Calendar, Briefcase, Flag, CheckCircle, Loader2, Swords, Ban, Check } from 'lucide-react';
+import { Bell, Heart, MessageCircle, UserPlus, Trophy, Calendar, Briefcase, Flag, CheckCircle, Loader2, Swords, Ban, Check, Film } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -32,6 +32,7 @@ const NOTIFICATION_ICONS: Record<string, any> = {
   CHALLENGE_CANCELLED: Swords,
   CHALLENGE_EXPIRED: Swords,
   CHALLENGE_COMPLETED: Trophy,
+  VIDEO_RENDER: Film,
 };
 
 export default function NotificationsPage() {

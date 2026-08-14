@@ -52,6 +52,7 @@ import steamRoutes from './routes/steam.routes';
 import gameStatsRoutes from './routes/game-stats.routes';
 import clashOfClansRoutes from './routes/clashofclans.routes';
 import challengeRoutes from './routes/challenge.routes';
+import videoRoutes from './routes/video.routes';
 import { setSocketIo } from './socket-emitter';
 import { challengeService } from './services/challenge.service';
 
@@ -354,6 +355,7 @@ app.use('/api/game-sync', gameSyncRoutes);
 app.use('/api/game-stats', gameStatsRoutes);
 app.use('/api/game', gameModularRoutes);
 app.use('/api/challenges', challengeRoutes);
+app.use('/api/video', videoRoutes);
 
 // Error handling
 app.use(notFoundHandler);

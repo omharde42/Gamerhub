@@ -85,6 +85,8 @@ model User {
   challengeNotifications ChallengeNotification[]
   userBlocks          UserBlock[]  @relation("UserBlocks")
   blockedBy           UserBlock[]  @relation("BlockedBy")
+  videoClips          VideoClip[]
+  montageProjects     MontageProject[]
   @@index([email])
   @@index([role])
 }
@@ -1088,6 +1090,7 @@ enum NotificationType {
   CHALLENGE_CANCELLED
   CHALLENGE_EXPIRED
   CHALLENGE_COMPLETED
+  VIDEO_RENDER
 }
 
 enum ReportReason {
@@ -1154,6 +1157,20 @@ enum ChallengeStatus {
 enum ChallengeTeamRole {
   CHALLENGER
   OPPONENT
+}
+
+enum ClipStatus {
+  UPLOADED
+  TRIMMING
+  TRIMMED
+  FAILED
+}
+
+enum MontageStatus {
+  DRAFT
+  RENDERING
+  READY
+  FAILED
 }
 
 enum ChallengeNotificationType {
@@ -1262,4 +1279,52 @@ model UserBlock {
   @@unique([blockerId, blockedId])
   @@index([blockerId])
   @@index([blockedId])
+}
+
+// ─── Video Editing (Tier 1: clips & trimming) ──────────────────────────────
+
+model VideoClip {
+  id              String     @id @default(uuid())
+  title           String
+  sourceUrl       String
+  sourcePublicId  String?
+  trimmedUrl      String?
+  trimmedPublicId String?
+  thumbnailUrl    String?
+  durationSec     Float?
+  trimStartSec    Float?
+  trimEndSec      Float?
+  status          ClipStatus @default(UPLOADED)
+  sizeBytes       Int?
+  mimeType        String?
+  error           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ─── Video Editing (Tier 2: montage projects, EDL-driven) ───────────────────
+
+model MontageProject {
+  id           String        @id @default(uuid())
+  title        String
+  edl          Json          // Edit Decision List: { segments: [{clipId, sourceUrl, start, end, transition}], music: {url, publicId, volume, trimStart}, overlays: [{text, x, y, fontSize, color, start, end}], resolution, fps }
+  status       MontageStatus @default(DRAFT)
+  previewUrl   String?
+  renderUrl    String?
+  thumbnailUrl String?
+  renderError  String?
+  isAiGenerated Boolean      @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }
