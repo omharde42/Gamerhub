@@ -701,7 +701,19 @@ function DiscordMessagesPage() {
             }) || [];
 
             if (chatsLoading) {
-              return <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>;
+              return (
+                <div className="space-y-2 p-1">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-white/10 dark:bg-white/5 animate-pulse border border-white/5">
+                      <div className="w-9 h-9 rounded-full bg-white/20 shrink-0" />
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="h-3.5 w-24 bg-white/20 rounded-md" />
+                        <div className="h-2.5 w-36 bg-white/10 rounded-md" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
             }
 
             if (chats?.length === 0) {

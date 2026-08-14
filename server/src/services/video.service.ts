@@ -72,7 +72,7 @@ export class VideoService {
         await cloudinary.uploader.destroy(uploaded.publicId, { resource_type: 'video' }).catch(() => {});
         throw new AppError('Video is too long. Maximum duration is 20 minutes.');
       }
-      return prisma.videoClip.create({
+      return (prisma as any).videoClip.create({
         data: {
           userId,
           title: truncateTitle(file.originalname),
@@ -92,14 +92,14 @@ export class VideoService {
 
   async listClips(userId: string, page = 1, limit = 20) {
     const [data, total] = await Promise.all([
-      prisma.videoClip.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
-      prisma.videoClip.count({ where: { userId } }),
+      (prisma as any).videoClip.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
+      (prisma as any).videoClip.count({ where: { userId } }),
     ]);
     return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async getClip(userId: string, clipId: string) {
-    const clip = await prisma.videoClip.findFirst({ where: { id: clipId, userId } });
+    const clip = await (prisma as any).videoClip.findFirst({ where: { id: clipId, userId } });
     if (!clip) throw new NotFoundError('Clip');
     return clip;
   }
@@ -117,7 +117,7 @@ export class VideoService {
       throw new AppError(`End offset (${end}s) exceeds clip duration (${clip.durationSec}s).`);
     }
 
-    await prisma.videoClip.update({ where: { id: clip.id }, data: { status: 'TRIMMING', trimStartSec: start, trimEndSec: end } });
+    await (prisma as any).videoClip.update({ where: { id: clip.id }, data: { status: 'TRIMMING', trimStartSec: start, trimEndSec: end } });
 
     try {
       const sourceUrl = cloudinary.url(this.publicIdOf({ publicId: clip.sourcePublicId, sourceUrl: clip.sourceUrl }), { resource_type: 'video', secure: true, format: 'mp4' });
@@ -125,7 +125,7 @@ export class VideoService {
         start_offset: String(start),
         end_offset: String(end),
       });
-      return prisma.videoClip.update({
+      return (prisma as any).videoClip.update({
         where: { id: clip.id },
         data: {
           trimmedUrl: trimmed.url,
@@ -135,7 +135,7 @@ export class VideoService {
         },
       });
     } catch (err: any) {
-      await prisma.videoClip.update({ where: { id: clip.id }, data: { status: 'FAILED', error: err.message || 'Trim failed' } });
+      await (prisma as any).videoClip.update({ where: { id: clip.id }, data: { status: 'FAILED', error: err.message || 'Trim failed' } });
       throw new AppError(err.message || 'Trim processing failed', err.status || 500);
     }
   }
@@ -147,34 +147,34 @@ export class VideoService {
         cloudinary.uploader.destroy(pid!, { resource_type: 'video' }).catch(() => {})
       )
     );
-    return prisma.videoClip.delete({ where: { id: clip.id } });
+    return (prisma as any).videoClip.delete({ where: { id: clip.id } });
   }
 
   // ─── Tier 2: Montage projects (EDL) ───────────────────────────────────────
   async createMontage(userId: string, title: string, edl: any, isAiGenerated = false) {
     const sanitized = this.sanitizeEdl(edl);
-    return prisma.montageProject.create({
+    return (prisma as any).montageProject.create({
       data: { userId, title: title?.slice(0, 120) || 'Untitled montage', edl: sanitized, isAiGenerated },
     });
   }
 
   async listMontages(userId: string, page = 1, limit = 20) {
     const [data, total] = await Promise.all([
-      prisma.montageProject.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
-      prisma.montageProject.count({ where: { userId } }),
+      (prisma as any).montageProject.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
+      (prisma as any).montageProject.count({ where: { userId } }),
     ]);
     return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async getMontage(userId: string, projectId: string) {
-    const project = await prisma.montageProject.findFirst({ where: { id: projectId, userId } });
+    const project = await (prisma as any).montageProject.findFirst({ where: { id: projectId, userId } });
     if (!project) throw new NotFoundError('Montage project');
     return project;
   }
 
   async updateMontageEdl(userId: string, projectId: string, edl: any) {
     await this.getMontage(userId, projectId);
-    return prisma.montageProject.update({
+    return (prisma as any).montageProject.update({
       where: { id: projectId },
       data: { edl: this.sanitizeEdl(edl), status: 'DRAFT' },
     });
@@ -216,15 +216,15 @@ export class VideoService {
     }
     const edl = { ...(project.edl as any), resolution, fps };
 
-    await prisma.montageProject.update({ where: { id: project.id }, data: { status: 'RENDERING', renderError: null } });
+    await (prisma as any).montageProject.update({ where: { id: project.id }, data: { status: 'RENDERING', renderError: null } });
 
     // Render asynchronously — user is notified when it completes.
     this.runRender(project.id, edl).catch(async (err) => {
       console.error('[VideoRender] failed:', err.message || err);
-      await prisma.montageProject.update({ where: { id: project.id }, data: { status: 'FAILED', renderError: err.message || 'Render failed' } });
+      await (prisma as any).montageProject.update({ where: { id: project.id }, data: { status: 'FAILED', renderError: err.message || 'Render failed' } });
       await notificationService.create({
         userId,
-        type: 'VIDEO_RENDER',
+        type: 'VIDEO_RENDER' as any,
         title: 'Montage render failed',
         message: `"${project.title}" could not be rendered. Please try again.`,
         link: `/studio/projects/${project.id}`,
@@ -238,13 +238,13 @@ export class VideoService {
   private async runRender(projectId: string, edl: any) {
     const composed = this.buildComposedUrl(edl);
     const rendered = await uploadFileToCloudinary(composed, 'video/mp4', MONTAGE_FOLDER);
-    const project = await prisma.montageProject.update({
+    const project = await (prisma as any).montageProject.update({
       where: { id: projectId },
       data: { status: 'READY', renderUrl: rendered.url, thumbnailUrl: rendered.thumbnailUrl || null },
     });
     await notificationService.create({
       userId: project.userId,
-      type: 'VIDEO_RENDER',
+      type: 'VIDEO_RENDER' as any,
       title: 'Your montage is ready!',
       message: `"${project.title}" has finished rendering.`,
       link: `/studio/projects/${project.id}`,

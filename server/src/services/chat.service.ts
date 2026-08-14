@@ -3,8 +3,8 @@ import { NotFoundError, ForbiddenError } from '../utils/errors';
 
 export class ChatService {
   async createDirectMessage(userId1: string, userId2: string) {
-    // 1. If chat already exists, return it immediately
-    const existingChat = await prisma.chat.findFirst({
+    // 1. Find any existing 1-to-1 chat between userId1 and userId2
+    const existingChats = await prisma.chat.findMany({
       where: {
         isGroup: false,
         AND: [
@@ -20,28 +20,19 @@ export class ChatService {
             },
           },
         },
+        messages: { take: 1, orderBy: { createdAt: 'desc' } },
       },
+      orderBy: { updatedAt: 'desc' },
     });
 
-    if (existingChat) return existingChat;
-
-    // 2. Otherwise check friendship status
-    const friendship = await prisma.friendRequest.findFirst({
-      where: {
-        status: 'ACCEPTED',
-        OR: [
-          { senderId: userId1, receiverId: userId2 },
-          { senderId: userId2, receiverId: userId1 },
-        ],
-      },
-    });
-
-    if (!friendship) {
-      // Allow direct message creation for any user connections
+    if (existingChats && existingChats.length > 0) {
+      return existingChats[0];
     }
 
+    // 2. Otherwise create a single canonical 1-to-1 chat
     return prisma.chat.create({
       data: {
+        isGroup: false,
         participants: {
           create: [{ userId: userId1 }, { userId: userId2 }],
         },
@@ -76,7 +67,7 @@ export class ChatService {
   }
 
   async getUserChats(userId: string) {
-    const chats = await prisma.chat.findMany({
+    const rawChats = await prisma.chat.findMany({
       where: { participants: { some: { userId } } },
       include: {
         participants: {
@@ -90,12 +81,30 @@ export class ChatService {
       },
       orderBy: { updatedAt: 'desc' },
     });
-    return chats;
+
+    // Safely deduplicate 1-to-1 conversations in memory for presentation
+    // Group 1-to-1 chats by the other participant's userId.
+    const seenOtherUserIds = new Set<string>();
+    const deduplicatedChats: typeof rawChats = [];
+
+    for (const chat of rawChats) {
+      if (chat.isGroup) {
+        deduplicatedChats.push(chat);
+      } else {
+        const otherParticipant = chat.participants.find((p) => p.userId !== userId);
+        const otherUserId = otherParticipant?.userId || 'unknown';
+
+        if (!seenOtherUserIds.has(otherUserId)) {
+          seenOtherUserIds.add(otherUserId);
+          deduplicatedChats.push(chat);
+        }
+      }
+    }
+
+    return deduplicatedChats;
   }
 
   async getChatMessages(userId: string, chatId: string, page: number = 1, limit: number = 50) {
-    // Access control: only participants may read a conversation's messages.
-    // Without this check any authenticated user could read private chats by id.
     const chat = await prisma.chat.findUnique({
       where: { id: chatId },
       select: { participants: { where: { userId }, select: { userId: true } } },
@@ -183,16 +192,25 @@ export class ChatService {
       },
     });
 
+    if (!participants || participants.length === 0) return {};
+
+    // Execute unread counts in parallel using Promise.all to eliminate sequential N+1 latency
+    const countResults = await Promise.all(
+      participants.map(async (p) => {
+        const count = await prisma.message.count({
+          where: {
+            chatId: p.chatId,
+            senderId: { not: userId },
+            readBy: { none: { userId } },
+          },
+        });
+        return { chatId: p.chatId, count };
+      })
+    );
+
     const counts: Record<string, number> = {};
-    for (const p of participants) {
-      const count = await prisma.message.count({
-        where: {
-          chatId: p.chatId,
-          senderId: { not: userId },
-          readBy: { none: { userId } },
-        },
-      });
-      if (count > 0) counts[p.chatId] = count;
+    for (const res of countResults) {
+      if (res.count > 0) counts[res.chatId] = res.count;
     }
 
     return counts;

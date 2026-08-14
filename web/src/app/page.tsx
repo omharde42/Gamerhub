@@ -1,13 +1,8 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
-<<<<<<< HEAD
-import { Gamepad2, Sparkles, Zap, Trophy, Users, Globe, Star, LogIn, UserPlus, Film, Scissors } from 'lucide-react';
-=======
-import { Gamepad2, Sparkles, Zap, Trophy, Users, Globe, LogIn, UserPlus } from 'lucide-react';
->>>>>>> 3ca5dc6 (mobile_pagespeed_optimization_p0_p1_complete)
+import { Gamepad2, Sparkles, Zap, Trophy, Users, Globe, LogIn, UserPlus, Film, Scissors } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
@@ -188,9 +183,6 @@ export default function EnterPage() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
     </div>
   );
 }
