@@ -17,13 +17,26 @@ export default function AnalyticsPage() {
   const weeklyData = weekly?.map((d: any) => ({ name: new Date(d.date).toLocaleDateString('en', { weekday: 'short' }), winRate: Math.round(d.winRate), kd: d.kd, matches: d.matches })) || [];
   const heatmapData = Object.entries(heatmap || {}).map(([key, count]) => ({ name: key, value: count as number }));
 
+  const connected = (stats?.profile?.connectedGames || 0) > 0 || (stats?.profile?.totalMatches || 0) > 0;
+  const showWinRate = connected ? `${stats.profile.winRate ?? 0}%` : '--';
+  const showKd = connected ? `${stats.profile.kd ?? 0}` : '--';
+  const showAccuracy = stats?.profile?.accuracy != null ? `${stats.profile.accuracy}%` : '--';
+  const showMatches = connected ? `${stats.profile.totalMatches}` : '--';
+
   return (<div className="space-y-6"><h1 className="text-2xl font-bold"><BarChart3 className="h-6 w-6 inline mr-2 text-gaming-purple" />Analytics</h1>
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <Card className="glass-card"><CardContent className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">Win Rate</p><p className="text-2xl font-bold text-green-500">{stats?.profile?.winRate || 0}%</p></div><Target className="h-8 w-8 text-green-500/30" /></div></CardContent></Card>
-      <Card className="glass-card"><CardContent className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">K/D Ratio</p><p className="text-2xl font-bold text-blue-500">{stats?.profile?.kd || 0}</p></div><TrendingUp className="h-8 w-8 text-blue-500/30" /></div></CardContent></Card>
-      <Card className="glass-card"><CardContent className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">Accuracy</p><p className="text-2xl font-bold text-gaming-purple">{stats?.profile?.accuracy || 0}%</p></div><Crosshair className="h-8 w-8 text-gaming-purple/30" /></div></CardContent></Card>
-      <Card className="glass-card"><CardContent className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">Total Matches</p><p className="text-2xl font-bold text-yellow-500">{stats?.profile?.totalMatches || 0}</p></div><Activity className="h-8 w-8 text-yellow-500/30" /></div></CardContent></Card>
+      <Card className="glass-card"><CardContent className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">Win Rate</p><p className="text-2xl font-bold text-green-500">{showWinRate}</p></div><Target className="h-8 w-8 text-green-500/30" /></div></CardContent></Card>
+      <Card className="glass-card"><CardContent className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">K/D Ratio</p><p className="text-2xl font-bold text-blue-500">{showKd}</p></div><TrendingUp className="h-8 w-8 text-blue-500/30" /></div></CardContent></Card>
+      <Card className="glass-card"><CardContent className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">Accuracy</p><p className="text-2xl font-bold text-gaming-purple">{showAccuracy}</p></div><Crosshair className="h-8 w-8 text-gaming-purple/30" /></div></CardContent></Card>
+      <Card className="glass-card"><CardContent className="p-4"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">Total Matches</p><p className="text-2xl font-bold text-yellow-500">{showMatches}</p></div><Activity className="h-8 w-8 text-yellow-500/30" /></div></CardContent></Card>
     </div>
+
+    {!connected && (
+      <Card className="glass-card"><CardContent className="p-6 text-center">
+        <p className="font-bold text-foreground">No game data yet</p>
+        <p className="text-xs text-muted-foreground mt-1">Connect a game account (Valorant, PUBG, Clash of Clans, ...) to see your stats here.</p>
+      </CardContent></Card>
+    )}
 
     <div className="grid lg:grid-cols-2 gap-6">
       <Card className="glass-card"><CardHeader><CardTitle className="text-lg">Weekly Win Rate</CardTitle></CardHeader><CardContent><div className="h-[300px]"><ResponsiveContainer width="100%" height="100%"><AreaChart data={weeklyData}><defs><linearGradient id="colorWin" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/><stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} /><YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} /><Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} /><Area type="monotone" dataKey="winRate" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorWin)" strokeWidth={2} /></AreaChart></ResponsiveContainer></div></CardContent></Card>
