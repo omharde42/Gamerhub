@@ -193,19 +193,21 @@ function DiscordMessagesPage() {
   const { data: chats, isLoading: chatsLoading } = useQuery({
     queryKey: ['chats'],
     queryFn: () => api.get('/chat').then(r => r.data.data),
-    refetchInterval: 10000,
+    staleTime: 30 * 1000,
   });
 
   const { data: unreadCounts } = useQuery({
     queryKey: ['chat-unread'],
     queryFn: () => api.get('/chat/unread-counts').then(r => r.data.data || {}),
-    refetchInterval: 10000,
+    staleTime: 15 * 1000,
   });
 
   const { data: messagesData, refetch: refetchMessages, isLoading: messagesLoading } = useQuery({
     queryKey: ['messages', selectedChat],
     queryFn: () => api.get(`/chat/${selectedChat}/messages`).then(r => r.data.data),
     enabled: !!selectedChat,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const { data: searchResults } = useQuery({
@@ -900,9 +902,22 @@ function DiscordMessagesPage() {
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 bg-grid bg-[length:40px_40px]">
               <div className="py-6 space-y-3 max-w-4xl mx-auto">
                 {messagesLoading ? (
-                  <div className="flex flex-col items-center justify-center py-20 space-y-3">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-xs text-muted-foreground">Loading conversation...</p>
+                  <div className="space-y-4 py-4 max-w-2xl mx-auto">
+                    {[
+                      { align: 'left', w: 'w-48 sm:w-64' },
+                      { align: 'right', w: 'w-40 sm:w-56' },
+                      { align: 'left', w: 'w-56 sm:w-72' },
+                      { align: 'right', w: 'w-36 sm:w-48' },
+                    ].map((item, idx) => (
+                      <div key={idx} className={cn("flex gap-3", item.align === 'right' ? "justify-end" : "justify-start")}>
+                        {item.align === 'left' && <div className="w-8 h-8 rounded-full bg-white/10 dark:bg-white/5 animate-pulse shrink-0" />}
+                        <div className={cn("p-3.5 rounded-2xl bg-white/10 dark:bg-white/5 animate-pulse border border-white/5 space-y-1.5", item.w)}>
+                          <div className="h-3 bg-white/20 rounded-md w-3/4" />
+                          <div className="h-3 bg-white/15 rounded-md w-1/2" />
+                        </div>
+                        {item.align === 'right' && <div className="w-8 h-8 rounded-full bg-primary/20 animate-pulse shrink-0" />}
+                      </div>
+                    ))}
                   </div>
                 ) : (decryptedMessages.length > 0 ? decryptedMessages : messages)?.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 px-4 text-center space-y-4 max-w-md mx-auto">
