@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { MapPin, Trophy, Target, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Award, Swords, X, Loader2, Heart, UserCheck, UserPlus, Sparkles, Settings, Camera, MessageSquare, Search } from 'lucide-react';
+import { MapPin, Trophy, Target, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Award, Swords, X, Loader2, Heart, UserCheck, UserPlus, Sparkles, Settings, Camera, MessageSquare, Search, ImagePlus } from 'lucide-react';
 import { formatDate, getInitials, getRankColor } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useOverlayStore } from '@/store/overlayStore';
@@ -255,13 +255,47 @@ export default function ProfilePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          {profile.banner && <img src={profile.banner} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />}
+          {profile.banner ? (
+            <img src={profile.banner} alt="Profile banner" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-2 text-slate-500 pointer-events-none">
+                <div className="w-14 h-14 rounded-2xl border-2 border-dashed border-slate-600/70 flex items-center justify-center">
+                  <ImagePlus className="h-6 w-6" />
+                </div>
+                <p className="text-xs font-semibold uppercase tracking-widest">Add Cover Photo</p>
+              </div>
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
           <div className="absolute inset-0 bg-grid opacity-5" />
           {user?.profile?.username === username && (
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-              <div className="opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center gap-1 text-white text-xs font-semibold">
-                <Camera className="h-6 w-6" /> Edit Banner
+            <>
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center pointer-events-none">
+                <div className="opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center gap-1 text-white text-xs font-semibold">
+                  <Camera className="h-6 w-6" /> {profile.banner ? 'Edit Banner' : 'Add Banner'}
+                </div>
+              </div>
+              {/* Always-visible edit button (LinkedIn-style) */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handlePhotoUpload('banner'); }}
+                className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/70 border border-white/20 text-white text-xs font-bold backdrop-blur-md hover:bg-emerald-600/80 hover:border-emerald-400/60 hover:shadow-[0_0_16px_rgba(16,185,129,0.5)] transition-all"
+              >
+                {uploading === 'banner' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Camera className="h-3.5 w-3.5" />
+                )}
+                {profile.banner ? 'Edit Cover' : 'Add Cover'}
+              </button>
+            </>
+          )}
+          {uploading === 'banner' && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 pointer-events-none">
+              <div className="flex flex-col items-center gap-2 text-white">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+                <span className="text-xs font-bold uppercase tracking-widest">Uploading Cover...</span>
               </div>
             </div>
           )}

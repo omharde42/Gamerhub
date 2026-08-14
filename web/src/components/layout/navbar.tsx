@@ -15,6 +15,8 @@ import api from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { gamerLevel, levelTitle, levelColor } from '@/lib/gamer-level';
+import { LevelChip } from '@/components/hud/level-chip';
 import {
   Search, Bell, MessageSquare, Users,
   LogOut, User, Settings, Crown, Home, ChevronDown,
@@ -106,6 +108,18 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
     refetchInterval: 15000,
     enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
   });
+
+  const { data: navStats } = useQuery({
+    queryKey: ['analytics-stats-nav'],
+    queryFn: () => api.get('/analytics/stats').then(r => r.data.data).catch(() => null),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
+  });
+
+  const navMatches = navStats?.profile?.totalMatches ? Number(navStats.profile.totalMatches) : 0;
+  const navLevel = gamerLevel(navMatches);
+  const navRankTitle = levelTitle(navLevel.level);
+  const navRankColor = levelColor(navLevel.level);
 
   const unreadCount = notifData?.count || 0;
   const totalChatUnread = Object.values(chatUnreadData || {}).reduce((sum: number, c: any) => sum + (c as number), 0);
@@ -246,23 +260,30 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button aria-label="User account menu" variant="ghost" className="flex items-center gap-1.5 px-2 h-11 w-11 md:w-auto rounded-lg hover:bg-accent/50 shrink-0">
-                  <Avatar className="h-8 w-8 md:h-7 md:w-7" ring status="online">
-                    <AvatarImage src={user?.profile?.avatar || ''} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-extrabold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
-                  </Avatar>
+                  <div className="level-ring shrink-0" style={{ ['--lvl-pct' as any]: `${navLevel.xp}%`, padding: 2 }}>
+                    <Avatar className="h-7 w-7 md:h-6 md:w-6 border-0" status="online">
+                      <AvatarImage src={user?.profile?.avatar || ''} />
+                      <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-extrabold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                    </Avatar>
+                  </div>
                   <ChevronDown className="h-3 w-3 text-muted-foreground hidden md:block" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 glass-strong">
                 <div className="flex items-center gap-3 p-3">
-                  <Avatar className="h-12 w-12" ring>
-                    <AvatarImage src={user?.profile?.avatar || ''} />
-                    <AvatarFallback className="bg-primary/10 text-primary">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
-                  </Avatar>
+                  <div className="level-ring shrink-0" style={{ ['--lvl-pct' as any]: `${navLevel.xp}%` }}>
+                    <Avatar className="h-11 w-11 border-0" ring>
+                      <AvatarImage src={user?.profile?.avatar || ''} />
+                      <AvatarFallback className="bg-primary/10 text-primary">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                    </Avatar>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate">{user?.profile?.displayName || user?.profile?.username}</p>
                     <p className="text-xs text-muted-foreground truncate">{(user?.profile as any)?.headline || 'Gamer'}</p>
                   </div>
+                </div>
+                <div className="px-3 pb-2">
+                  <LevelChip totalMatches={navMatches} compact />
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => openPanelFromNav('profile', { username: user?.profile?.username })}>
@@ -313,13 +334,18 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/50 bg-muted/10 p-4 shrink-0">
           <div className="flex items-center gap-2.5">
-            <Avatar className="h-9 w-9 border border-border/60">
-              <AvatarImage src={user?.profile?.avatar || ''} />
-              <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
-            </Avatar>
-            <div className="text-left">
+            <div className="level-ring shrink-0" style={{ ['--lvl-pct' as any]: `${navLevel.xp}%`, padding: 2 }}>
+              <Avatar className="h-9 w-9 border-0">
+                <AvatarImage src={user?.profile?.avatar || ''} />
+                <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+              </Avatar>
+            </div>
+            <div className="text-left min-w-0">
               <p className="font-semibold text-xs truncate max-w-[150px]">{user?.profile?.displayName || user?.profile?.username}</p>
               <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">@{user?.profile?.username}</p>
+              <p className="text-[9px] font-mono font-black mt-0.5" style={{ color: navRankColor, textShadow: `0 0 8px ${navRankColor}88` }}>
+                LVL {navLevel.level} • {navRankTitle}
+              </p>
             </div>
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setDrawerOpen(false)}>
