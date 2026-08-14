@@ -31,6 +31,16 @@ export class PubgConnector implements IGameConnector {
     const wr = parseFloat(stats.winRate);
     const hasStats = stats.matches > 0 && Number.isFinite(kd);
 
+    // Never store a "verified" account with zero/unavailable statistics: if
+    // the player has no lifetime stats yet (or the stats request failed), the
+    // connection is rejected with a clear message instead of saving 0s.
+    if (!hasStats) {
+      throw new AppError(
+        'PUBG lifetime statistics are currently unavailable for this player. The account was not connected — play ranked matches and try again later.',
+        422
+      );
+    }
+
     const gameAccount = await prisma.gameAccount.upsert({
       where: {
         userId_game: {

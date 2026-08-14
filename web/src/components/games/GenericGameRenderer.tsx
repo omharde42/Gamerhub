@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2 } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { GAMES_CONFIG } from '@/config/gamesConfig';
 import { GameRendererProps } from './clashofclans/ClashOfClansRenderer';
@@ -28,10 +28,14 @@ export function GenericGameRenderer({ gameKey, gameUid }: GameRendererProps) {
                 <p className="text-xs font-mono text-gray-400">UID / Tag: {gameUid}</p>
               </div>
             </div>
-            <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold gap-1 px-3 py-1">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Verified GamerZ Hub Link
+            <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-bold gap-1 px-3 py-1">
+              <ShieldAlert className="h-3.5 w-3.5" /> Verification unavailable
             </Badge>
           </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            This game does not currently support verified account connection. GamerZ Hub never fabricates
+            statistics — connect Clash of Clans, PUBG PC/Console or Steam for official verified data.
+          </p>
         </CardContent>
       </Card>
     </motion.div>

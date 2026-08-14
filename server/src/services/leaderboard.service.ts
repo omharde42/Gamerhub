@@ -58,7 +58,10 @@ const GAME_CONFIGS: LeaderboardGameConfig[] = [
         include: { user: { select: { id: true, profile: { select: { username: true, displayName: true, avatar: true } } } } },
       });
       return accounts.map((acc) => {
-        const townHall = parseTownHall(acc.rank) ?? acc.level ?? null;
+        // Rank is stored by the verified connector as "Town Hall N" from the
+        // official API. expLevel (acc.level) is NOT town hall level and is never
+        // used as a ranking fallback.
+        const townHall = parseTownHall(acc.rank) ?? null;
         return {
           userId: acc.user.id,
           username: acc.user.profile?.username || acc.inGameName || 'Unknown',

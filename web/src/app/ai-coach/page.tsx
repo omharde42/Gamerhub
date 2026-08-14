@@ -275,7 +275,11 @@ export default function AICoachPage() {
                                     <Gamepad2 className="h-4 w-4 text-primary shrink-0" />
                                     <h4 className="font-semibold text-sm truncate">{g.inGameName || g.game}</h4>
                                   </div>
-                                  <Badge variant="neon" className="text-[9px] px-2 py-0.5">✓ Verified</Badge>
+                                  {g.kdRatio != null || g.winRate != null || (g.totalMatches ?? 0) > 0 ? (
+                                    <Badge variant="neon" className="text-[9px] px-2 py-0.5">✓ Verified</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[9px] px-2 py-0.5 border-amber-500/40 text-amber-500">Stats unavailable</Badge>
+                                  )}
                                 </div>
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground mb-3">
                                   {g.rank && <span>Rank: <span className="text-foreground font-medium">{g.rank}</span></span>}
@@ -340,13 +344,13 @@ export default function AICoachPage() {
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-xs mb-1.5"><span>Win Rate</span><span className="font-semibold">{user?.profile?.winRate || 0}%</span></div>
+                <div className="flex justify-between text-xs mb-1.5"><span>Win Rate</span><span className="font-semibold">{user?.profile?.winRate != null ? `${user.profile.winRate}%` : '—'}</span></div>
                 <div className="h-2.5 bg-muted rounded-full overflow-hidden border border-primary/20">
-                  <motion.div className="h-full bg-gradient-to-r from-success/70 to-success rounded-full" initial={{ width: 0 }} animate={{ width: `${user?.profile?.winRate || 0}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.1 }} />
+                  <motion.div className="h-full bg-gradient-to-r from-success/70 to-success rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min(user?.profile?.winRate || 0, 100)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.1 }} />
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-xs mb-1.5"><span>K/D Ratio</span><span className="font-semibold">{user?.profile?.kd || 0}</span></div>
+                <div className="flex justify-between text-xs mb-1.5"><span>K/D Ratio</span><span className="font-semibold">{user?.profile?.kd != null ? user.profile.kd : '—'}</span></div>
                 <div className="h-2.5 bg-muted rounded-full overflow-hidden border border-primary/20">
                   <motion.div className="h-full bg-gradient-to-r from-primary/70 to-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min((user?.profile?.kd || 0) / 5 * 100, 100)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }} />
                 </div>

@@ -48,7 +48,15 @@ app.get("/api/news", getGamingNews);
 // Clash of Clans Player Route
 app.get("/player/:tag", async (req, res) => {
     try {
-        const tag = `%23${req.params.tag.replace("#", "")}`;
+        // Validate + normalize the tag server-side before any API call.
+        const rawTag = (req.params.tag || "").trim().replace(/^#/, "").toUpperCase();
+        if (!/^[A-Z0-9]{3,15}$/.test(rawTag)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid Clash of Clans player tag. Tags are 3-15 characters (letters and numbers), e.g. #GR8QQRV9J."
+            });
+        }
+        const tag = `%23${rawTag}`;
         if (!clashKey) {
             return res.status(500).json({ success: false, message: "Clash of Clans API token missing on server configuration." });
         }
@@ -58,7 +66,8 @@ app.get("/player/:tag", async (req, res) => {
             {
                 headers: {
                     Authorization: `Bearer ${clashKey}`
-                }
+                },
+                timeout: 10000
             }
         );
 
@@ -71,7 +80,7 @@ app.get("/player/:tag", async (req, res) => {
         console.error("Clash API error data:", err.response?.data || err.message);
         const status = err.response?.status || 500;
         if (status === 404) {
-            return res.status(404).json({ success: false, message: `Player with tag #${req.params.tag.replace("#", "")} not found.` });
+            return res.status(404).json({ success: false, message: `Player with tag #${rawTag} not found.` });
         }
         res.status(status).json(err.response?.data || { success: false, message: err.message });
     }
@@ -96,7 +105,23 @@ app.get("/pubg/player/:platform/:playerName", async (req, res) => {
             });
         }
 
-        const encodedPlayerName = encodeURIComponent(playerName.trim());
+        // Validate the player name server-side: reject numeric PUBG Mobile UIDs
+        // and unsupported characters (PC/Console integration only).
+        const trimmedName = playerName.trim();
+        if (trimmedName.length < 2 || trimmedName.length > 50) {
+            return res.status(400).json({ success: false, message: "PUBG player name must be between 2 and 50 characters." });
+        }
+        if (/^\d+$/.test(trimmedName)) {
+            return res.status(400).json({
+                success: false,
+                message: "PUBG Mobile UIDs are numeric IDs and are not supported for the PC/Console integration. Enter your PUBG PC/Steam player name instead."
+            });
+        }
+        if (!/^[A-Za-z0-9_.\- ]+$/.test(trimmedName)) {
+            return res.status(400).json({ success: false, message: "PUBG player name contains unsupported characters." });
+        }
+
+        const encodedPlayerName = encodeURIComponent(trimmedName);
 
         // Step 1: Query Player by Name
         let playerRes;
@@ -107,7 +132,8 @@ app.get("/pubg/player/:platform/:playerName", async (req, res) => {
                     headers: {
                         Authorization: `Bearer ${pubgKey}`,
                         Accept: "application/vnd.api+json"
-                    }
+                    },
+                    timeout: 10000
                 }
             );
         } catch (apiErr) {
@@ -120,6 +146,9 @@ app.get("/pubg/player/:platform/:playerName", async (req, res) => {
             }
             if (errStatus === 429) {
                 return res.status(429).json({ success: false, message: "PUBG API rate limit reached. Please try again later." });
+            }
+            if (apiErr.code === "ECONNABORTED" || apiErr.code === "ETIMEDOUT") {
+                return res.status(504).json({ success: false, message: "PUBG API request timed out. Please try again later." });
             }
             throw apiErr;
         }
@@ -147,7 +176,8 @@ app.get("/pubg/player/:platform/:playerName", async (req, res) => {
                     headers: {
                         Authorization: `Bearer ${pubgKey}`,
                         Accept: "application/vnd.api+json"
-                    }
+                    },
+                    timeout: 10000
                 }
             );
 
@@ -163,7 +193,20 @@ app.get("/pubg/player/:platform/:playerName", async (req, res) => {
                 }
             }
         } catch (statsErr) {
+            // Never return zeroed lifetime stats when the statistics request
+            // fails — the client must know the stats are unavailable.
             console.warn("Could not fetch PUBG lifetime stats:", statsErr.message);
+            const errStatus = statsErr.response?.status;
+            if (statsErr.code === "ECONNABORTED" || statsErr.code === "ETIMEDOUT") {
+                return res.status(504).json({ success: false, message: "PUBG lifetime statistics request timed out. Please try again later." });
+            }
+            if (errStatus === 429) {
+                return res.status(429).json({ success: false, message: "PUBG API rate limit reached. Please try again later." });
+            }
+            return res.status(errStatus || 502).json({
+                success: false,
+                message: "PUBG lifetime statistics are currently unavailable for this player. Please try again later."
+            });
         }
 
         const kdRatio = deaths > 0 ? (kills / deaths).toFixed(2) : (kills > 0 ? kills.toString() : "0.00");

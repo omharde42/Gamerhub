@@ -47,20 +47,31 @@ export class ClashOfClansService {
   private getApiToken(): string {
     const token = process.env.CLASH_OF_CLANS_API_TOKEN || process.env.CLASH_API_KEY || process.env.SUPERCELL_COC_TOKEN || process.env.COC_API_KEY;
     if (!token) {
-      console.warn('[ClashOfClansService] Warning: No Clash API Key env variable set.');
-      return '';
+      throw new AppError(
+        'Clash of Clans API key is missing on server configuration. Verified Clash connections are unavailable.',
+        500
+      );
     }
     return token.trim();
   }
 
   /**
-   * Normalize player tag to uppercase with # prefix removed for URL encoding
+   * Normalize player tag to uppercase with # prefix removed for URL encoding,
+   * and validate its format server-side. Supercell player tags are 3-15
+   * alphanumeric characters (the leading '#' is optional). Tags that do not
+   * match are rejected before any API call is made.
    */
   public normalizeTag(tag: string): string {
     if (!tag) throw new AppError('Player tag is required', 400);
     let cleaned = tag.trim().toUpperCase();
     if (cleaned.startsWith('#')) {
       cleaned = cleaned.substring(1);
+    }
+    if (!/^[A-Z0-9]{3,15}$/.test(cleaned)) {
+      throw new AppError(
+        'Invalid Clash of Clans player tag. Tags are 3-15 characters (letters and numbers), e.g. #GR8QQRV9J.',
+        400
+      );
     }
     return cleaned;
   }
@@ -83,12 +94,20 @@ export class ClashOfClansService {
     const encodedTag = `%23${tag}`;
 
     try {
-      const response = await fetch(`${this.apiBaseUrl}/players/${encodedTag}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10_000);
+      let response: Response;
+      try {
+        response = await fetch(`${this.apiBaseUrl}/players/${encodedTag}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
 
       if (!response.ok) {
         const errorData: any = await response.json().catch(() => ({}));
@@ -166,7 +185,10 @@ export class ClashOfClansService {
       return formattedStats;
     } catch (error: any) {
       if (error instanceof AppError) throw error;
-      throw new AppError(`Failed to fetch Clash of Clans player data: ${error.message}`, 500);
+      if (error?.name === 'AbortError') {
+        throw new AppError('Clash of Clans API request timed out. Please try again later.', 504);
+      }
+      throw new AppError(`Failed to fetch Clash of Clans player data: ${error.message}`, 502);
     }
   }
 }

@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Target, Trophy, Swords, Zap, CheckCircle2, Flame, ShieldAlert } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { GameRendererProps } from '../clashofclans/ClashOfClansRenderer';
+import { UnverifiedGameNotice } from '../UnverifiedGameNotice';
 
 export function ValorantRenderer({ gameUid }: GameRendererProps) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['game-profile', 'valorant', gameUid],
     queryFn: async () => {
       const res = await api.get(`/game/valorant/profile?uid=${encodeURIComponent(gameUid)}`);
@@ -18,6 +19,12 @@ export function ValorantRenderer({ gameUid }: GameRendererProps) {
     enabled: Boolean(gameUid),
     staleTime: 5 * 60 * 1000,
   });
+
+  // The backend rejects Valorant verification with a clear error — never
+  // fabricate ranks or stats. Show the honest unavailable state instead.
+  if (isError) {
+    return <UnverifiedGameNotice message={(error as any)?.response?.data?.message || undefined} />;
+  }
 
   if (isLoading) {
     return (

@@ -212,7 +212,7 @@ export class AIService {
   }) {
     if (!openai) return generateLocalProfileAnalysis(profile);
     try {
-      const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a professional esports profile optimizer. Analyze the profile and suggest improvements.' }, { role: 'user', content: `Analyze this gaming profile and suggest improvements:\nUsername: ${profile.username}\nBio: ${profile.bio || 'N/A'}\nMain Games: ${profile.mainGames?.join(', ') || 'N/A'}\nRank: ${profile.rank || 'N/A'}\nRole: ${profile.role || 'N/A'}\nWin Rate: ${profile.winRate}%\nK/D: ${profile.kd}\nPlay Style: ${profile.playStyle || 'N/A'}\nLanguages: ${profile.languages?.join(', ') || 'N/A'}\nProvide: 1. Profile strength score (0-100) 2. Top 3 improvements 3. Suggested bio rewrite` }], max_tokens: 500 });
+      const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a professional esports profile optimizer. Analyze the profile and suggest improvements. Only reference statistics that are actually present; when a stat is missing or unknown, say so instead of assuming a value.' }, { role: 'user', content: `Analyze this gaming profile and suggest improvements:\nUsername: ${profile.username}\nBio: ${profile.bio || 'N/A'}\nMain Games: ${profile.mainGames?.join(', ') || 'N/A'}\nRank: ${profile.rank || 'N/A'}\nRole: ${profile.role || 'N/A'}\nWin Rate: ${profile.winRate ?? 'N/A'}%\nK/D: ${profile.kd ?? 'N/A'}\nPlay Style: ${profile.playStyle || 'N/A'}\nLanguages: ${profile.languages?.join(', ') || 'N/A'}\nProvide: 1. Profile strength score (0-100) 2. Top 3 improvements 3. Suggested bio rewrite` }], max_tokens: 500 });
       return completion.choices[0]?.message?.content || generateLocalProfileAnalysis(profile);
     } catch (error) { logAIError('profile analysis', error); return generateLocalProfileAnalysis(profile); }
   }
@@ -247,7 +247,7 @@ export class AIService {
   }) {
     if (!openai) return generateLocalTrainingPlan(profile);
     try {
-      const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a professional esports coach. Create a personalized training plan.' }, { role: 'user', content: `Create a 7-day training plan for:\nGames: ${profile.mainGames?.join(', ') || 'Various'}\nCurrent Rank: ${profile.rank || 'Unranked'}\nWin Rate: ${profile.winRate}%\nK/D: ${profile.kd}\nRole: ${profile.role || 'Flex'}\nInclude daily drills, practice routines, and improvement goals.` }], max_tokens: 1000 });
+      const completion = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a professional esports coach. Create a personalized training plan. Only use statistics that are provided; when a value is N/A, do not invent one — give general fundamentals advice for that part.' }, { role: 'user', content: `Create a 7-day training plan for:\nGames: ${profile.mainGames?.join(', ') || 'Various'}\nCurrent Rank: ${profile.rank || 'Unranked'}\nWin Rate: ${profile.winRate ?? 'N/A'}%\nK/D: ${profile.kd ?? 'N/A'}\nRole: ${profile.role || 'Flex'}\nInclude daily drills, practice routines, and improvement goals.` }], max_tokens: 1000 });
       return completion.choices[0]?.message?.content || generateLocalTrainingPlan(profile);
     } catch (error) { logAIError('training plan generation', error); return generateLocalTrainingPlan(profile); }
   }
@@ -273,8 +273,8 @@ export class AIService {
     }
     try {
       const systemPrompt: OpenAI.Chat.ChatCompletionMessageParam = { role: 'system', content: `You are GamerHub AI Coach, an expert gaming coach assistant. You help gamers improve their skills, find teammates, and level up. 
-The user's profile: Games: ${profile?.mainGames?.join(', ') || 'Various'}, Rank: ${profile?.rank || 'Unranked'}, Role: ${profile?.role || 'Flex'}, Win Rate: ${profile?.winRate || 0}%, K/D: ${profile?.kd || 0}.
-Keep responses concise, actionable, and encouraging. Focus on gaming improvement tips, strategies, and motivation. Never be rude or discouraging.` };
+The user's profile: Games: ${profile?.mainGames?.join(', ') || 'Various'}, Rank: ${profile?.rank || 'Unranked'}, Role: ${profile?.role || 'Flex'}, Win Rate: ${profile?.winRate ?? 'N/A'}%, K/D: ${profile?.kd ?? 'N/A'}.
+Only cite the player's statistics when they are actually available (not N/A). Never invent or assume numbers — if data is unavailable, say so and give general fundamentals advice instead. Keep responses concise, actionable, and encouraging. Focus on gaming improvement tips, strategies, and motivation. Never be rude or discouraging.` };
       const historyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = history.slice(-10).map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
       const userMessage: OpenAI.Chat.ChatCompletionMessageParam = { role: 'user', content: message };
       const messages = [systemPrompt, ...historyMessages, userMessage];

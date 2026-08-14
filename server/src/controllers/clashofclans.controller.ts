@@ -4,6 +4,7 @@ import { clashOfClansService } from '../services/clashofclans.service';
 import { clashOfClansConnector } from '../services/game-connectors/clashofclans.connector';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
+import prisma from '../config/database';
 
 export class ClashOfClansController {
   /**
@@ -14,6 +15,36 @@ export class ClashOfClansController {
     const { tag } = req.params;
     const stats = await clashOfClansService.getPlayerProfile(tag);
     sendSuccess(res, stats, 'Clash of Clans player data retrieved successfully');
+  });
+
+  /**
+   * GET /api/clashofclans/status
+   * Returns the durable one-time tag-change lock state for the authenticated
+   * user. The lock lives on the User row and survives disconnect/logout, so the
+   * frontend can show the correct locked state even with no account connected.
+   */
+  getStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.userId;
+    const [account, user] = await Promise.all([
+      prisma.gameAccount.findUnique({
+        where: { userId_game: { userId, game: 'CLASH_OF_CLANS' } },
+        select: { inGameUid: true, changeCount: true, verified: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { clashTagChangeCount: true, clashTagHistory: true },
+      }),
+    ]);
+
+    const durableChangeCount = user?.clashTagChangeCount ?? 0;
+    sendSuccess(res, {
+      connected: Boolean(account),
+      inGameUid: account?.inGameUid || null,
+      verified: account?.verified ?? false,
+      changeCount: Math.max(durableChangeCount, account?.changeCount ?? 0),
+      locked: durableChangeCount >= 1,
+      tagHistory: Array.isArray(user?.clashTagHistory) ? user!.clashTagHistory : [],
+    });
   });
 
   /**

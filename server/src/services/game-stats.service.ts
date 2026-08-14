@@ -1,171 +1,113 @@
 import prisma from '../config/database';
-import { NotFoundError, ValidationError } from '../utils/errors';
+import { AppError, NotFoundError, ValidationError } from '../utils/errors';
+import { clashOfClansConnector } from './game-connectors/clashofclans.connector';
+import { pubgConnector } from './game-connectors/pubg.connector';
+import { steamConnector } from './game-connectors/steam.connector';
 
 export interface VerifyGameInput {
   userId: string;
-  game: string; // 'Free Fire' | 'PUBG Mobile' | 'BGMI' | 'Valorant' | 'CS2' | 'Apex Legends' | 'COD Mobile'
+  game: string;
   inGameUid: string;
   inGameName?: string;
   region?: string;
   screenshotBase64?: string;
 }
 
+export type VerificationResultStatus =
+  | 'VERIFIED'
+  | 'NO_DATA'
+  | 'ACCOUNT_NOT_FOUND'
+  | 'API_UNAVAILABLE'
+  | 'UNSUPPORTED';
+
 /**
  * Game account verification.
  *
- * IMPORTANT: GamerZ Hub never fabricates statistics. If the external API for a
- * game is unavailable or returns no real data, the account is stored with null
- * statistics (and `verified` reflects actual verification status). No default
- * K/D, win rate or rank is ever invented.
+ * GamerZ Hub never fabricates statistics, player names, ranks, K/D, win rates,
+ * matches, levels, avatars, achievements or "verified" flags. Verified accounts
+ * are only stored when a real, supported server-side API verification succeeds:
+ *
+ *   - Clash of Clans  → official Supercell API (player tag lookup)
+ *   - PUBG (PC/Steam) → official PUBG API (player name lookup)
+ *   - Steam           → official Steam Web API (steamID64 lookup)
+ *
+ * Every other game returns "This game does not currently support verified
+ * account connection" and never creates an account. Numeric PUBG Mobile UIDs
+ * and arbitrary identifiers are rejected — a public tag/name lookup proves the
+ * account EXISTS, never that the requesting user OWNS it; ownership is enforced
+ * by the one-time-connect policy per game (see ClashOfClansConnector).
  */
 export class GameStatsService {
-  async verifyAndLinkGameAccount(input: VerifyGameInput) {
-    const { userId, game, inGameUid, region } = input;
-    const normalizedGame = game.trim();
+  /**
+   * Map a user-facing game label to a connector game key. Returns null when the
+   * game has no supported verified-connection integration.
+   */
+  private resolveGameKey(game: string): string | null {
+    const g = (game || '').trim().toLowerCase();
+    if (g.includes('clash')) return 'clashofclans';
+    if (g === 'pubg' || g === 'pubg pc' || g === 'pubgpc' || g.includes('pubg') || g.includes('steam')) {
+      if (g.includes('mobile') || g.includes('bgmi')) return null;
+      if (g.includes('steam')) return 'steam';
+      if (g.includes('pubg')) return 'pubg';
+    }
+    return null;
+  }
 
-    const uid = inGameUid.trim();
+  async verifyAndLinkGameAccount(input: VerifyGameInput) {
+    const { userId, game } = input;
+    const normalizedGame = (game || '').trim();
+    if (!normalizedGame) {
+      throw new ValidationError({ game: ['Game title is required'] });
+    }
+
+    const uid = (input.inGameUid || '').trim();
     if (!uid) {
       throw new ValidationError({ inGameUid: ['In-Game UID is required'] });
     }
 
-    // ── 1. Per-game validation & real API lookups ─────────────────────
-    const realStats: {
-      inGameName?: string;
-      rank?: string | null;
-      level?: number | null;
-      kdRatio?: number | null;
-      winRate?: number | null;
-      totalMatches?: number | null;
-      avatarUrl?: string | null;
-      verified: boolean;
-    } = {
-      inGameName: input.inGameName?.trim() || undefined,
-      rank: null,
-      level: null,
-      kdRatio: null,
-      winRate: null,
-      totalMatches: null,
-      avatarUrl: null,
-      verified: false,
-    };
-
-    if (normalizedGame.toLowerCase().includes('free fire')) {
-      const cleanUid = uid.replace(/\D/g, '');
-      if (!cleanUid || cleanUid.length < 6) {
-        throw new ValidationError({ inGameUid: ['Free Fire UIDs are numeric and at least 6 digits long'] });
-      }
-      realStats.inGameName = input.inGameName?.trim() || `FF_Player_${cleanUid.slice(-4)}`;
-      // Attempt a real public lookup. If it fails, we store the account with no
-      // fabricated stats and mark it as unverified rather than inventing numbers.
-      try {
-        const ffRes = await fetch(`https://free-fire-api.vercel.app/api/v1/player?uid=${cleanUid}&region=${region || 'IND'}`);
-        if (ffRes.ok) {
-          const ffData = await ffRes.json();
-          if (ffData?.name) {
-            realStats.inGameName = ffData.name;
-            realStats.level = typeof ffData.level === 'number' ? ffData.level : null;
-            realStats.rank = typeof ffData.rank === 'string' ? ffData.rank : null;
-            realStats.verified = true;
-          }
-        }
-      } catch (err) {
-        console.warn('Free Fire lookup failed (no stats will be fabricated):', err);
-      }
-    } else if (normalizedGame.toLowerCase().includes('valorant')) {
-      const tagParts = uid.split('#');
-      const name = tagParts[0]?.trim() || '';
-      const tag = tagParts[1]?.trim() || '';
-      if (!name || !/^\d{3,5}$/.test(tag)) {
-        throw new ValidationError({ inGameUid: ['Valorant Riot IDs must use the format Name#TAG (e.g. TenZ#1234)'] });
-      }
-      realStats.inGameName = `${name}#${tag}`;
-      try {
-        const valRes = await fetch(`https://api.henrikdev.xyz/valorant/v1/mmr/ap/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`);
-        if (valRes.ok) {
-          const valData = await valRes.json();
-          const tier = valData?.data?.currenttierpatched;
-          if (tier) {
-            realStats.rank = tier;
-            realStats.level = typeof valData.data.ranking_in_tier === 'number' ? valData.data.ranking_in_tier : null;
-            realStats.verified = true;
-          }
-        }
-      } catch (err) {
-        console.warn('Valorant lookup failed (no stats will be fabricated):', err);
-      }
-    } else if (normalizedGame.toLowerCase().includes('pubg') || normalizedGame.toLowerCase().includes('bgmi')) {
-      // PUBG Mobile / BGMI have no official player-data API on this integration.
-      // We never fabricate stats for them. Players who want verified stats should
-      // connect PUBG PC/Console through the official integration.
-      const cleanUid = uid.replace(/\D/g, '');
-      if (!cleanUid || cleanUid.length < 6) {
-        throw new ValidationError({ inGameUid: ['PUBG Mobile / BGMI character IDs are numeric and at least 6 digits long'] });
-      }
-      realStats.inGameName = input.inGameName?.trim() || `PUBG_Player_${cleanUid.slice(-4)}`;
-    } else if (normalizedGame.toLowerCase().includes('cs2') || normalizedGame.toLowerCase().includes('cs go')) {
-      throw new ValidationError({
-        game: ['CS2 verification is not available yet. Connect your Steam account instead for verified profile data.'],
-      });
-    } else if (normalizedGame.toLowerCase().includes('call of duty') || normalizedGame.toLowerCase().includes('cod')) {
-      throw new ValidationError({
-        game: ['Call of Duty verification is not available yet on this integration.'],
-      });
-    } else {
-      throw new ValidationError({
-        game: ['Unsupported game for verification. Supported: Free Fire, Valorant, PUBG Mobile/BGMI (no verified stats available).'],
-      });
+    const gameKey = this.resolveGameKey(normalizedGame);
+    if (!gameKey) {
+      throw new AppError('This game does not currently support verified account connection.', 400);
     }
 
-    // ── 2. Save or Upsert to PostgreSQL Database ──────────────────────
-    const gameAccount = await prisma.gameAccount.upsert({
-      where: {
-        userId_game: {
-          userId,
-          game: normalizedGame,
-        },
-      },
-      update: {
-        inGameUid: uid,
-        inGameName: realStats.inGameName || `Player_${uid.slice(-4)}`,
-        region: region || 'Global',
-        rank: realStats.rank,
-        level: realStats.level,
-        kdRatio: realStats.kdRatio,
-        winRate: realStats.winRate,
-        totalMatches: realStats.totalMatches,
-        avatarUrl: realStats.avatarUrl,
-        verified: realStats.verified,
-        syncStatus: realStats.verified ? 'SUCCESS' : 'NO_DATA',
-        verifiedAt: realStats.verified ? new Date() : undefined,
-        lastSyncedAt: new Date(),
-      },
-      create: {
-        userId,
-        game: normalizedGame,
-        inGameUid: uid,
-        inGameName: realStats.inGameName || `Player_${uid.slice(-4)}`,
-        region: region || 'Global',
-        rank: realStats.rank,
-        level: realStats.level,
-        kdRatio: realStats.kdRatio,
-        winRate: realStats.winRate,
-        totalMatches: realStats.totalMatches,
-        avatarUrl: realStats.avatarUrl,
-        verified: realStats.verified,
-        syncStatus: realStats.verified ? 'SUCCESS' : 'NO_DATA',
-        verifiedAt: realStats.verified ? new Date() : undefined,
-        lastSyncedAt: new Date(),
-      },
-    });
+    // Delegate to the same connectors used by /api/game/:game/connect so every
+    // entry point enforces identical rules (validation, API verification,
+    // one-time tag change lock, no fabricated stats).
+    if (gameKey === 'clashofclans') {
+      const result = await clashOfClansConnector.connect(userId, { playerTag: uid });
+      return {
+        gameAccount: result.gameAccount,
+        verified: true,
+        statsAvailable: true,
+        status: 'VERIFIED' as VerificationResultStatus,
+        message: 'Clash of Clans account verified with real data from the official Supercell API.',
+      };
+    }
 
-    return {
-      gameAccount,
-      verified: realStats.verified,
-      statsAvailable: realStats.verified,
-      message: realStats.verified
-        ? `${normalizedGame} account verified with real data`
-        : `${normalizedGame} account saved — no verified statistics are available yet. Stats are never fabricated; sync again later or connect an official integration.`,
-    };
+    if (gameKey === 'pubg') {
+      const result = await pubgConnector.connect(userId, { playerName: uid });
+      return {
+        gameAccount: result.gameAccount,
+        verified: true,
+        statsAvailable: (result.stats?.matches ?? 0) > 0,
+        status: 'VERIFIED' as VerificationResultStatus,
+        message: 'PUBG PC/Steam account verified with real data from the official PUBG API.',
+      };
+    }
+
+    if (gameKey === 'steam') {
+      const result = await steamConnector.connect(userId, { steamId: uid });
+      return {
+        gameAccount: result.gameAccount,
+        verified: true,
+        statsAvailable: true,
+        status: 'VERIFIED' as VerificationResultStatus,
+        message: 'Steam account verified with real data from the official Steam Web API.',
+      };
+    }
+
+    // Unreachable — kept for type-safety.
+    throw new AppError('This game does not currently support verified account connection.', 400);
   }
 
   async getUserGameAccounts(userId: string) {
@@ -181,6 +123,10 @@ export class GameStatsService {
     });
     if (!account) throw new NotFoundError('Game account');
 
+    // Clash of Clans: unlinking must never reset the one-time tag-change lock.
+    // The durable lock lives on the User row (clashTagChangeCount) and survives
+    // account deletion, disconnect, logout and refresh — deleting the account
+    // row alone cannot touch it.
     await prisma.gameAccount.delete({
       where: { id: gameAccountId },
     });

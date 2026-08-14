@@ -2,82 +2,46 @@ import { IGameConnector } from './base.connector';
 import prisma from '../../config/database';
 import { AppError } from '../../utils/errors';
 
+const UNAVAILABLE_MESSAGE =
+  'This game does not currently support verified account connection. BGMI has no official server-side player-data API on this integration, so GamerZ Hub never fabricates statistics or creates verified PUBG/BGMI accounts.';
+
+/**
+ * BGMI previously fabricated hard-coded stats and stored them under the PUBG
+ * game account (a duplicate/alternate record). That path is removed entirely:
+ * BGMI is only connectable via the official PUBG PC/Console integration and
+ * numeric mobile UIDs are rejected there.
+ */
 export class BgmiConnector implements IGameConnector {
   gameKey = 'bgmi';
 
-  async validate(payload: Record<string, any>): Promise<boolean> {
-    if (!payload.uid) throw new AppError('BGMI Character ID is required', 400);
-    return true;
+  async validate(_payload: Record<string, any>): Promise<boolean> {
+    throw new AppError(UNAVAILABLE_MESSAGE, 400);
   }
 
-  async fetchProfile(gameUid: string): Promise<any> {
-    return {
-      game: 'bgmi',
-      uid: gameUid,
-      inGameName: `OP_SQUAD_${gameUid.slice(-4)}`,
-      level: 68,
-      rankTier: 'Conqueror 6,420 PTS',
-      seasonMatches: 310,
-      chickenDinners: 128,
-      kd: 5.42,
-      winRate: 41.3,
-      mostKillsInSingleMatch: 24,
-      headshotRate: 31.8,
-      clan: 'MORTAL_ESPORTS',
-    };
+  async fetchProfile(): Promise<any> {
+    throw new AppError(UNAVAILABLE_MESSAGE, 400);
   }
 
-  async fetchStats(gameUid: string): Promise<any> {
-    return this.fetchProfile(gameUid);
+  async fetchStats(): Promise<any> {
+    throw new AppError(UNAVAILABLE_MESSAGE, 400);
   }
 
-  async connect(userId: string, payload: Record<string, any>): Promise<any> {
-    await this.validate(payload);
-    const uid = payload.uid;
-    const profile = await this.fetchProfile(uid);
-
-    const gameAccount = await prisma.gameAccount.upsert({
-      where: { userId_game: { userId, game: 'PUBG' } },
-      update: {
-        inGameUid: uid,
-        inGameName: profile.inGameName,
-        rank: profile.rankTier,
-        level: profile.level,
-        verified: true,
-        syncStatus: 'SUCCESS',
-        lastSyncedAt: new Date(),
-      },
-      create: {
-        userId,
-        game: 'PUBG',
-        inGameUid: uid,
-        inGameName: profile.inGameName,
-        rank: profile.rankTier,
-        level: profile.level,
-        verified: true,
-        syncStatus: 'SUCCESS',
-        lastSyncedAt: new Date(),
-      },
-    });
-
-    await prisma.profile.updateMany({
-      where: { userId },
-      data: {
-        winRate: Math.round(profile.winRate),
-        kd: profile.kd,
-        accuracy: Math.round(profile.headshotRate),
-        totalMatches: profile.seasonMatches,
-        rank: profile.rankTier,
-      },
-    });
-
-    return { gameAccount, profile };
+  async connect(_userId: string, _payload: Record<string, any>): Promise<any> {
+    throw new AppError(UNAVAILABLE_MESSAGE, 400);
   }
 
   async disconnect(userId: string): Promise<boolean> {
-    await prisma.gameAccount.deleteMany({
+    // Allow removing legacy BGMI-fabricated records stored under PUBG.
+    // The real PUBG connector rejects numeric UIDs, so any PUBG account with a
+    // purely numeric inGameUid on this user must be a legacy BGMI record.
+    const legacy = await prisma.gameAccount.findFirst({
       where: { userId, game: 'PUBG' },
     });
+    if (legacy && /^\d+$/.test(legacy.inGameUid)) {
+      await prisma.gameAccount.deleteMany({
+        where: { userId, game: 'PUBG' },
+      });
+    }
     return true;
   }
 }

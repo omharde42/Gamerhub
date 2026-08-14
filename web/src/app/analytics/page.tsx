@@ -11,11 +11,33 @@ const formatNumber = (value: number | null | undefined): string =>
   value === null || value === undefined ? '—' : Number(value).toLocaleString();
 
 export default function AnalyticsPage() {
-  const { data: stats, isLoading } = useQuery({ queryKey: ['analytics-stats'], queryFn: () => api.get('/analytics/stats').then(r => r.data.data) });
-  const { data: weekly } = useQuery({ queryKey: ['analytics-weekly'], queryFn: () => api.get('/analytics/weekly-progress').then(r => r.data.data) });
-  const { data: heatmap } = useQuery({ queryKey: ['analytics-heatmap'], queryFn: () => api.get('/analytics/heatmap').then(r => r.data.data) });
+  const { data: stats, isLoading, isError, error, refetch, isFetching } = useQuery({ queryKey: ['analytics-stats'], queryFn: () => api.get('/analytics/stats').then(r => r.data.data) });
+  const { data: weekly } = useQuery({ queryKey: ['analytics-weekly'], queryFn: () => api.get('/analytics/weekly-progress').then(r => r.data.data), enabled: !isError });
+  const { data: heatmap } = useQuery({ queryKey: ['analytics-heatmap'], queryFn: () => api.get('/analytics/heatmap').then(r => r.data.data), enabled: !isError });
 
   if (isLoading) return <div className="space-y-6"><Skeleton className="h-32" /><Skeleton className="h-96" /></div>;
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold"><BarChart3 className="h-6 w-6 inline mr-2 text-gaming-purple" />Analytics</h1>
+        <Card className="glass-card border-destructive/30">
+          <CardContent className="py-12 flex flex-col items-center gap-3 text-center px-4">
+            <Activity className="h-9 w-9 text-destructive" />
+            <p className="text-sm font-semibold">Could not load your analytics</p>
+            <p className="text-xs text-muted-foreground max-w-sm">{(error as any)?.response?.data?.message || 'Something went wrong while fetching your stats. Please try again.'}</p>
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-input bg-background px-4 py-2 text-xs font-bold hover:bg-accent transition-colors"
+            >
+              {isFetching ? 'Retrying...' : 'Retry'}
+            </button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Every metric below is computed from stored match history / verified game
   // connections. If there is genuinely no data we render an empty state

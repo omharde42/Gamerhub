@@ -48,7 +48,15 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
     }
   }, [effectiveTag]);
 
-  const changeCount = cocAccount?.changeCount || 0;
+  // Durable one-time tag-change lock state from the server. It lives on the
+  // User row and survives disconnect/logout, so the lock is shown correctly
+  // even when no account is currently connected.
+  const { data: statusData } = useQuery({
+    queryKey: ['clashofclans-status'],
+    queryFn: () => api.get('/clashofclans/status').then((r) => r.data.data),
+  });
+
+  const changeCount = statusData?.changeCount ?? cocAccount?.changeCount ?? 0;
   const isLocked = changeCount >= 1;
   const isConnected = Boolean(effectiveTag);
 
@@ -81,6 +89,7 @@ export function ClashOfClansRenderer({ gameUid, isOwner }: GameRendererProps) {
       setShowConfirmModal(false);
       queryClient.invalidateQueries({ queryKey: ['game-profile', 'clashofclans'] });
       queryClient.invalidateQueries({ queryKey: ['user-game-connections'] });
+      queryClient.invalidateQueries({ queryKey: ['clashofclans-status'] });
       queryClient.invalidateQueries({ queryKey: ['compare-common-games'] });
     },
     onError: (err: any) => {

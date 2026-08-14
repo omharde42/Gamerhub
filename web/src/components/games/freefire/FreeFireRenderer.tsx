@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Flame, Trophy, Star, CheckCircle2, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { GameRendererProps } from '../clashofclans/ClashOfClansRenderer';
+import { UnverifiedGameNotice } from '../UnverifiedGameNotice';
 
 export function FreeFireRenderer({ gameUid }: GameRendererProps) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['game-profile', 'freefire', gameUid],
     queryFn: async () => {
       const res = await api.get(`/game/freefire/profile?uid=${encodeURIComponent(gameUid)}`);
@@ -18,6 +19,12 @@ export function FreeFireRenderer({ gameUid }: GameRendererProps) {
     enabled: Boolean(gameUid),
     staleTime: 5 * 60 * 1000,
   });
+
+  // Free Fire has no official verification — the backend rejects it with a
+  // clear error. Show the honest unavailable state instead of fake stats.
+  if (isError) {
+    return <UnverifiedGameNotice message={(error as any)?.response?.data?.message || undefined} />;
+  }
 
   if (isLoading) {
     return (

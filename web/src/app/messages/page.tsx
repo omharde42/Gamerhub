@@ -193,16 +193,16 @@ function DiscordMessagesPage() {
     reader.readAsDataURL(voiceBlob);
   };
 
+  // Chat state is kept fresh by Socket.IO events (message:new, messages:read)
+  // plus refetch-on-window-focus — no redundant 10s polling.
   const { data: chats, isLoading: chatsLoading } = useQuery({
     queryKey: ['chats'],
     queryFn: () => api.get('/chat').then(r => r.data.data),
-    refetchInterval: 10000,
   });
 
   const { data: unreadCounts } = useQuery({
     queryKey: ['chat-unread'],
     queryFn: () => api.get('/chat/unread-counts').then(r => r.data.data || {}),
-    refetchInterval: 10000,
   });
 
   const { data: messagesData, refetch: refetchMessages, isLoading: messagesLoading } = useQuery({
@@ -406,6 +406,7 @@ function DiscordMessagesPage() {
           return [...filtered, msg];
         });
         queryClient.invalidateQueries({ queryKey: ['chats'] });
+        queryClient.invalidateQueries({ queryKey: ['chat-unread'] });
       };
 
       const onMessagesRead = (data: { chatId: string; readBy: string; messageIds: string[] }) => {
@@ -420,6 +421,7 @@ function DiscordMessagesPage() {
               }
             : msg
         ));
+        queryClient.invalidateQueries({ queryKey: ['chat-unread'] });
       };
 
       // If the server rejects a message (e.g. not a participant, send failed),

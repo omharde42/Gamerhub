@@ -26,6 +26,9 @@ export class PubgService {
     return key;
   }
 
+  /** Explicit timeout for every PUBG API request (axios `timeout` option). */
+  private readonly requestTimeoutMs = 10_000;
+
   /**
    * Validate that the identifier is a real PUBG PC/Console player name.
    * PUBG Mobile accounts use numeric UIDs — those are explicitly rejected
@@ -72,6 +75,7 @@ export class PubgService {
             Authorization: `Bearer ${apiKey}`,
             Accept: 'application/vnd.api+json',
           },
+          timeout: this.requestTimeoutMs,
         }
       );
     } catch (apiErr: any) {
@@ -85,12 +89,19 @@ export class PubgService {
       if (status === 429) {
         throw new AppError('PUBG API rate limit reached. Please try again later.', 429);
       }
-      throw new AppError('Failed to fetch PUBG player data.', status || 500);
+      if (apiErr.code === 'ECONNABORTED' || apiErr.code === 'ETIMEDOUT') {
+        throw new AppError('PUBG API request timed out. Please try again later.', 504);
+      }
+      throw new AppError('Failed to fetch PUBG player data.', status || 502);
     }
 
     const playerData = playerRes.data?.data?.[0];
     if (!playerData) {
       throw new AppError('PUBG player not found.', 404);
+    }
+    // Guard against malformed API responses (missing attributes).
+    if (!playerData.id || !playerData.attributes || typeof playerData.attributes.name !== 'string') {
+      throw new AppError('PUBG API returned a malformed player response. Please try again later.', 502);
     }
 
     const accountId = playerData.id;
@@ -99,6 +110,9 @@ export class PubgService {
     const banType = playerData.attributes?.banType || 'Innocent';
 
     // Step 2: Fetch Lifetime Statistics
+    // If the statistics request fails we do NOT silently store a verified
+    // account with zeroed stats — the caller (connector) receives an error and
+    // rejects the connection.
     let kills = 0;
     let deaths = 0;
     let wins = 0;
@@ -112,13 +126,15 @@ export class PubgService {
             Authorization: `Bearer ${apiKey}`,
             Accept: 'application/vnd.api+json',
           },
+          timeout: this.requestTimeoutMs,
         }
       );
 
       const modeStats = statsRes.data?.data?.attributes?.gameModeStats;
-      if (modeStats) {
+      if (modeStats && typeof modeStats === 'object') {
         for (const modeKey in modeStats) {
           const mode = modeStats[modeKey];
+          if (!mode || typeof mode !== 'object') continue;
           kills += mode.kills || 0;
           deaths += mode.losses || 0;
           wins += mode.wins || 0;
@@ -126,7 +142,20 @@ export class PubgService {
         }
       }
     } catch (statsErr: any) {
-      console.warn('Could not fetch PUBG lifetime stats:', statsErr.message);
+      const status = statsErr.response?.status;
+      if (statsErr.code === 'ECONNABORTED' || statsErr.code === 'ETIMEDOUT') {
+        throw new AppError('PUBG lifetime statistics request timed out. Please try again later.', 504);
+      }
+      if (status === 429) {
+        throw new AppError('PUBG API rate limit reached. Please try again later.', 429);
+      }
+      if (status === 401 || status === 403) {
+        throw new AppError('PUBG API authorization failed. Check server configuration.', 401);
+      }
+      throw new AppError(
+        'PUBG lifetime statistics are currently unavailable for this player. Please try again later.',
+        status || 502
+      );
     }
 
     const kdRatio = deaths > 0 ? (kills / deaths).toFixed(2) : (kills > 0 ? kills.toString() : '0.00');

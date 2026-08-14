@@ -59,12 +59,13 @@ export function GameStatsVerifier({ userId, isEditable = true }: GameStatsVerifi
     },
   });
 
+  // Only games with official server-side verification are offered. Free Fire,
+  // PUBG Mobile/BGMI, Valorant, CS2 and COD Mobile have no official
+  // verification integration — GamerZ Hub never fabricates their stats.
   const gameOptions = [
-    { name: 'Free Fire', icon: '🔥', placeholder: 'Enter Free Fire UID (e.g. 189238472)' },
-    { name: 'PUBG Mobile / BGMI', icon: '🍗', placeholder: 'Enter PUBG Character ID (e.g. 512938412)' },
-    { name: 'Valorant', icon: '🎯', placeholder: 'Enter Riot ID (e.g. TenZ#1234)' },
-    { name: 'CS2', icon: '💣', placeholder: 'Enter Steam64 ID or Custom URL' },
-    { name: 'COD Mobile', icon: '🔫', placeholder: 'Enter CODM OpenID / Character ID' },
+    { name: 'Clash of Clans', icon: '🏰', placeholder: 'Enter Player Tag (e.g. #GR8QQRV9J)' },
+    { name: 'PUBG PC', icon: '🪖', placeholder: 'Enter PUBG PC/Steam player name (e.g. TGLTN)' },
+    { name: 'Steam', icon: '🎮', placeholder: 'Enter Steam ID64 (e.g. 76561198012345678)' },
   ];
 
   return (
@@ -75,7 +76,7 @@ export function GameStatsVerifier({ userId, isEditable = true }: GameStatsVerifi
             <Shield className="h-5 w-5 text-[#00E676]" /> Verified In-Game Accounts & Stats
           </span>
           <Badge variant="outline" className="bg-[#00E676]/10 text-[#00E676] border-[#00E676]/30 text-xs font-mono font-bold">
-            LIVE VERIFICATION ACTIVE
+            OFFICIAL API VERIFICATION
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -196,7 +197,7 @@ export function GameStatsVerifier({ userId, isEditable = true }: GameStatsVerifi
             </div>
           ) : (
             <div className="p-6 rounded-2xl border border-dashed border-white/10 text-center text-xs text-[#94A3B8]">
-              No in-game accounts linked yet. Enter your Free Fire, PUBG Mobile, or Valorant UID above to display verified live stats!
+              No in-game accounts linked yet. Connect Clash of Clans, PUBG PC or Steam to display verified stats from their official APIs. Games without an official verification integration are never shown with fabricated statistics.
             </div>
           )}
         </div>

@@ -168,14 +168,20 @@ export class ChallengeService {
     });
     if (actorId) ids.delete(actorId);
     for (const uid of ids) {
-      await notificationService.create({
-        userId: uid,
-        type: nType,
-        title,
-        message,
-        link: '/challenges',
-        metadata: { challengeId: challenge.id, ...payload },
-      });
+      // Event-level duplicate prevention: repeated processing of the same
+      // challenge transition (e.g. concurrent calls or sweep retries) never
+      // creates duplicate notifications for the same user.
+      await notificationService.createWithDedupe(
+        {
+          userId: uid,
+          type: nType,
+          title,
+          message,
+          link: '/challenges',
+          metadata: { challengeId: challenge.id, ...payload },
+        },
+        `challenge:${challenge.id}:${chType}`
+      );
       await prisma.challengeNotification.create({
         data: { challengeId: challenge.id, userId: uid, type: chType },
       });

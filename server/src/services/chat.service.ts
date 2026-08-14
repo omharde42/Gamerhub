@@ -183,18 +183,25 @@ export class ChatService {
       },
     });
 
-    const counts: Record<string, number> = {};
-    for (const p of participants) {
-      const count = await prisma.message.count({
-        where: {
-          chatId: p.chatId,
-          senderId: { not: userId },
-          readBy: { none: { userId } },
-        },
-      });
-      if (count > 0) counts[p.chatId] = count;
-    }
+    const chatIds = participants.map((p) => p.chatId);
+    if (chatIds.length === 0) return {};
 
+    // Single aggregate query instead of one COUNT per chat (N+1 fix).
+    const rows = await prisma.message.groupBy({
+      by: ['chatId'],
+      where: {
+        chatId: { in: chatIds },
+        senderId: { not: userId },
+        isDeleted: false,
+        readBy: { none: { userId } },
+      },
+      _count: { id: true },
+    });
+
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      if (row._count.id > 0) counts[row.chatId] = row._count.id;
+    }
     return counts;
   }
 

@@ -86,6 +86,8 @@ model User {
   userBlocks          UserBlock[]  @relation("UserBlocks")
   blockedBy           UserBlock[]  @relation("BlockedBy")
   partnershipApplications PartnershipApplication[]
+  clashTagChangeCount Int @default(0)
+  clashTagHistory     Json?
   @@index([email])
   @@index([role])
 }
@@ -99,19 +101,19 @@ model GameAccount {
   changeCount    Int       @default(0)
   region         String?
   rank           String?
-  level          Int?      @default(1)
-  kdRatio        Float?    @default(0.0)
-  winRate        Float?    @default(0.0)
-  totalMatches   Int?      @default(0)
-  rankRating     Int?      @default(0)
-  headshotPct    Float?    @default(0.0)
-  elo            Int?      @default(1000)
-  steamLevel     Int?      @default(1)
-  hoursPlayed    Float?    @default(0.0)
+  level          Int?
+  kdRatio        Float?
+  winRate        Float?
+  totalMatches   Int?
+  rankRating     Int?
+  headshotPct    Float?
+  elo            Int?
+  steamLevel     Int?
+  hoursPlayed    Float?
   recentMatches  Json?
   achievements   Json?
   avatarUrl      String?
-  verified       Boolean   @default(true)
+  verified       Boolean   @default(false)
   syncStatus     String?   @default("IDLE")
   lastSyncedAt   DateTime? @default(now())
   verifiedAt     DateTime  @default(now())

@@ -204,9 +204,21 @@ class CompareService {
 
   /**
    * PHASE 4 & 6: Friends Leaderboard with strict game stats isolation
+   *
+   * Only games verified through official APIs (Clash of Clans, PUBG PC) can be
+   * ranked. Unsupported games are rejected rather than ranked with fabricated
+   * or client-editable data. Players whose stats are unavailable are listed but
+   * marked "Unavailable" and excluded from ranking (never given a 0).
    */
   async getFriendsLeaderboard(userId: string, gameId: string) {
     const normGameId = normalizeGameId(gameId);
+
+    if (normGameId !== 'clash_of_clans' && normGameId !== 'pubg_pc') {
+      throw new AppError(
+        'Verified comparison is not available for this game. Only Clash of Clans and PUBG PC/Console are supported through official APIs.',
+        400
+      );
+    }
 
     // Single source of truth: Find user's connected account for this game
     const userAccounts = await prisma.gameAccount.findMany({ where: { userId } });
@@ -247,18 +259,21 @@ class CompareService {
     const leaderboardItems = await Promise.all(
       allAccounts.map(async ({ account, user }) => {
         const stats = await this.getCachedPlayerStats(user.id, normGameId, account.inGameUid);
-        let score = 0;
-        let scoreLabel = '0';
+        let score: number | null = null;
+        let scoreLabel = 'Unavailable';
 
         if (normGameId === 'clash_of_clans') {
-          score = stats?.trophies || account.rankRating || 0;
-          scoreLabel = `${score.toLocaleString()} Trophies`;
+          const trophies = stats?.trophies;
+          if (typeof trophies === 'number') {
+            score = trophies;
+            scoreLabel = `${trophies.toLocaleString()} Trophies`;
+          }
         } else if (normGameId === 'pubg_pc') {
-          score = parseFloat(stats?.kdRatio || '0') || account.kdRatio || 0;
-          scoreLabel = `K/D ${stats?.kdRatio || account.kdRatio || '0.00'}`;
-        } else {
-          score = account.rankRating || 0;
-          scoreLabel = `${score}`;
+          const kd = stats?.kdRatio != null && stats.kdRatio !== 'N/A' ? parseFloat(stats.kdRatio) : NaN;
+          if (Number.isFinite(kd)) {
+            score = kd;
+            scoreLabel = `K/D ${kd.toFixed(2)}`;
+          }
         }
 
         const username = user.profile?.username || 'user';
@@ -271,38 +286,42 @@ class CompareService {
           avatar: user.profile?.avatar || null,
           tag: account.inGameUid,
           inGameName: account.inGameName || stats?.name || username,
+          // null score = stats unavailable → not ranked (never a fabricated 0).
           score,
           scoreLabel,
           isCurrentUser: user.id === userId,
-          stats: stats || {
-            name: account.inGameName,
-            townHallLevel: account.level,
-            trophies: account.rankRating,
-          },
+          statsAvailable: score !== null,
+          stats,
         };
       })
     );
 
-    leaderboardItems.sort((a, b) => b.score - a.score);
+    // Rank only players with real stats; deterministic tie-break by username.
+    const ranked = leaderboardItems
+      .filter((i) => i.score !== null)
+      .sort((a, b) => (b.score! - a.score! !== 0 ? b.score! - a.score! : a.username.localeCompare(b.username)))
+      .map((item, idx) => ({ ...item, rank: idx + 1 }));
 
-    const rankedLeaderboard = leaderboardItems.map((item, idx) => ({
-      ...item,
-      rank: idx + 1,
-    }));
+    // Unavailable players appear below the ranked list, clearly marked.
+    const unranked = leaderboardItems
+      .filter((i) => i.score === null)
+      .map((item) => ({ ...item, rank: null }));
+
+    const rankedLeaderboard = [...ranked, ...unranked];
 
     const currentUserRankItem = rankedLeaderboard.find((i) => i.isCurrentUser);
-    const currentUserRank = currentUserRankItem?.rank || 1;
+    const currentUserRank = currentUserRankItem?.rank ?? null;
     let gapText = 'You are #1 among your friends! 👑';
 
-    if (currentUserRank > 1) {
+    if (currentUserRankItem && currentUserRankItem.score === null) {
+      gapText = 'Your statistics are currently unavailable — connect and sync your account to be ranked.';
+    } else if (currentUserRank !== null && currentUserRank > 1) {
       const topPlayer = rankedLeaderboard[0];
-      const diff = topPlayer.score - (currentUserRankItem?.score || 0);
+      const diff = topPlayer.score! - (currentUserRankItem?.score || 0);
       if (normGameId === 'clash_of_clans') {
         gapText = `Need ${diff.toLocaleString()} more trophies to overtake ${topPlayer.displayName} (#1)`;
-      } else if (normGameId === 'pubg_pc') {
-        gapText = `Need ${diff.toFixed(2)} higher K/D to overtake ${topPlayer.displayName} (#1)`;
       } else {
-        gapText = `Need ${diff.toLocaleString()} more points to overtake ${topPlayer.displayName} (#1)`;
+        gapText = `Need ${diff.toFixed(2)} higher K/D to overtake ${topPlayer.displayName} (#1)`;
       }
     }
 

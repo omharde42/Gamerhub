@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Swords, Trophy, Target, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { GameRendererProps } from '../clashofclans/ClashOfClansRenderer';
+import { UnverifiedGameNotice } from '../UnverifiedGameNotice';
 
 export function BgmiRenderer({ gameUid }: GameRendererProps) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['game-profile', 'bgmi', gameUid],
     queryFn: async () => {
       const res = await api.get(`/game/bgmi/profile?uid=${encodeURIComponent(gameUid)}`);
@@ -18,6 +19,12 @@ export function BgmiRenderer({ gameUid }: GameRendererProps) {
     enabled: Boolean(gameUid),
     staleTime: 5 * 60 * 1000,
   });
+
+  // BGMI has no official verification — the backend rejects it. Never show
+  // fabricated stats; surface the honest unavailable state instead.
+  if (isError) {
+    return <UnverifiedGameNotice message={(error as any)?.response?.data?.message || undefined} />;
+  }
 
   if (isLoading) {
     return (
