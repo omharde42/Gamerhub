@@ -157,7 +157,7 @@ export default function EnterPage() {
             {/* Supported Games Badges */}
             <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-4">
               {['Valorant', 'CS2', 'League of Legends', 'Fortnite'].map((game) => (
-                <span key={game} className="text-[11px] text-muted-foreground/60 font-mono font-bold tracking-wide uppercase">
+                <span key={game} className="text-xs text-muted-foreground font-mono font-bold tracking-wide uppercase px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
                   {game}
                 </span>
               ))}

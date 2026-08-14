@@ -95,8 +95,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const isRedirectingAuthenticatedUser = isAuthenticated && !!user && isAuthOrLanding && pathname !== '/auth/callback';
   const isRedirectingUnauthenticatedUser = !isAuthenticated && !isAuthOrLanding;
 
-  // Render a branded splash screen only until hydration completes to eliminate unauthenticated redirects or layout flashes
-  if (!hasHydrated || isRedirectingAuthenticatedUser || isRedirectingUnauthenticatedUser) {
+  // Render a branded splash screen only until hydration completes for private routes to eliminate unauthenticated redirects or layout flashes.
+  // Public landing page (/) renders immediately on initial paint.
+  if ((!hasHydrated || isRedirectingAuthenticatedUser || isRedirectingUnauthenticatedUser) && !isLanding) {
     return (
       <div className="min-h-screen bg-[#05070E] flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-center animate-fade-in">
