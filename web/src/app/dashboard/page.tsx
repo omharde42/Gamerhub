@@ -74,7 +74,7 @@ export default function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-64 md:w-80 h-64 md:h-80 rounded-full overflow-hidden opacity-40 pointer-events-none mix-blend-screen animate-pulse shrink-0 hidden sm:block">
-          <img src="/cybernetic-artifact.jpg" alt="Cybernetic Artifact" className="w-full h-full object-cover rounded-full" />
+          <img src="/cybernetic-artifact.jpg" alt="Cybernetic Artifact" className="w-full h-full object-cover rounded-full" loading="lazy" decoding="async" />
         </div>
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

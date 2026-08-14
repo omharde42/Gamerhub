@@ -182,7 +182,7 @@ export default function NotificationsPage() {
                           <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
                         )}
                         {notif.image && (
-                          <img src={notif.image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                          <img src={notif.image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" loading="lazy" decoding="async" />
                         )}
                       </motion.div>
                     );

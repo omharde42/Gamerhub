@@ -223,7 +223,7 @@ export default function GamerPassportPage() {
       <motion.div variants={itemVariants}>
         <Card className="overflow-hidden border-0 shadow-md">
           <div className={`h-36 md:h-48 relative overflow-hidden ${isOwn ? 'group cursor-pointer' : ''}`} onClick={() => isOwn && handlePhotoUpload('banner')}>
-            <img src={p.banner || DEFAULT_BANNER} alt="" className="w-full h-full object-cover" />
+            <img src={p.banner || DEFAULT_BANNER} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             {!p.banner && (
               <div className="absolute inset-0 bg-gradient-to-r from-orange-500/20 via-red-500/20 to-purple-900/30 mix-blend-overlay" />

@@ -245,6 +245,8 @@ export default function FeedPage() {
                         src={article.image}
                         alt=""
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                         onError={(e: any) => {
                           e.target.style.display = 'none';
                         }}

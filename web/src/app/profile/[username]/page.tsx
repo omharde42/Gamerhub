@@ -255,7 +255,7 @@ export default function ProfilePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          {profile.banner && <img src={profile.banner} alt="" className="w-full h-full object-cover" />}
+          {profile.banner && <img src={profile.banner} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />}
           <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
           <div className="absolute inset-0 bg-grid opacity-5" />
           {user?.profile?.username === username && (

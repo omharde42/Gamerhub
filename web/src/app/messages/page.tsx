@@ -969,7 +969,7 @@ function DiscordMessagesPage() {
                               {msg.media.map((url: string, i: number) => (
                                 url.match(/\.(mp4|webm|ogg)$/i)
                                   ? <video key={i} src={url} controls className="w-auto max-w-[min(240px,72vw)] max-h-40 rounded-xl border border-border/30 shadow-md animate-scale-in" />
-                                  : <img key={i} src={getMediaUrl(url)} alt="" className="w-auto max-w-[min(240px,72vw)] max-h-40 rounded-xl object-cover border border-border/30 shadow-md hover:scale-[1.02] transition-transform duration-300 cursor-zoom-in animate-scale-in" onClick={() => {
+                                  : <img key={i} src={getMediaUrl(url)} alt="" className="w-auto max-w-[min(240px,72vw)] max-h-40 rounded-xl object-cover border border-border/30 shadow-md hover:scale-[1.02] transition-transform duration-300 cursor-zoom-in animate-scale-in" loading="lazy" decoding="async" onClick={() => {
                                       const imageUrls = msg.media.filter((u: string) => !u.match(/\.(mp4|webm|ogg)$/i));
                                       const imageIndex = imageUrls.indexOf(url);
                                       openLightbox(imageUrls, imageIndex !== -1 ? imageIndex : 0);
@@ -1090,7 +1090,7 @@ function DiscordMessagesPage() {
                   )}
                   {attachedMedia.map((url, i) => (
                     <div key={i} className="relative group shrink-0">
-                      <img src={getMediaUrl(url)} alt="" className="h-14 w-14 rounded-lg object-cover border border-border/40 shadow-sm" />
+                      <img src={getMediaUrl(url)} alt="" className="h-14 w-14 rounded-lg object-cover border border-border/40 shadow-sm" loading="lazy" decoding="async" />
                       <button
                         onClick={() => setAttachedMedia(attachedMedia.filter((_, j) => j !== i))}
                         className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center text-xs shadow-md hover:scale-110 transition-transform"
@@ -1101,7 +1101,7 @@ function DiscordMessagesPage() {
                   ))}
                   {filePreview && !attachedMedia.length && (
                     <div className="relative group shrink-0 flex items-center gap-2">
-                      <img src={filePreview || ''} alt="" className="h-14 w-14 rounded-lg object-cover border border-border/40 shadow-sm" />
+                      <img src={filePreview || ''} alt="" className="h-14 w-14 rounded-lg object-cover border border-border/40 shadow-sm" loading="lazy" decoding="async" />
                       <span className="text-xs text-muted-foreground">Image ready to send</span>
                       <button onClick={() => setFilePreview(null)} className="hover:text-destructive p-1 rounded-lg hover:bg-destructive/10 transition-colors"><X className="h-4 w-4" /></button>
                     </div>

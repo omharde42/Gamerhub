@@ -103,6 +103,8 @@ export function SteamShowcase({ userId }: SteamShowcaseProps) {
                     src={game.headerUrl}
                     alt={game.name}
                     className="h-12 w-24 rounded-lg object-cover border border-border/40 shadow-sm shrink-0"
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                   />
                   <div className="min-w-0 flex-1">
@@ -134,7 +136,7 @@ export function SteamShowcase({ userId }: SteamShowcaseProps) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               {steam.topGames.slice(0, 4).map((game: any) => (
                 <div key={game.appId} className="group relative overflow-hidden rounded-xl border border-border/40 bg-card/40 hover:border-primary/40 transition-all">
-                  <img src={game.headerUrl} alt={game.name} className="h-20 w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <img src={game.headerUrl} alt={game.name} className="h-20 w-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" decoding="async" />
                   <div className="p-2 bg-background/80 backdrop-blur-sm">
                     <p className="font-semibold text-[11px] truncate text-foreground">{game.name}</p>
                     <p className="text-[10px] text-primary font-mono font-bold mt-0.5">{game.playtimeForeverHours} hrs played</p>

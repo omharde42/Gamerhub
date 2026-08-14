@@ -144,7 +144,7 @@ export default function TournamentsPage() {
             <Card variant="glass" className="hover:border-emerald-500/50 transition-all rounded-[28px] overflow-hidden group">
               {t.banner && (
                 <div className="h-36 relative overflow-hidden">
-                  <img src={t.banner} alt={t.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <img src={t.banner} alt={t.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" decoding="async" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A0E17] via-transparent to-transparent" />
                   <Badge className="absolute top-3 right-3 bg-emerald-500/90 text-black font-extrabold text-[10px] px-2.5 py-0.5 rounded-full shadow-md">
                     ${formatNumber(t.prizePool)} PRIZE POOL

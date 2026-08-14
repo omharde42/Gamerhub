@@ -47,7 +47,7 @@ export function AuthFormWrapper({ children, title, subtitle, footer }: AuthFormW
           <div className="text-center space-y-3">
             <div className="inline-flex items-center gap-2.5">
               <div className="w-14 h-14 rounded-2xl overflow-hidden border border-primary/20 shadow-xl shadow-primary/10 animate-bounce-in shrink-0">
-                <img src="/logo.jpg" alt="GamerZ Hub Logo" className="w-full h-full object-cover" />
+                <img src="/logo.jpg" alt="GamerZ Hub Logo" className="w-full h-full object-cover" loading="lazy" decoding="async" />
               </div>
               <span className="text-2xl font-extrabold bg-gradient-to-r from-gaming-purple via-gaming-pink to-gaming-cyan bg-clip-text text-transparent tracking-tight">
                 GamerZ Hub
