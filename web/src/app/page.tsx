@@ -3,10 +3,15 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+<<<<<<< HEAD
 import { Gamepad2, Sparkles, Zap, Trophy, Users, Globe, Star, LogIn, UserPlus, Film, Scissors } from 'lucide-react';
+=======
+import { Gamepad2, Sparkles, Zap, Trophy, Users, Globe, LogIn, UserPlus } from 'lucide-react';
+>>>>>>> 3ca5dc6 (mobile_pagespeed_optimization_p0_p1_complete)
 import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/store/authStore';
+import { useRouter } from 'next/navigation';
 
-const PARTICLE_COUNT = 40;
 const typewriterTexts = [
   'Connect with pro gamers worldwide',
   'Compete in epic tournaments',
@@ -15,45 +20,26 @@ const typewriterTexts = [
   'Track every stat, every win',
 ];
 
-function Particle({ index }: { index: number }) {
-  const random = useRef({
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 3 + 1,
-    duration: Math.random() * 20 + 10,
-    delay: Math.random() * 5,
-    driftX: (Math.random() - 0.5) * 30,
-    driftY: (Math.random() - 0.5) * 30,
-  });
-  const r = random.current;
-
+// Lightweight CSS Particle background (Zero main-thread JS animation loops)
+function ParticleBackground() {
   return (
-    <motion.div
-      className="absolute rounded-full"
-      style={{
-        left: `${r.x}%`,
-        top: `${r.y}%`,
-        width: r.size,
-        height: r.size,
-        background: index % 3 === 0
-          ? 'hsl(var(--neon-cyan))'
-          : index % 3 === 1
-          ? 'hsl(var(--neon-purple))'
-          : 'hsl(var(--neon-pink))',
-      }}
-      animate={{
-        x: [0, r.driftX, -r.driftX * 0.5, 0],
-        y: [0, r.driftY, -r.driftY * 0.7, 0],
-        opacity: [0, 0.8, 0.4, 0],
-        scale: [0, 1, 0.8, 0],
-      }}
-      transition={{
-        duration: r.duration,
-        repeat: Infinity,
-        delay: r.delay,
-        ease: 'linear',
-      }}
-    />
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {[...Array(12)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full opacity-30 animate-pulse"
+          style={{
+            left: `${(i * 8.3) + 4}%`,
+            top: `${(i * 7.5) + 10}%`,
+            width: `${(i % 3) + 2}px`,
+            height: `${(i % 3) + 2}px`,
+            backgroundColor: i % 3 === 0 ? '#10B981' : i % 3 === 1 ? '#7C3AED' : '#06B6D4',
+            animationDuration: `${(i % 4) + 3}s`,
+            animationDelay: `${i * 0.2}s`,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -69,7 +55,7 @@ function TypewriterText() {
         if (charIndex < currentText.length) {
           setCharIndex(charIndex + 1);
         } else {
-          setTimeout(() => setIsDeleting(true), 2000);
+          setTimeout(() => setIsDeleting(true), 2500);
         }
       } else {
         if (charIndex > 0) {
@@ -79,7 +65,7 @@ function TypewriterText() {
           setTextIndex((textIndex + 1) % typewriterTexts.length);
         }
       }
-    }, isDeleting ? 30 : 60);
+    }, isDeleting ? 40 : 80);
 
     return () => clearTimeout(timeout);
   }, [charIndex, isDeleting, textIndex]);
@@ -99,9 +85,6 @@ const stats = [
   { value: '50+', label: 'Games Supported', icon: Globe },
 ];
 
-import { useAuthStore } from '@/store/authStore';
-import { useRouter } from 'next/navigation';
-
 export default function EnterPage() {
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
@@ -118,26 +101,17 @@ export default function EnterPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-      {/* Sleek, professional grid background with subtle dark gradients */}
+      {/* Background Grid & Particles */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-60" />
       <div className="absolute inset-0 bg-grid opacity-[0.03]" />
-      <div className="absolute inset-0 bg-dots opacity-[0.02]" />
+      <ParticleBackground />
 
-      {/* Main content */}
+      {/* Main Hero Container */}
       <div className="flex-1 flex items-center justify-center p-4 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="w-full max-w-md animate-card-enter"
-        >
+        <div className="w-full max-w-md">
           <div className="text-center space-y-8">
             {/* Brand Logo */}
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
-            >
+            <div>
               <div className="w-20 h-20 rounded-2xl overflow-hidden border border-primary/20 flex items-center justify-center mx-auto shadow-xl relative shrink-0">
                 <Image
                   src="/logo.jpg"
@@ -145,140 +119,78 @@ export default function EnterPage() {
                   width={80}
                   height={80}
                   priority
-                  {...({ fetchPriority: 'high' } as any)}
+                  sizes="80px"
                   className="w-full h-full object-cover"
                 />
               </div>
-            </motion.div>
+            </div>
 
+            {/* P0 LCP Heading: Immediate Render, No Animation Delay */}
             <div className="space-y-3">
-              <motion.h1
-                className="text-4xl md:text-5xl font-extrabold tracking-tight"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
+              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
                 <span className="bg-gradient-to-r from-indigo-400 via-primary to-violet-500 bg-clip-text text-transparent">
                   Welcome to GamerZ Hub
                 </span>
-              </motion.h1>
-              <motion.p
-                className="text-base text-muted-foreground h-8"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-              >
+              </h1>
+              <p className="text-base text-muted-foreground h-8">
                 <TypewriterText />
-              </motion.p>
+              </p>
             </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="space-y-4"
-            >
+            {/* Call To Action Buttons */}
+            <div className="space-y-4">
               <div className="flex flex-col sm:flex-row items-center gap-3 justify-center w-full max-w-[280px] sm:max-w-none mx-auto">
-                <motion.div className="w-full sm:w-auto" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <div className="w-full sm:w-auto">
                   <Link href="/auth/register" aria-label="Create a new GamerZ Hub account" className="w-full">
-                    <Button aria-label="Create Account" variant="gradient" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-10 text-base sm:text-lg rounded-2xl gap-2" animate>
+                    <Button aria-label="Create Account" variant="gradient" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-10 text-base sm:text-lg rounded-2xl gap-2 font-bold shadow-lg shadow-emerald-500/25">
                       <UserPlus className="h-5 w-5" />
                       Create Account
                     </Button>
                   </Link>
-                </motion.div>
-                <motion.div className="w-full sm:w-auto" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                </div>
+                <div className="w-full sm:w-auto">
                   <Link href="/auth/login" aria-label="Sign in to your GamerZ Hub account" className="w-full">
-                    <Button aria-label="Sign In" variant="outline" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-8 text-base sm:text-lg rounded-2xl gap-2">
+                    <Button aria-label="Sign In" variant="outline" size="xl" className="h-12 sm:h-14 w-full sm:w-auto px-6 sm:px-8 text-base sm:text-lg rounded-2xl gap-2 font-bold">
                       <LogIn className="h-5 w-5" />
                       Sign In
                     </Button>
                   </Link>
-                </motion.div>
+                </div>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1 }}
-            >
+            {/* Supported Games Badges */}
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-4">
               {['Valorant', 'CS2', 'League of Legends', 'Fortnite'].map((game) => (
-                <span key={game} className="text-[11px] text-muted-foreground/60 font-medium tracking-wide uppercase">
+                <span key={game} className="text-[11px] text-muted-foreground/60 font-mono font-bold tracking-wide uppercase">
                   {game}
                 </span>
               ))}
-            </motion.div>
+            </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
-      {/* Stats bar */}
-      <motion.div
-        className="border-t border-border/30 bg-card/30 backdrop-blur-sm"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.2 }}
-      >
+      {/* Stats Bar (Below the fold) */}
+      <div className="border-t border-border/30 bg-card/30 backdrop-blur-sm z-10">
         <div className="max-w-4xl mx-auto py-6 px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {stats.map((stat, i) => {
+            {stats.map((stat, i) => {
               const Icon = stat.icon;
               return (
-                <motion.div
-                  key={i}
-                  className="text-center space-y-1 animate-card-enter"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.3 + i * 0.1 }}
-                >
-                  <Icon className="h-5 w-5 mx-auto text-primary/60" />
-                  <p className="text-xl font-bold text-gradient animate-bounce-in">{stat.value}</p>
+                <div key={i} className="text-center space-y-1">
+                  <Icon className="h-5 w-5 mx-auto text-emerald-400" />
+                  <p className="text-xl font-extrabold text-gradient">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </motion.div>
+                </div>
               );
             })}
           </div>
         </div>
-      </motion.div>
-
-      {/* Video Studio feature */}
-      <motion.div
-        className="border-t border-border/30 bg-gradient-to-r from-emerald-500/5 via-transparent to-violet-500/5"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.4 }}
-      >
-        <div className="max-w-4xl mx-auto px-4 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 shadow-[0_0_18px_rgba(16,185,129,0.25)]">
-              <Scissors className="h-5 w-5 text-emerald-400" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-extrabold flex items-center gap-1.5">
-                GamerZ Studio
-                <span className="text-[9px] font-mono text-emerald-400 border border-emerald-500/40 rounded-full px-1.5 py-0.5">NEW</span>
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                Trim gameplay clips, build montages with transitions, music & text — and generate AI highlight reels
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Link href="/studio/clips" aria-label="Open Clip Studio">
-              <Button variant="outline" size="sm" className="gap-1.5 text-[11px] rounded-xl">
-                <Film className="h-3.5 w-3.5" /> Clip Studio
-              </Button>
-            </Link>
-            <Link href="/studio/projects" aria-label="Open Montage Studio">
-              <Button size="sm" className="gap-1.5 text-[11px] rounded-xl font-bold bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30">
-                <Scissors className="h-3.5 w-3.5" /> Montage Editor
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </motion.div>
+      </div>
+    </div>
+  );
+}
     </div>
   );
 }
