@@ -113,6 +113,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Dedicated lightweight landing shell: zero dashboard navigation DOM/JS mounted on landing page
+  if (isLanding) {
+    return (
+      <div className="min-h-screen bg-[#030509] text-foreground overflow-x-hidden relative">
+        <main id="main-content" role="main" className="w-full min-h-screen">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#030509] text-foreground overflow-x-hidden relative">
       {/* Background Floating Cybernetic Artifact Glow */}
