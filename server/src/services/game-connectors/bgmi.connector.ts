@@ -37,7 +37,7 @@ export class BgmiConnector implements IGameConnector {
     const profile = await this.fetchProfile(uid);
 
     const gameAccount = await prisma.gameAccount.upsert({
-      where: { userId_game: { userId, game: 'PUBG' } },
+      where: { userId_game: { userId, game: 'BGMI' } },
       update: {
         inGameUid: uid,
         inGameName: profile.inGameName,
@@ -49,7 +49,7 @@ export class BgmiConnector implements IGameConnector {
       },
       create: {
         userId,
-        game: 'PUBG',
+        game: 'BGMI',
         inGameUid: uid,
         inGameName: profile.inGameName,
         rank: profile.rankTier,
@@ -76,7 +76,7 @@ export class BgmiConnector implements IGameConnector {
 
   async disconnect(userId: string): Promise<boolean> {
     await prisma.gameAccount.deleteMany({
-      where: { userId, game: 'PUBG' },
+      where: { userId, game: 'BGMI' },
     });
     return true;
   }
