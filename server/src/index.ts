@@ -374,6 +374,14 @@ httpServer.listen(config.port, () => {
   console.log(`GamerHub API running on port ${config.port}`);
   console.log(`Environment: ${config.nodeEnv}`);
 
+  // Automatically clean synthetic seeded users on startup (preserving genuine real users)
+  try {
+    const { cleanSeededUsers } = require('../prisma/clean-seeded-users');
+    cleanSeededUsers().catch((err: any) => console.error('[clean-seeded-users]', err?.message));
+  } catch (e: any) {
+    console.warn('[clean-seeded-users] Skipped startup cleanup:', e?.message);
+  }
+
   // Self Keep-Alive ping to keep Render web service warm and eliminate cold starts
   const BACKEND_URL = process.env.BACKEND_URL || 'https://gamerhub-c944.onrender.com';
   setInterval(() => {
