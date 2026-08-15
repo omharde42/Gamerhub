@@ -1,5 +1,5 @@
 import prisma from '../config/database';
-import { NotFoundError } from '../utils/errors';
+import { AppError, NotFoundError } from '../utils/errors';
 
 export interface SteamGame {
   appId: number;
@@ -25,7 +25,7 @@ export interface SteamFullProfile {
   username: string;
   avatar: string;
   profileUrl: string;
-  level: number;
+  level: number | null;
   connectedAt?: Date;
   totalGames: number;
   totalPlaytimeHours: number;
@@ -34,189 +34,137 @@ export interface SteamFullProfile {
   achievements: SteamAchievement[];
 }
 
+const STEAM_API_BASE = 'https://api.steampowered.com';
+const REQUEST_TIMEOUT_MS = 10_000;
+
+async function fetchJson(url: string): Promise<any> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) {
+      throw new AppError(`Steam API returned status ${res.status}`, res.status >= 500 ? 502 : 400);
+    }
+    return await res.json();
+  } catch (err: any) {
+    if (err instanceof AppError) throw err;
+    if (err?.name === 'AbortError') {
+      throw new AppError('Steam API request timed out. Please try again later.', 504);
+    }
+    throw new AppError('Steam API is currently unavailable. Please try again later.', 502);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export class SteamService {
+  private getApiKey(): string {
+    const key = (process.env.STEAM_API_KEY || '').trim();
+    if (!key) {
+      throw new AppError('Steam API key missing on server configuration. Verified Steam data is unavailable.', 500);
+    }
+    return key;
+  }
+
+  private validateSteamId(steamId: string): string {
+    const id = (steamId || '').trim();
+    if (!/^\d{17}$/.test(id)) {
+      throw new AppError('Steam ID64 must be a 17-digit numeric SteamID (e.g. 76561198012345678).', 400);
+    }
+    return id;
+  }
+
+  /**
+   * Fetch a Steam profile from the official Steam Web API.
+   *
+   * Returns ONLY data returned by the API. Nothing is fabricated: when the API
+   * key is missing, the account is not found, or a request fails, this throws a
+   * clear error instead of inventing games, playtime or achievements.
+   */
   async getSteamProfileData(steamId: string): Promise<SteamFullProfile> {
-    const apiKey = process.env.STEAM_API_KEY;
+    const id = this.validateSteamId(steamId);
+    const apiKey = this.getApiKey();
 
-    let personaName = `SteamGamer_${steamId.slice(-4)}`;
-    let avatarUrl = 'https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/avatars/fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg';
-    let profileUrl = `https://steamcommunity.com/profiles/${steamId}`;
-    let level = 32;
+    // 1. Fetch Player Summary (proves the account exists)
+    const summaryRes = await fetchJson(
+      `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v0002/?key=${apiKey}&steamids=${id}`
+    );
+    const player = summaryRes?.response?.players?.[0];
+    if (!player) {
+      throw new NotFoundError('Steam player');
+    }
 
-    let ownedGames: SteamGame[] = [];
-    let recentlyPlayed: SteamGame[] = [];
-    let achievements: SteamAchievement[] = [];
+    const username = player.personaname || '';
+    const avatar = player.avatarfull || player.avatar || '';
+    const profileUrl = player.profileurl || `https://steamcommunity.com/profiles/${id}`;
 
-    if (apiKey) {
-      try {
-        // 1. Fetch Player Summary
-        const summaryRes = await fetch(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${apiKey}&steamids=${steamId}`);
-        const summaryData = await summaryRes.json();
-        const player = summaryData?.response?.players?.[0];
-
-        if (player) {
-          personaName = player.personaname || personaName;
-          avatarUrl = player.avatarfull || player.avatar || avatarUrl;
-          profileUrl = player.profileurl || profileUrl;
-        }
-
-        // 2. Fetch Steam Level
-        const levelRes = await fetch(`https://api.steampowered.com/IPlayerService/GetSteamLevel/v1/?key=${apiKey}&steamid=${steamId}`);
-        const levelData = await levelRes.json();
-        if (levelData?.response?.player_level !== undefined) {
-          level = levelData.response.player_level;
-        }
-
-        // 3. Fetch Recently Played Games
-        const recentRes = await fetch(`https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${apiKey}&steamid=${steamId}&count=10`);
-        const recentData = await recentRes.json();
-        if (recentData?.response?.games) {
-          recentlyPlayed = recentData.response.games.map((g: any) => ({
-            appId: g.appid,
-            name: g.name,
-            playtime2WeeksMinutes: g.playtime_2weeks || 0,
-            playtimeForeverMinutes: g.playtime_forever || 0,
-            playtimeForeverHours: Math.round(((g.playtime_forever || 0) / 60) * 10) / 10,
-            iconUrl: g.img_icon_url ? `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_icon_url}.jpg` : '',
-            headerUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/header.jpg`,
-          }));
-        }
-
-        // 4. Fetch Owned Games
-        const ownedRes = await fetch(`https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${apiKey}&steamid=${steamId}&include_appinfo=true&include_played_free_games=true`);
-        const ownedData = await ownedRes.json();
-        if (ownedData?.response?.games) {
-          ownedGames = ownedData.response.games.map((g: any) => ({
-            appId: g.appid,
-            name: g.name,
-            playtimeForeverMinutes: g.playtime_forever || 0,
-            playtimeForeverHours: Math.round(((g.playtime_forever || 0) / 60) * 10) / 10,
-            iconUrl: g.img_icon_url ? `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_icon_url}.jpg` : '',
-            headerUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/header.jpg`,
-          })).sort((a: SteamGame, b: SteamGame) => b.playtimeForeverHours - a.playtimeForeverHours);
-        }
-      } catch (err) {
-        console.warn('Steam API fetch warning, generating rich profile fallback:', err);
+    // 2. Fetch Steam Level (optional; null when unavailable)
+    let level: number | null = null;
+    try {
+      const levelRes = await fetchJson(
+        `${STEAM_API_BASE}/IPlayerService/GetSteamLevel/v1/?key=${apiKey}&steamid=${id}`
+      );
+      if (levelRes?.response?.player_level !== undefined) {
+        level = levelRes.response.player_level;
       }
+    } catch (err) {
+      console.warn('[SteamService] Steam level fetch failed (kept as unavailable):', (err as Error).message);
     }
 
-    // Fallback games if API returned empty due to private Steam profile privacy settings or missing key
-    if (ownedGames.length === 0) {
-      ownedGames = [
-        {
-          appId: 730,
-          name: 'Counter-Strike 2',
-          playtimeForeverMinutes: 44400,
-          playtimeForeverHours: 740,
-          iconUrl: '',
-          headerUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg',
-        },
-        {
-          appId: 570,
-          name: 'Dota 2',
-          playtimeForeverMinutes: 31200,
-          playtimeForeverHours: 520,
-          iconUrl: '',
-          headerUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/570/header.jpg',
-        },
-        {
-          appId: 1172470,
-          name: 'Apex Legends',
-          playtimeForeverMinutes: 18600,
-          playtimeForeverHours: 310,
-          iconUrl: '',
-          headerUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/header.jpg',
-        },
-        {
-          appId: 271590,
-          name: 'Grand Theft Auto V',
-          playtimeForeverMinutes: 16200,
-          playtimeForeverHours: 270,
-          iconUrl: '',
-          headerUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/271590/header.jpg',
-        },
-        {
-          appId: 1091500,
-          name: 'Cyberpunk 2077',
-          playtimeForeverMinutes: 9600,
-          playtimeForeverHours: 160,
-          iconUrl: '',
-          headerUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/header.jpg',
-        },
-      ];
+    // 3. Fetch Recently Played Games (empty when none / private profile)
+    let recentlyPlayed: SteamGame[] = [];
+    try {
+      const recentRes = await fetchJson(
+        `${STEAM_API_BASE}/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${apiKey}&steamid=${id}&count=10`
+      );
+      recentlyPlayed = (recentRes?.response?.games || []).map((g: any) => ({
+        appId: g.appid,
+        name: g.name,
+        playtime2WeeksMinutes: g.playtime_2weeks || 0,
+        playtimeForeverMinutes: g.playtime_forever || 0,
+        playtimeForeverHours: Math.round(((g.playtime_forever || 0) / 60) * 10) / 10,
+        iconUrl: g.img_icon_url ? `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_icon_url}.jpg` : '',
+        headerUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/header.jpg`,
+      }));
+    } catch (err) {
+      console.warn('[SteamService] Recently-played fetch failed (kept empty):', (err as Error).message);
     }
 
-    if (recentlyPlayed.length === 0) {
-      recentlyPlayed = [
-        {
-          appId: 730,
-          name: 'Counter-Strike 2',
-          playtime2WeeksMinutes: 1440,
-          playtimeForeverMinutes: 44400,
-          playtimeForeverHours: 740,
-          iconUrl: '',
-          headerUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg',
-        },
-        {
-          appId: 1172470,
-          name: 'Apex Legends',
-          playtime2WeeksMinutes: 900,
-          playtimeForeverMinutes: 18600,
-          playtimeForeverHours: 310,
-          iconUrl: '',
-          headerUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/header.jpg',
-        },
-      ];
+    // 4. Fetch Owned Games (empty when private profile / API error)
+    let ownedGames: SteamGame[] = [];
+    try {
+      const ownedRes = await fetchJson(
+        `${STEAM_API_BASE}/IPlayerService/GetOwnedGames/v0001/?key=${apiKey}&steamid=${id}&include_appinfo=true&include_played_free_games=true`
+      );
+      ownedGames = (ownedRes?.response?.games || [])
+        .map((g: any) => ({
+          appId: g.appid,
+          name: g.name,
+          playtimeForeverMinutes: g.playtime_forever || 0,
+          playtimeForeverHours: Math.round(((g.playtime_forever || 0) / 60) * 10) / 10,
+          iconUrl: g.img_icon_url ? `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_icon_url}.jpg` : '',
+          headerUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/header.jpg`,
+        }))
+        .sort((a: SteamGame, b: SteamGame) => b.playtimeForeverHours - a.playtimeForeverHours);
+    } catch (err) {
+      console.warn('[SteamService] Owned-games fetch failed (kept empty):', (err as Error).message);
     }
-
-    achievements = [
-      {
-        apiName: 'GLOBAL_OFFENSIVE_GLOBAL_ELITE',
-        name: 'Global Elite Commander',
-        description: 'Reach Global Elite rating in competitive matchmaking',
-        achieved: true,
-        unlockTime: '12 May 2025',
-        icon: '🏆',
-      },
-      {
-        apiName: 'RAMPAGE_MASTER',
-        name: 'Rampage Legend',
-        description: 'Perform 5 Rampage team wipes in official tournaments',
-        achieved: true,
-        unlockTime: '18 Jun 2025',
-        icon: '💥',
-      },
-      {
-        apiName: 'SHARPSHOOTER_100',
-        name: 'Clutch Master',
-        description: 'Win 100 1v3 or greater clutch rounds',
-        achieved: true,
-        unlockTime: '04 Jul 2025',
-        icon: '🎯',
-      },
-      {
-        apiName: 'NIGHT_CITY_LEGEND',
-        name: 'Night City Legend',
-        description: 'Complete all side gigs and main story missions in Cyberpunk 2077',
-        achieved: true,
-        unlockTime: '22 Jan 2026',
-        icon: '🌆',
-      },
-    ];
 
     const totalPlaytimeHours = Math.round(ownedGames.reduce((acc, g) => acc + g.playtimeForeverHours, 0));
 
     return {
-      steamId,
-      username: personaName,
-      avatar: avatarUrl,
+      steamId: id,
+      username: username || `Steam_${id.slice(-4)}`,
+      avatar,
       profileUrl,
       level,
-      totalGames: Math.max(ownedGames.length, 18),
+      totalGames: ownedGames.length,
       totalPlaytimeHours,
       recentlyPlayed,
       topGames: ownedGames.slice(0, 8),
-      achievements,
+      // Achievements require per-app schema lookups (playerstats) and are not
+      // fabricated — they are simply unavailable through this flow.
+      achievements: [],
     };
   }
 

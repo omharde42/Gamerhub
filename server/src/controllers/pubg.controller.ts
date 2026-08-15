@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
+import { AuthRequest } from '../types';
 import { pubgService } from '../services/pubg.service';
 import { pubgConnector } from '../services/game-connectors/pubg.connector';
+import { AppError } from '../utils/errors';
 
 export const pubgController = {
   getPlayer: async (req: Request, res: Response, next: NextFunction) => {
@@ -36,17 +38,24 @@ export const pubgController = {
 
   getProfile: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const name = (req.query.name || req.query.uid) as string;
-      const data = await pubgService.getPlayerProfile(name || 'TGLTN', 'steam');
+      const name = (req.query.name || req.query.uid) as string | undefined;
+      // Never default to a hard-coded player: an empty lookup would otherwise
+      // surface another player's stats as if they belonged to the requester.
+      if (!name || !name.trim()) {
+        throw new AppError('PUBG player name is required. Pass ?name=PlayerName.', 400);
+      }
+      const data = await pubgService.getPlayerProfile(name, 'steam');
       res.json({ success: true, data });
     } catch (error) {
       next(error);
     }
   },
 
-  connect: async (req: Request, res: Response, next: NextFunction) => {
+  connect: async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as any).user?.id || 'demo-user';
+      // `connect` is guarded by the `authenticate` middleware — the user id
+      // always comes from the verified token, never a client-supplied value.
+      const userId = req.user!.userId;
       const { playerName } = req.body;
       const result = await pubgConnector.connect(userId, { playerName });
       res.json({ success: true, data: result });

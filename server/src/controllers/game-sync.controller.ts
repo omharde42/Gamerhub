@@ -4,6 +4,10 @@ import { gameSyncService } from '../services/game-sync.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 import prisma from '../config/database';
+import { AppError } from '../utils/errors';
+
+const UNSUPPORTED_MESSAGE =
+  'This game does not currently support verified account connection. GamerZ Hub only verifies Clash of Clans, PUBG PC/Console and Steam accounts through their official APIs.';
 
 export class GameSyncController {
   listConnectedAccounts = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -15,37 +19,30 @@ export class GameSyncController {
     sendSuccess(res, accounts);
   });
 
+  /**
+   * POST /api/game-sync/sync/:platform
+   *
+   * Only STEAM is supported, and only through the official Steam Web API with a
+   * real steamID64. All other platforms return a clear "verification
+   * unavailable" error — no identifiers are ever defaulted and no statistics
+   * are fabricated.
+   */
   syncPlatform = asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = req.user!.userId;
     const { platform } = req.params;
-    const { identifier, region } = req.body;
+    const { identifier } = req.body;
 
-    let result;
-    const platUpper = platform.toUpperCase();
+    const platUpper = (platform || '').toUpperCase();
 
     if (platUpper === 'STEAM') {
-      result = await gameSyncService.syncSteam(userId, identifier || '76561198012345678');
-    } else if (platUpper === 'RIOT' || platUpper === 'VALORANT') {
-      result = await gameSyncService.syncRiot(userId, identifier || 'TenZ#NA1', region || 'NA');
-    } else if (platUpper === 'FACEIT') {
-      result = await gameSyncService.syncFaceit(userId, identifier || 's1mple');
-    } else if (platUpper === 'DISCORD') {
-      result = await gameSyncService.syncDiscord(userId, identifier || 'GamerZ#0001');
-    } else if (platUpper === 'CLASH_ROYALE') {
-      result = await gameSyncService.syncSupercell(userId, identifier || '#2PP820CG', 'CLASH_ROYALE');
-    } else if (platUpper === 'CLASH_OF_CLANS') {
-      result = await gameSyncService.syncSupercell(userId, identifier || '#8L90URG', 'CLASH_OF_CLANS');
-    } else if (platUpper === 'BRAWL_STARS') {
-      result = await gameSyncService.syncSupercell(userId, identifier || '#90UJLY2', 'BRAWL_STARS');
-    } else {
-      return sendError(res, 400, `Unsupported platform: ${platform}`);
+      if (!identifier || typeof identifier !== 'string' || !identifier.trim()) {
+        return sendError(res, 400, 'A Steam ID64 is required to sync a Steam account.');
+      }
+      const result = await gameSyncService.syncSteam(userId, identifier.trim());
+      return sendSuccess(res, result.gameAccount, 'Steam account synchronized with real API data.');
     }
 
-    if (result.success) {
-      sendSuccess(res, result.gameAccount, `${platform} account synchronized successfully!`);
-    } else {
-      sendError(res, 500, result.message || `Failed to sync ${platform}`);
-    }
+    throw new AppError(UNSUPPORTED_MESSAGE, 400);
   });
 
   disconnectPlatform = asyncHandler(async (req: AuthRequest, res: Response) => {

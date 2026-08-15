@@ -10,6 +10,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import { mediaStorageService } from '../utils/storage';
+import { sanitizeProfileUpdate } from '../utils/profile-allowlist';
 
 export class ProfileController {
   getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -72,8 +73,29 @@ export class ProfileController {
     });
   });
 
+  /**
+   * PUT /api/profiles
+   *
+   * Strict allowlist — a user may only update their own editable profile
+   * fields. Server-owned fields (gamerScore, skillScore, competitiveScore,
+   * communicationScore, leadershipScore, teamworkScore, improvementRate,
+   * winRate, kd, accuracy, totalMatches, wins, losses, rankScore, rank,
+   * verified, toxicityScore, and any game-verification/statistics fields) are
+   * rejected with a validation error — clients can never write them, even by
+   * accident or direct API call.
+   */
   updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const data = req.body;
+    const body = req.body || {};
+    const { data, restrictedFields } = sanitizeProfileUpdate(body);
+
+    if (restrictedFields.length > 0) {
+      throw new ValidationError(
+        Object.fromEntries(
+          restrictedFields.map((f) => [f, ['This field is managed by the server and cannot be updated.']])
+        )
+      );
+    }
+
     const profile = await prisma.profile.update({
       where: { userId: req.user!.userId },
       data,

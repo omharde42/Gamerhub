@@ -17,7 +17,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 import { getInitials } from '@/lib/utils';
-import { normalizeGameKey, CHALLENGE_GAME_META, type ChallengeGameKey } from './challenge-utils';
+import { normalizeGameKey, CHALLENGE_GAME_META, CHALLENGE_GAME_KEYS, CONNECTION_REQUIRED_GAMES, type ChallengeGameKey } from './challenge-utils';
 import Link from 'next/link';
 
 export interface OpponentInfo {
@@ -82,6 +82,7 @@ export function CreateChallengeModal({
     queryFn: () => api.get('/challenges/game-modes').then((r) => r.data.data || []),
   });
 
+  // Games the opponent has connected (official games only).
   const opponentGames = useMemo(() => {
     const set = new Set<ChallengeGameKey>();
     (opponentAccounts as any[]).forEach((acc) => {
@@ -90,6 +91,16 @@ export function CreateChallengeModal({
     });
     return [...set];
   }, [opponentAccounts]);
+
+  // Community games (e.g. Smash Karts) are always available for challenges — they
+  // need no connected account. Official games are only offered when connected.
+  const availableGames = useMemo(() => {
+    const set = new Set<ChallengeGameKey>(opponentGames);
+    CHALLENGE_GAME_KEYS.forEach((key) => {
+      if (!CONNECTION_REQUIRED_GAMES.includes(key)) set.add(key);
+    });
+    return [...set];
+  }, [opponentGames]);
 
   const myGameKeys = useMemo(() => {
     const set = new Set<ChallengeGameKey>();
@@ -113,7 +124,7 @@ export function CreateChallengeModal({
   // Reset form when opened / opponent changes
   useEffect(() => {
     if (open) {
-      const preferred = opponentGames.find((g) => myGameKeys.has(g)) || opponentGames[0] || 'clashofclans';
+      const preferred = opponentGames.find((g) => myGameKeys.has(g)) || opponentGames[0] || availableGames[0] || 'smashkarts';
       setGame(preferred);
       setChallengeType('ONE_VS_ONE');
       setGameMode('');
@@ -128,10 +139,10 @@ export function CreateChallengeModal({
 
   // If the games list loads after the modal opens, snap to a valid default game.
   useEffect(() => {
-    if (open && opponentGames.length > 0 && !opponentGames.includes(game)) {
-      setGame(opponentGames.find((g) => myGameKeys.has(g)) || opponentGames[0]);
+    if (open && availableGames.length > 0 && !availableGames.includes(game)) {
+      setGame(availableGames.find((g) => myGameKeys.has(g)) || availableGames[0]);
     }
-  }, [open, opponentGames, myGameKeys, game]);
+  }, [open, availableGames, myGameKeys, game]);
 
   const modesForGame = useMemo(() => {
     const g = gameModes.find((m: any) => m.game === game);
@@ -369,9 +380,10 @@ export function CreateChallengeModal({
         <div>
           <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">Game</Label>
           <div className="grid grid-cols-2 gap-2 mt-1.5">
-            {opponentGames.map((g) => {
+            {availableGames.map((g) => {
               const m = CHALLENGE_GAME_META[g];
               const active = game === g;
+              const needsConnection = CONNECTION_REQUIRED_GAMES.includes(g);
               return (
                 <button
                   key={g}
@@ -385,13 +397,17 @@ export function CreateChallengeModal({
                   <span className="text-xl">{m.icon}</span>
                   <div className="min-w-0">
                     <p className="text-xs font-bold truncate">{m.name}</p>
-                    {!myGameKeys.has(g) && <p className="text-[9px] text-amber-400/90">Not connected by you</p>}
+                    {m.community ? (
+                      <p className="text-[9px] text-sky-400/90">Community game — no account needed</p>
+                    ) : !myGameKeys.has(g) ? (
+                      <p className="text-[9px] text-amber-400/90">Not connected by you</p>
+                    ) : null}
                   </div>
                 </button>
               );
             })}
           </div>
-          {!hasGameConnected && (
+          {!hasGameConnected && CONNECTION_REQUIRED_GAMES.includes(game) && (
             <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
               <ShieldAlert className="h-3 w-3 text-amber-400" />
               You haven't connected this game yet.

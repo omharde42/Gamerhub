@@ -212,7 +212,6 @@ export class ChatService {
     for (const res of countResults) {
       if (res.count > 0) counts[res.chatId] = res.count;
     }
-
     return counts;
   }
 

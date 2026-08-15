@@ -146,7 +146,7 @@ export class AuthService {
     else provider = 'GOOGLE'; // default fallback
 
     // 1. Check if Account mapping already exists
-    let account = await prisma.account.findUnique({
+    const account = await prisma.account.findUnique({
       where: {
         provider_providerId: {
           provider,
@@ -262,7 +262,7 @@ export class AuthService {
   async directGoogleLogin(email: string, displayName: string, avatarUrl: string, googleId: string) {
     if (!email) throw new ValidationError({ email: ['Email is required'] });
 
-    let account = await prisma.account.findUnique({
+    const account = await prisma.account.findUnique({
       where: {
         provider_providerId: {
           provider: 'GOOGLE',
@@ -368,7 +368,7 @@ export class AuthService {
 
     type UserWithRelations = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique<{ where: { id: string }; include: { profile: true; subscription: true } }>>>>;
 
-    let account = await prisma.account.findUnique({
+    const account = await prisma.account.findUnique({
       where: {
         provider_providerId: {
           provider: 'STEAM',
@@ -663,7 +663,7 @@ export class AuthService {
         ? profile.email.toLowerCase()
         : `discord_${profile.id}@gamerhub.local`;
       
-      let baseUsername = profile.username.replace(/[^a-zA-Z0-9_]/g, '') || `Gamer_${profile.id.slice(-4)}`;
+      const baseUsername = profile.username.replace(/[^a-zA-Z0-9_]/g, '') || `Gamer_${profile.id.slice(-4)}`;
       let username = baseUsername;
       let count = 1;
 

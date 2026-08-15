@@ -70,7 +70,7 @@ export function PopularGamesModal({
       return;
     }
 
-    if (game.status === 'LIVE') {
+    if (game.status === 'LIVE' && !game.community) {
       onClose();
       if (onSelectGameToConnect) {
         onSelectGameToConnect(game.id);
@@ -190,6 +190,10 @@ export function PopularGamesModal({
                                   <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold gap-1 px-2.5 py-0.5">
                                     <CheckCircle2 className="h-3 w-3" /> Connected
                                   </Badge>
+                                ) : game.status === 'LIVE' && game.community ? (
+                                  <Badge className="bg-sky-500/20 text-sky-400 border border-sky-500/40 text-[10px] font-bold px-2.5 py-0.5">
+                                    🎮 COMMUNITY
+                                  </Badge>
                                 ) : game.status === 'LIVE' ? (
                                   <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold px-2.5 py-0.5">
                                     ● LIVE
@@ -224,6 +228,13 @@ export function PopularGamesModal({
                                 className="w-full h-9 text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-default"
                               >
                                 ✓ Connected
+                              </Button>
+                            ) : game.status === 'LIVE' && game.community ? (
+                              <Button
+                                onClick={() => handleGameClick(game)}
+                                className="w-full h-9 text-xs font-extrabold bg-gradient-to-r from-sky-500 to-cyan-600 hover:from-sky-400 hover:to-cyan-500 text-black shadow-lg"
+                              >
+                                🎮 Community Game
                               </Button>
                             ) : game.status === 'LIVE' ? (
                               <Button
@@ -277,15 +288,27 @@ export function PopularGamesModal({
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
-                      <Info className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold text-amber-200">Integration Coming Soon</p>
-                        <p className="text-xs text-amber-300/80 leading-relaxed">
-                          {infoGame.name} official player-data integration is currently being prepared for GamerZ Hub. No working API connection is available yet.
-                        </p>
+                    {infoGame.community ? (
+                      <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-start gap-2.5">
+                        <Info className="h-5 w-5 text-sky-400 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-sky-200">Community Game</p>
+                          <p className="text-xs text-sky-300/80 leading-relaxed">
+                            {infoGame.name} has no official player-stat API, so GamerZ Hub treats it as a community game. Challenge other gamers from their profile — participation is community-based and no statistics are fabricated.
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
+                        <Info className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-amber-200">Integration Coming Soon</p>
+                          <p className="text-xs text-amber-300/80 leading-relaxed">
+                            {infoGame.name} official player-data integration is currently being prepared for GamerZ Hub. No working API connection is available yet.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     <Button onClick={() => setInfoGame(null)} className="w-full rounded-xl font-extrabold h-10">
                       Got it

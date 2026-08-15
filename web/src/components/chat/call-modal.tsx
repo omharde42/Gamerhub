@@ -135,7 +135,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
           await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          socket.emit('call:answer', { toUserId: data.fromUserId, sdp: answer });
+          socket.emit('call:answer', { toUserId: data.fromUserId, chatId: callState.chatId, sdp: answer });
           setConnectionStatus('Connected');
         }
       } catch (err) {
@@ -173,7 +173,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
           await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          socket.emit('call:answer', { toUserId: data.fromUserId, sdp: answer });
+          socket.emit('call:answer', { toUserId: data.fromUserId, chatId: callState.chatId, sdp: answer });
         }
       } catch (err) {
         console.error('Error handling ICE restart:', err);
@@ -232,6 +232,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
       if (event.candidate) {
         socket.emit('call:ice-candidate', {
           toUserId: targetUserId,
+          chatId: callState?.chatId,
           candidate: event.candidate,
         });
       }
@@ -244,7 +245,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
         try {
           const offer = await pc.createOffer({ iceRestart: true });
           await pc.setLocalDescription(offer);
-          socket.emit('call:ice-restart', { toUserId: targetUserId, sdp: offer });
+          socket.emit('call:ice-restart', { toUserId: targetUserId, chatId: callState?.chatId, sdp: offer });
         } catch (err) {
           console.warn('ICE restart attempt failed:', err);
         }
@@ -269,7 +270,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      socket.emit('call:offer', { toUserId: targetUser.id, sdp: offer });
+      socket.emit('call:offer', { toUserId: targetUser.id, chatId: callState.chatId, sdp: offer });
       onAcceptCall();
     } catch (err) {
       handleEndCall();

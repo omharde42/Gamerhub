@@ -33,7 +33,7 @@ export function getMediaUrl(url: string | null | undefined): string {
   if (url.startsWith('data:') || url.startsWith('blob:')) return url;
   
   // Clean double/malformed protocols
-  let cleaned = url.replace(/^(https?,\s*)+/i, '');
+  const cleaned = url.replace(/^(https?,\s*)+/i, '');
 
   // Extract relative /uploads/... path if present in absolute or relative URL
   if (cleaned.includes('/uploads/')) {

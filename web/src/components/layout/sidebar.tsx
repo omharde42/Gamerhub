@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Newspaper, Users, Trophy, Briefcase,
   MessageSquare, BarChart3, Bot, Crown,
   Settings, LogOut, Gamepad2, Compass, Bookmark, Bell,
-  Shield, Globe, Film, Swords, Sun, Moon, Palette
+  Shield, Globe, Film, Swords, Sun, Moon, Palette, Medal, Handshake
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +32,8 @@ const getNavItems = (username: string) => [
   { href: '/teams', label: 'Teams', icon: Trophy },
   { href: '/tournaments', label: 'Tournaments', icon: Gamepad2 },
   { href: '/challenges', label: 'Challenges', icon: Swords },
+  { href: '/leaderboards', label: 'Leaderboards', icon: Medal },
+  { href: '/partnership', label: 'Partnership', icon: Handshake },
   { href: '/jobs', label: 'Jobs', icon: Briefcase },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/saved', label: 'Saved Posts', icon: Bookmark },
@@ -44,6 +46,9 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  // `useTheme` must run on every render (even when the sidebar is hidden) so
+  // the hook order stays stable — the app-wide ThemeProvider always wraps it.
+  const { theme: activeTheme, setTheme } = useTheme();
 
   const { data: chatUnreadData } = useQuery({
     queryKey: ['chat-unread'],
@@ -53,8 +58,6 @@ export function Sidebar() {
   const totalChatUnread = Object.values(chatUnreadData || {}).reduce((sum: number, c: any) => sum + (c as number), 0);
 
   if (pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/')) return null;
-
-  const { theme: activeTheme, setTheme } = useTheme();
 
   const handleLogout = () => {
     logout();

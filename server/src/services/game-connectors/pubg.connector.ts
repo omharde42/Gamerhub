@@ -24,6 +24,23 @@ export class PubgConnector implements IGameConnector {
     const name = payload.playerName;
     const stats = await this.fetchProfile(name);
 
+    // The PUBG API reports 'N/A' when a player has no ranked matches yet.
+    // Persist real values only — never coerce 'N/A' into 0 (that would
+    // fabricate statistics). Nullable DB columns keep the account honest.
+    const kd = parseFloat(stats.kdRatio);
+    const wr = parseFloat(stats.winRate);
+    const hasStats = stats.matches > 0 && Number.isFinite(kd);
+
+    // Never store a "verified" account with zero/unavailable statistics: if
+    // the player has no lifetime stats yet (or the stats request failed), the
+    // connection is rejected with a clear message instead of saving 0s.
+    if (!hasStats) {
+      throw new AppError(
+        'PUBG lifetime statistics are currently unavailable for this player. The account was not connected — play ranked matches and try again later.',
+        422
+      );
+    }
+
     const gameAccount = await prisma.gameAccount.upsert({
       where: {
         userId_game: {
@@ -34,9 +51,9 @@ export class PubgConnector implements IGameConnector {
       update: {
         inGameUid: stats.name,
         inGameName: stats.name,
-        rank: `K/D ${stats.kdRatio}`,
-        kdRatio: parseFloat(stats.kdRatio) || 0,
-        winRate: parseFloat(stats.winRate) || 0,
+        rank: hasStats ? `K/D ${stats.kdRatio}` : null,
+        kdRatio: Number.isFinite(kd) ? kd : null,
+        winRate: Number.isFinite(wr) ? wr : null,
         totalMatches: stats.matches,
         verified: true,
         syncStatus: 'SUCCESS',
@@ -47,9 +64,9 @@ export class PubgConnector implements IGameConnector {
         game: 'PUBG',
         inGameUid: stats.name,
         inGameName: stats.name,
-        rank: `K/D ${stats.kdRatio}`,
-        kdRatio: parseFloat(stats.kdRatio) || 0,
-        winRate: parseFloat(stats.winRate) || 0,
+        rank: hasStats ? `K/D ${stats.kdRatio}` : null,
+        kdRatio: Number.isFinite(kd) ? kd : null,
+        winRate: Number.isFinite(wr) ? wr : null,
         totalMatches: stats.matches,
         verified: true,
         syncStatus: 'SUCCESS',

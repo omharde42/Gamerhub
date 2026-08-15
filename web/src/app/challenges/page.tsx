@@ -81,8 +81,9 @@ export default function ChallengesPage() {
           <div className="flex-1">
             <h1 className="text-lg font-extrabold tracking-tight text-foreground">Challenge Arena</h1>
             <p className="text-xs text-slate-300">
-              Direct matchmaking for <span className="text-emerald-400 font-bold">Clash of Clans</span> &{' '}
-              <span className="text-emerald-400 font-bold">PUBG PC/Console</span> — challenge anyone, friends not required.
+              Direct matchmaking for <span className="text-emerald-400 font-bold">Clash of Clans</span>,{' '}
+              <span className="text-emerald-400 font-bold">PUBG PC/Console</span> &{' '}
+              <span className="text-sky-400 font-bold">Smash Karts</span> (community) — challenge anyone, friends not required.
             </p>
           </div>
           <Badge className="hidden sm:flex bg-emerald-500/15 text-emerald-400 border-emerald-500/40 gap-1 font-mono font-bold">
@@ -121,7 +122,7 @@ export default function ChallengesPage() {
               title={tab === 'incoming' ? 'No incoming challenges' : tab === 'sent' ? 'No challenges sent' : 'No challenge history'}
               description={
                 tab === 'incoming'
-                  ? 'When gamers challenge you to Clash of Clans or PUBG, they will appear here.'
+                  ? 'When gamers challenge you to Clash of Clans, PUBG or Smash Karts, they will appear here.'
                   : tab === 'sent'
                     ? 'Challenge a gamer directly from their profile — no friendship needed.'
                     : 'Declined, cancelled, expired and completed challenges are stored here.'

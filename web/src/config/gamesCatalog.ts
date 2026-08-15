@@ -11,6 +11,8 @@ export interface GameCatalogItem {
   color: string;
   bgGradient: string;
   borderColor: string;
+  /** Community games have no official player-stat API — they exist for challenges/community play only. */
+  community?: boolean;
 }
 
 export const GAMES_CATALOG: GameCatalogItem[] = [
@@ -135,5 +137,22 @@ export const GAMES_CATALOG: GameCatalogItem[] = [
     color: '#8B5CF6',
     bgGradient: 'from-violet-950/60 via-slate-950/40 to-black',
     borderColor: 'border-violet-500/30',
+  },
+  // ── COMMUNITY GAMES ──────────────────────────────────────────────
+  // No official player-stat API exists for these titles — they are community/
+  // challenge games only. GamerZ Hub does not fabricate statistics for them;
+  // a future official API/player-identity integration can be added later.
+  {
+    id: 'smashkarts',
+    name: 'Smash Karts',
+    developer: 'Smash Karts',
+    platform: 'Web / Browser',
+    description: 'Community game — no official stats API. Play Smash Karts challenges and tournaments with the GamerZ Hub community.',
+    status: 'LIVE',
+    community: true,
+    icon: '🏎️',
+    color: '#38BDF8',
+    bgGradient: 'from-sky-950/60 via-slate-950/40 to-black',
+    borderColor: 'border-sky-500/40',
   },
 ];

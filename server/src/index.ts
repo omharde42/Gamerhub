@@ -10,14 +10,6 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { config } from './config';
 
-type JwtModule = typeof import('jsonwebtoken');
-let jwtModule: JwtModule | null = null;
-const getJwtModule = (): JwtModule => {
-  if (!jwtModule) {
-    jwtModule = require('jsonwebtoken') as JwtModule;
-  }
-  return jwtModule;
-};
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { generalLimiter } from './middleware/rateLimiter';
 import { csrfProtection } from './middleware/csrf';
@@ -55,6 +47,7 @@ import challengeRoutes from './routes/challenge.routes';
 import videoRoutes from './routes/video.routes';
 import { setSocketIo } from './socket-emitter';
 import { challengeService } from './services/challenge.service';
+import { registerSocketEvents } from './socket/handlers';
 
 const app = express();
 const httpServer = createServer(app);
@@ -77,163 +70,13 @@ const io = new Server(httpServer, {
   pingTimeout: 20000,
 });
 
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) return next(new Error('Authentication required'));
-  try {
-    const decoded = getJwtModule().verify(token, config.jwt.secret) as { userId: string };
-    (socket as any).userId = decoded.userId;
-    next();
-  } catch {
-    next(new Error('Invalid token'));
-  }
-});
+// Chat/call socket handlers with participant authorization live in
+// src/socket/handlers.ts (see registerSocketEvents). Sender identity is always
+// derived from the verified JWT; client-supplied ids/callerInfo are never
+// trusted for authorization.
+registerSocketEvents(io, { prisma, chatService });
 
 setSocketIo(io);
-
-const onlineUsers = new Set<string>();
-
-io.on('connection', (socket) => {
-  const userId = (socket as any).userId as string;
-  console.log(`User connected: ${userId}`);
-  socket.join(`user:${userId}`);
-  onlineUsers.add(userId);
-  io.emit('user:online', userId);
-
-  socket.on('user:online', () => {
-    // Ignore any client-supplied uid: a socket may only announce itself as
-    // online, otherwise any user could spoof arbitrary users' presence.
-    onlineUsers.add(userId);
-    io.emit('user:online', userId);
-  });
-
-  socket.on('presence:update', (presence: string) => {
-    const now = new Date();
-    if (presence === 'INVISIBLE' || presence === 'OFFLINE') {
-      onlineUsers.delete(userId);
-    } else {
-      onlineUsers.add(userId);
-    }
-    // Update updatedAt as a last-seen timestamp whenever presence changes
-    prisma.user.update({ where: { id: userId }, data: { updatedAt: now } }).catch(() => {});
-    io.emit('user:presence', { userId, presence });
-  });
-
-  socket.on('join:chat', (chatId: string) => {
-    socket.join(`chat:${chatId}`);
-  });
-  socket.on('leave:chat', (chatId: string) => {
-    socket.leave(`chat:${chatId}`);
-  });
-
-  socket.on('server:join', (serverId: string) => {
-    socket.join(`server:${serverId}`);
-  });
-  socket.on('server:leave', (serverId: string) => {
-    socket.leave(`server:${serverId}`);
-  });
-
-  socket.on('typing:start', (chatId: string) => {
-    socket.to(`chat:${chatId}`).emit('typing:start', { userId, chatId });
-  });
-  socket.on('typing:stop', (chatId: string) => {
-    socket.to(`chat:${chatId}`).emit('typing:stop', { userId, chatId });
-  });
-
-  socket.on('message:send', async (data: { chatId: string; content?: string; media?: string[]; gif?: string; voiceNote?: string }) => {
-    try {
-      const message = await chatService.sendMessage(data.chatId, userId, data);
-      io.to(`chat:${data.chatId}`).emit('message:new', message);
-    } catch (error: any) {
-      socket.emit('error', { message: error.message || 'Failed to send message' });
-    }
-  });
-
-  // Read receipts: when a user reads messages, notify the chat room
-  socket.on('messages:read', async (data: { chatId: string }) => {
-    try {
-      const result = await chatService.markAsRead(data.chatId, userId);
-      // Notify the other participants with the actual message IDs that were marked
-      if (result.messageIds.length > 0) {
-        io.to(`chat:${data.chatId}`).emit('messages:read', {
-          chatId: data.chatId,
-          readBy: userId,
-          messageIds: result.messageIds,
-        });
-      }
-    } catch (error: any) {
-      console.warn('Failed to mark messages as read:', error.message);
-    }
-  });
-
-  // --- WebRTC Call Signaling Handlers ---
-  socket.on('call:request', (data: { toUserId: string; chatId: string; type: 'audio' | 'video'; callerInfo: any }) => {
-    io.to(`user:${data.toUserId}`).emit('call:incoming', {
-      fromUserId: userId,
-      chatId: data.chatId,
-      type: data.type,
-      callerInfo: data.callerInfo,
-    });
-  });
-
-  socket.on('call:accept', (data: { toUserId: string; chatId: string; type: 'audio' | 'video' }) => {
-    io.to(`user:${data.toUserId}`).emit('call:accepted', {
-      fromUserId: userId,
-      chatId: data.chatId,
-      type: data.type,
-    });
-  });
-
-  socket.on('call:reject', (data: { toUserId: string; chatId: string; reason?: string }) => {
-    io.to(`user:${data.toUserId}`).emit('call:rejected', {
-      fromUserId: userId,
-      chatId: data.chatId,
-      reason: data.reason || 'Call rejected',
-    });
-  });
-
-  socket.on('call:offer', (data: { toUserId: string; sdp: any }) => {
-    io.to(`user:${data.toUserId}`).emit('call:offer', {
-      fromUserId: userId,
-      sdp: data.sdp,
-    });
-  });
-
-  socket.on('call:answer', (data: { toUserId: string; sdp: any }) => {
-    io.to(`user:${data.toUserId}`).emit('call:answer', {
-      fromUserId: userId,
-      sdp: data.sdp,
-    });
-  });
-
-  socket.on('call:ice-candidate', (data: { toUserId: string; candidate: any }) => {
-    io.to(`user:${data.toUserId}`).emit('call:ice-candidate', {
-      fromUserId: userId,
-      candidate: data.candidate,
-    });
-  });
-
-  socket.on('call:end', (data: { toUserId: string; chatId?: string }) => {
-    if (data.toUserId) {
-      io.to(`user:${data.toUserId}`).emit('call:ended', { fromUserId: userId, chatId: data.chatId });
-    }
-  });
-
-  socket.on('call:ice-restart', (data: { toUserId: string; sdp: any }) => {
-    io.to(`user:${data.toUserId}`).emit('call:ice-restart', {
-      fromUserId: userId,
-      sdp: data.sdp,
-    });
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${userId}`);
-    onlineUsers.delete(userId);
-    // Record last seen timestamp via updatedAt
-    prisma.user.update({ where: { id: userId }, data: { updatedAt: new Date() } }).catch(() => {});
-    io.emit('user:offline', userId);
-  });
-});
 
 // Middleware
 app.set("trust proxy", 1);

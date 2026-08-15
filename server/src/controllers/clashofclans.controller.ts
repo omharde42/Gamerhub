@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { clashOfClansService } from '../services/clashofclans.service';
+import { clashOfClansConnector } from '../services/game-connectors/clashofclans.connector';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import prisma from '../config/database';
@@ -17,68 +18,49 @@ export class ClashOfClansController {
   });
 
   /**
+   * GET /api/clashofclans/status
+   * Returns the durable one-time tag-change lock state for the authenticated
+   * user. The lock lives on the User row and survives disconnect/logout, so the
+   * frontend can show the correct locked state even with no account connected.
+   */
+  getStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.userId;
+    const [account, user] = await Promise.all([
+      prisma.gameAccount.findUnique({
+        where: { userId_game: { userId, game: 'CLASH_OF_CLANS' } },
+        select: { inGameUid: true, changeCount: true, verified: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { clashTagChangeCount: true, clashTagHistory: true },
+      }),
+    ]);
+
+    const durableChangeCount = user?.clashTagChangeCount ?? 0;
+    sendSuccess(res, {
+      connected: Boolean(account),
+      inGameUid: account?.inGameUid || null,
+      verified: account?.verified ?? false,
+      changeCount: Math.max(durableChangeCount, account?.changeCount ?? 0),
+      locked: durableChangeCount >= 1,
+      tagHistory: Array.isArray(user?.clashTagHistory) ? user!.clashTagHistory : [],
+    });
+  });
+
+  /**
    * POST /api/clashofclans/connect
-   * Validates player tag, connects account to user profile, and updates DB
+   * Validates player tag, connects account to user profile, and updates DB.
+   *
+   * Delegates to the shared ClashOfClansConnector so this legacy route follows
+   * the exact same rules as /api/game/clashofclans/connect:
+   *   - tag is verified against the live Supercell API before accepting it,
+   *   - the one-time tag-change lock (changeCount >= 1) is enforced on the
+   *     backend, so a client can never bypass it via this route,
+   *   - no statistics are invented — only real API values are stored.
    */
   connectAccount = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { playerTag } = req.body;
-    const userId = req.user!.userId;
-
-    // 1. Fetch live data to verify tag validity
-    const stats = await clashOfClansService.getPlayerProfile(playerTag);
-    const normalizedTag = `#${clashOfClansService.normalizeTag(playerTag)}`;
-
-    // 2. Save connected game account in database
-    const gameAccount = await prisma.gameAccount.upsert({
-      where: {
-        userId_game: {
-          userId,
-          game: 'CLASH_OF_CLANS',
-        },
-      },
-      update: {
-        inGameUid: normalizedTag,
-        inGameName: stats.name,
-        rank: `Town Hall ${stats.townHallLevel}`,
-        level: stats.expLevel,
-        verified: true,
-        syncStatus: 'SUCCESS',
-        lastSyncedAt: new Date(),
-      },
-      create: {
-        userId,
-        game: 'CLASH_OF_CLANS',
-        inGameUid: normalizedTag,
-        inGameName: stats.name,
-        rank: `Town Hall ${stats.townHallLevel}`,
-        level: stats.expLevel,
-        verified: true,
-        syncStatus: 'SUCCESS',
-        lastSyncedAt: new Date(),
-      },
-    });
-
-    // 3. Calculate derived profile metrics from Clash of Clans live stats
-    const attackWins = stats.attackWins || 0;
-    const defenseWins = stats.defenseWins || 0;
-    const totalMatches = Math.max(attackWins + defenseWins, stats.warStars * 2, 50);
-    const winRate = Math.min(Math.round((attackWins / Math.max(attackWins + defenseWins, 1)) * 100) || 70, 100);
-    const kd = parseFloat((1.2 + (stats.townHallLevel * 0.15)).toFixed(2));
-    const accuracy = Math.min(Math.round(50 + (stats.warStars * 0.05)), 95);
-
-    // Update main user profile metrics in database
-    await prisma.profile.updateMany({
-      where: { userId },
-      data: {
-        winRate,
-        kd,
-        accuracy,
-        totalMatches,
-        rank: `Town Hall ${stats.townHallLevel}`,
-      },
-    });
-
-    sendSuccess(res, { gameAccount, stats }, 'Clash of Clans account connected successfully!');
+    const result = await clashOfClansConnector.connect(req.user!.userId, req.body);
+    sendSuccess(res, result, 'Clash of Clans account connected successfully!');
   });
 }
 

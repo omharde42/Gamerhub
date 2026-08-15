@@ -3,6 +3,15 @@ import prisma from '../../config/database';
 import { AppError } from '../../utils/errors';
 import { riotService } from '../riot.service';
 
+const UNAVAILABLE_MESSAGE =
+  'This game does not currently support verified account connection. Valorant verification requires an official Riot Games OAuth/API integration, which is not available yet — GamerZ Hub never fabricates ranks or statistics.';
+
+/**
+ * Valorant has no official public player-data API wired up in GamerZ Hub.
+ * Third-party community APIs are not used because they cannot prove account
+ * ownership and are not an official source. This connector exists so the
+ * generic game routes return a clear, honest error.
+ */
 export class ValorantConnector implements IGameConnector {
   gameKey = 'valorant';
 
@@ -17,8 +26,8 @@ export class ValorantConnector implements IGameConnector {
     return riotService.getValorantProfile(gameUid, region);
   }
 
-  async fetchStats(gameUid: string, region = 'ap'): Promise<any> {
-    return this.fetchProfile(gameUid, region);
+  async fetchStats(): Promise<any> {
+    throw new AppError(UNAVAILABLE_MESSAGE, 400);
   }
 
   async connect(userId: string, payload: Record<string, any>): Promise<any> {
@@ -114,6 +123,7 @@ export class ValorantConnector implements IGameConnector {
   }
 
   async disconnect(userId: string): Promise<boolean> {
+    // Allow removing legacy Valorant records. Never re-verifies.
     await prisma.gameAccount.deleteMany({
       where: { userId, game: 'VALORANT' },
     });

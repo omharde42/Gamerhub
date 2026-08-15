@@ -16,7 +16,7 @@ import {
   ReportReason,
 } from '@prisma/client';
 
-export type ChallengeGame = 'clashofclans' | 'pubg';
+export type ChallengeGame = 'clashofclans' | 'pubg' | 'smashkarts';
 export type ChallengeDirection = 'incoming' | 'outgoing' | 'all';
 export type ChallengeWinner = 'challenger' | 'opponent' | 'draw';
 
@@ -34,7 +34,7 @@ export interface CreateChallengeInput {
   opponentTeam?: string[];
 }
 
-export const SUPPORTED_CHALLENGE_GAMES: { id: ChallengeGame; name: string; icon: string; modes: string[] }[] = [
+export const SUPPORTED_CHALLENGE_GAMES: { id: ChallengeGame; name: string; icon: string; modes: string[]; community?: boolean }[] = [
   {
     id: 'clashofclans',
     name: 'Clash of Clans',
@@ -47,6 +47,16 @@ export const SUPPORTED_CHALLENGE_GAMES: { id: ChallengeGame; name: string; icon:
     icon: '🪖',
     modes: ['TPP Solo', 'FPP Solo', 'TPP Duo', 'FPP Duo', 'TPP Squad', 'FPP Squad', 'Custom Match'],
   },
+  {
+    // Community game: Smash Karts has no reliable official player-stat API, so it
+    // is treated purely as a community/challenge game (no verified statistics).
+    // The structure is designed so an official integration can be added later.
+    id: 'smashkarts',
+    name: 'Smash Karts',
+    icon: '🏎️',
+    community: true,
+    modes: ['Free For All', 'Team Battle', 'Custom Lobby'],
+  },
 ];
 
 const MAX_TEAM_SIZE = 5;
@@ -57,8 +67,9 @@ export const normalizeChallengeGame = (game: string): ChallengeGame => {
   const g = (game || '').trim().toLowerCase();
   if (g === 'clashofclans' || g === 'clash_of_clans' || g === 'coc') return 'clashofclans';
   if (g === 'pubg' || g === 'pubg_pc' || g === 'pubgpc') return 'pubg';
+  if (g === 'smashkarts' || g === 'smash_karts' || g === 'smash karts' || g === 'smashkart') return 'smashkarts';
   throw new ValidationError({
-    game: ['Unsupported game. Challenges are only available for Clash of Clans and PUBG (PC/Console).'],
+    game: ['Unsupported game. Challenges are available for Clash of Clans, PUBG (PC/Console) and Smash Karts.'],
   });
 };
 
@@ -84,7 +95,7 @@ type ChallengeWithRelations = Prisma.ChallengeGetPayload<{ include: ReturnType<t
 
 export class ChallengeService {
   getGameModes() {
-    return SUPPORTED_CHALLENGE_GAMES.map(({ id, name, icon, modes }) => ({ game: id, name, icon, modes }));
+    return SUPPORTED_CHALLENGE_GAMES.map(({ id, name, icon, modes, community }) => ({ game: id, name, icon, modes, community }));
   }
 
   private gameLabel(game: string): string {
@@ -157,14 +168,20 @@ export class ChallengeService {
     });
     if (actorId) ids.delete(actorId);
     for (const uid of ids) {
-      await notificationService.create({
-        userId: uid,
-        type: nType,
-        title,
-        message,
-        link: '/challenges',
-        metadata: { challengeId: challenge.id, ...payload },
-      });
+      // Event-level duplicate prevention: repeated processing of the same
+      // challenge transition (e.g. concurrent calls or sweep retries) never
+      // creates duplicate notifications for the same user.
+      await notificationService.createWithDedupe(
+        {
+          userId: uid,
+          type: nType,
+          title,
+          message,
+          link: '/challenges',
+          metadata: { challengeId: challenge.id, ...payload },
+        },
+        `challenge:${challenge.id}:${chType}`
+      );
       await prisma.challengeNotification.create({
         data: { challengeId: challenge.id, userId: uid, type: chType },
       });
@@ -256,7 +273,7 @@ export class ChallengeService {
     }
     if (scheduledAt < now) scheduledAt = now;
 
-    let expiresAt = input.expiresAt
+    const expiresAt = input.expiresAt
       ? new Date(input.expiresAt)
       : new Date(scheduledAt.getTime() + 48 * 60 * 60 * 1000);
     if (Number.isNaN(expiresAt.getTime())) throw new ValidationError({ expiresAt: ['Invalid expiry date'] });

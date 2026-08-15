@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { Bot, Brain, Target, BookOpen, Sparkles, Loader2, BarChart3, MessageSquare, Send, User, Trophy, TrendingUp, Clock, Zap, Activity, ClipboardList, RefreshCw, ChevronRight } from 'lucide-react';
+import { Bot, Brain, Target, BookOpen, Sparkles, Loader2, BarChart3, MessageSquare, Send, User, Trophy, TrendingUp, Clock, Zap, Activity, ClipboardList, RefreshCw, ChevronRight, Gamepad2, ShieldAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,6 +26,28 @@ export default function AICoachPage() {
   const { data: analysis, isLoading: analysisLoading, refetch: refetchAnalysis } = useQuery({ queryKey: ['ai-profile-analysis'], queryFn: () => api.get('/ai/profile-analysis').then(r => r.data.data).catch(() => null) });
   const { data: matchAnalysis, isLoading: matchLoading, refetch: refetchMatch } = useQuery({ queryKey: ['ai-match-analysis'], queryFn: () => api.get('/ai/match-analysis').then(r => r.data.data).catch(() => null) });
   const { data: trainingPlan, isLoading: planLoading, refetch: refetchPlan } = useQuery({ queryKey: ['ai-training-plan'], queryFn: () => api.get('/ai/training-plan').then(r => r.data.data).catch(() => null) });
+  const { data: coachingOverview, isLoading: overviewLoading, refetch: refetchOverview } = useQuery({ queryKey: ['ai-coaching-overview'], queryFn: () => api.get('/ai/coaching-overview').then(r => r.data.data).catch(() => null) });
+
+  const [coachingGame, setCoachingGame] = useState<string | null>(null);
+  const [coachingAdvice, setCoachingAdvice] = useState<string | null>(null);
+  const [coachingLoading, setCoachingLoading] = useState(false);
+  const [coachingError, setCoachingError] = useState<string | null>(null);
+
+  const requestGameCoaching = async (game: string) => {
+    if (coachingLoading) return;
+    setCoachingGame(game);
+    setCoachingAdvice(null);
+    setCoachingError(null);
+    setCoachingLoading(true);
+    try {
+      const res = await api.post('/ai/game-coaching', { game });
+      setCoachingAdvice(res.data.data.advice);
+    } catch (err: any) {
+      setCoachingError(err.response?.data?.message || 'Could not generate coaching. Please try again.');
+    } finally {
+      setCoachingLoading(false);
+    }
+  };
 
   const chatMutation = useMutation({
     mutationFn: (body: { message: string; history: { role: string; content: string }[] }) =>
@@ -87,6 +109,7 @@ export default function AICoachPage() {
                     <TabsTrigger value="chat" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-lg transition-all"><MessageSquare className="h-4 w-4 mr-1.5" />Chat</TabsTrigger>
                     <TabsTrigger value="analysis" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-lg"><BarChart3 className="h-4 w-4 mr-1.5" />Analysis</TabsTrigger>
                     <TabsTrigger value="plan" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-lg"><BookOpen className="h-4 w-4 mr-1.5" />Training</TabsTrigger>
+                    <TabsTrigger value="games" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-lg"><Gamepad2 className="h-4 w-4 mr-1.5" />Game Coaching</TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -218,6 +241,91 @@ export default function AICoachPage() {
                     </Card>
                   )}
                 </TabsContent>
+
+                <TabsContent value="games" className="p-6 m-0">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold">Game Coaching</h3>
+                      <p className="text-xs text-muted-foreground">Coaching grounded in your real connected-game statistics</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => { refetchOverview(); }}><RefreshCw className="h-3.5 w-3.5" /> Refresh</Button>
+                  </div>
+
+                  {overviewLoading ? (
+                    <Card><CardContent className="p-8 flex items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Loading your game data...</CardContent></Card>
+                  ) : !coachingOverview || (coachingOverview.games?.length === 0 && coachingOverview.recentMatches?.length === 0) ? (
+                    <Card className="border-dashed">
+                      <CardContent className="p-8 text-center space-y-2">
+                        <Gamepad2 className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+                        <p className="text-sm font-semibold">No connected game data yet</p>
+                        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                          Connect Clash of Clans or PUBG PC accounts so coaching can use your real statistics. Until then, use the Chat tab for general gaming advice.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-3">
+                      {coachingOverview.games?.length > 0 && (
+                        <div className="grid md:grid-cols-2 gap-3">
+                          {coachingOverview.games.map((g: any) => (
+                            <Card key={g.game} className="bg-gradient-to-br from-primary/5 to-transparent border-primary/20">
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <Gamepad2 className="h-4 w-4 text-primary shrink-0" />
+                                    <h4 className="font-semibold text-sm truncate">{g.inGameName || g.game}</h4>
+                                  </div>
+                                  {g.kdRatio != null || g.winRate != null || (g.totalMatches ?? 0) > 0 ? (
+                                    <Badge variant="neon" className="text-[9px] px-2 py-0.5">✓ Verified</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[9px] px-2 py-0.5 border-amber-500/40 text-amber-500">Stats unavailable</Badge>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground mb-3">
+                                  {g.rank && <span>Rank: <span className="text-foreground font-medium">{g.rank}</span></span>}
+                                  {g.kdRatio != null && <span>K/D: <span className="text-foreground font-medium">{g.kdRatio}</span></span>}
+                                  {g.winRate != null && <span>Win: <span className="text-foreground font-medium">{g.winRate}%</span></span>}
+                                  {g.totalMatches != null && <span>Matches: <span className="text-foreground font-medium">{g.totalMatches}</span></span>}
+                                  {g.kdRatio == null && g.winRate == null && (g.totalMatches == null || g.totalMatches === 0) && (
+                                    <span className="flex items-center gap-1 text-amber-500"><ShieldAlert className="h-3 w-3" /> Stats unavailable</span>
+                                  )}
+                                </div>
+                                <Button
+                                  variant="gradient"
+                                  size="sm"
+                                  animate
+                                  className="w-full h-9 text-xs gap-1.5"
+                                  onClick={() => requestGameCoaching(g.game)}
+                                  disabled={coachingLoading && coachingGame === g.game}
+                                >
+                                  {coachingLoading && coachingGame === g.game ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Brain className="h-3.5 w-3.5" />}
+                                  {coachingGame === g.game && coachingAdvice ? 'Regenerate Advice' : 'Get Coaching'}
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+
+                      {coachingGame && coachingLoading && (
+                        <Card><CardContent className="p-6 flex items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Coaching on your {coachingGame} data...</CardContent></Card>
+                      )}
+                      {coachingGame && coachingAdvice && (
+                        <Card className="bg-gradient-to-br from-gaming-cyan/5 to-transparent border-gaming-cyan/30">
+                          <CardContent className="p-5">
+                            <div className="flex items-center gap-2 mb-3"><Target className="h-5 w-5 text-gaming-cyan" /><h4 className="font-semibold text-sm">Coaching for {coachingGame}</h4></div>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{coachingAdvice}</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                      {coachingError && (
+                        <Card className="border-destructive/30">
+                          <CardContent className="p-5 text-sm text-destructive">{coachingError}</CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+                </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
@@ -236,13 +344,13 @@ export default function AICoachPage() {
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-xs mb-1.5"><span>Win Rate</span><span className="font-semibold">{user?.profile?.winRate || 0}%</span></div>
+                <div className="flex justify-between text-xs mb-1.5"><span>Win Rate</span><span className="font-semibold">{user?.profile?.winRate != null ? `${user.profile.winRate}%` : '—'}</span></div>
                 <div className="h-2.5 bg-muted rounded-full overflow-hidden border border-primary/20">
-                  <motion.div className="h-full bg-gradient-to-r from-success/70 to-success rounded-full" initial={{ width: 0 }} animate={{ width: `${user?.profile?.winRate || 0}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.1 }} />
+                  <motion.div className="h-full bg-gradient-to-r from-success/70 to-success rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min(user?.profile?.winRate || 0, 100)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.1 }} />
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-xs mb-1.5"><span>K/D Ratio</span><span className="font-semibold">{user?.profile?.kd || 0}</span></div>
+                <div className="flex justify-between text-xs mb-1.5"><span>K/D Ratio</span><span className="font-semibold">{user?.profile?.kd != null ? user.profile.kd : '—'}</span></div>
                 <div className="h-2.5 bg-muted rounded-full overflow-hidden border border-primary/20">
                   <motion.div className="h-full bg-gradient-to-r from-primary/70 to-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min((user?.profile?.kd || 0) / 5 * 100, 100)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }} />
                 </div>

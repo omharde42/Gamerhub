@@ -40,9 +40,10 @@ export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState('all');
 
-  const { data: notifications, isLoading } = useQuery({
+  const { data: notifications, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get('/notifications').then(r => r.data.data),
+    retry: 1,
   });
 
   const markAllRead = useMutation({
@@ -113,6 +114,21 @@ export default function NotificationsPage() {
             <TabsContent value={tab} className="mt-0">
               {isLoading ? (
                 <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+              ) : isError ? (
+                <div className="py-10 px-4 flex flex-col items-center gap-3 text-center">
+                  <Bell className="h-8 w-8 text-destructive" />
+                  <p className="text-sm font-semibold">Could not load your notifications</p>
+                  <p className="text-xs text-muted-foreground max-w-sm">{(error as any)?.response?.data?.message || 'Something went wrong while fetching your notifications.'}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => refetch()}
+                    disabled={isFetching}
+                  >
+                    <Loader2 className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} /> Retry
+                  </Button>
+                </div>
               ) : filtered?.length === 0 ? (
                 <div className="py-8">
                   <EmptyState 

@@ -108,8 +108,6 @@ export function PremiumModal({
     if (open) panelRef.current?.focus();
   }, [open]);
 
-  if (typeof document === 'undefined') return null;
-
   const isBottomSheet = variant === 'bottom';
   const useBottomSheetMobile = isBottomSheet && isMobile;
   const useBottomSheetDesktop = isBottomSheet && !isMobile;
@@ -159,6 +157,10 @@ export function PremiumModal({
       window.removeEventListener('pointercancel', onUp);
     };
   }, [dragging, sheetControls, onClose]);
+
+  // SSR guard: keep it after every hook call so the hook order is stable
+  // across server/client renders (rules-of-hooks).
+  if (typeof document === 'undefined') return null;
 
   const handlePanelPointerDown = (e: React.PointerEvent) => {
     if (!useBottomSheetMobile || !swipeEnabled || !e.isPrimary) return;

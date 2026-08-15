@@ -49,8 +49,8 @@ export function SteamRenderer({ gameUid }: GameRendererProps) {
               </div>
               <div>
                 <h4 className="font-extrabold text-lg text-white flex items-center gap-2">
-                  {data.personaName}
-                  <Badge className="bg-sky-500/20 text-sky-300 border border-sky-500/40 text-xs font-mono">Level {data.steamLevel}</Badge>
+                  {data.username || data.personaName || 'Steam Player'}
+                  {data.level != null && <Badge className="bg-sky-500/20 text-sky-300 border border-sky-500/40 text-xs font-mono">Level {data.level}</Badge>}
                 </h4>
                 <p className="text-xs text-gray-400 font-mono mt-0.5">Steam ID: {data.steamId}</p>
               </div>
@@ -64,26 +64,26 @@ export function SteamRenderer({ gameUid }: GameRendererProps) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
               <p className="text-xs text-gray-400 font-medium">Owned Games</p>
-              <p className="text-2xl font-black text-sky-400 font-mono">{data.ownedGamesCount}</p>
+              <p className="text-2xl font-black text-sky-400 font-mono">{data.totalGames ?? data.ownedGamesCount ?? '—'}</p>
               <p className="text-[10px] text-gray-400">Library Games</p>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
               <p className="text-xs text-gray-400 font-medium">Total Play Time</p>
-              <p className="text-2xl font-black text-emerald-400 font-mono">{data.totalPlayTimeHours} hrs</p>
+              <p className="text-2xl font-black text-emerald-400 font-mono">{data.totalPlaytimeHours ?? data.totalPlayTimeHours ?? '—'} hrs</p>
               <p className="text-[10px] text-gray-400">Lifetime Hours</p>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
               <p className="text-xs text-gray-400 font-medium">Steam Level</p>
-              <p className="text-2xl font-black text-amber-400 font-mono">{data.steamLevel}</p>
-              <p className="text-[10px] text-gray-400">Badge Collector</p>
+              <p className="text-2xl font-black text-amber-400 font-mono">{data.level ?? data.steamLevel ?? '—'}</p>
+              <p className="text-[10px] text-gray-400">From Steam API</p>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
               <p className="text-xs text-gray-400 font-medium">Top Game</p>
-              <p className="text-2xl font-black text-purple-400 font-mono">CS2</p>
-              <p className="text-[10px] text-gray-400">1,420 Hours Played</p>
+              <p className="text-sm font-black text-purple-400 font-mono truncate">{data.topGames?.[0]?.name || '—'}</p>
+              <p className="text-[10px] text-gray-400">{data.topGames?.[0]?.playtimeForeverHours || data.topGames?.[0]?.playTimeForeverHours ? `${Math.round((data.topGames?.[0]?.playtimeForeverHours ?? 0) * 10) / 10} Hours Played` : 'From Steam API'}</p>
             </div>
           </div>
 
@@ -97,11 +97,18 @@ export function SteamRenderer({ gameUid }: GameRendererProps) {
                 <div key={i} className="p-3 rounded-2xl bg-black/50 border border-white/10 space-y-2">
                   <p className="font-bold text-sm text-white truncate">{game.name}</p>
                   <div className="flex justify-between text-xs text-gray-400">
-                    <span>2 Weeks:</span>
-                    <span className="font-bold text-sky-400 font-mono">{game.playTime2WeeksHours}h</span>
+                    <span>Last 2 Weeks:</span>
+                    <span className="font-bold text-sky-400 font-mono">{game.playtime2WeeksMinutes != null ? `${Math.round(game.playtime2WeeksMinutes / 60)}h` : game.playTime2WeeksHours ?? '—'}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>All Time:</span>
+                    <span className="font-bold text-sky-400 font-mono">{game.playtimeForeverMinutes != null ? `${Math.round(game.playtimeForeverMinutes / 60)}h` : game.playTimeForeverHours ?? '—'}</span>
                   </div>
                 </div>
               ))}
+              {(!data.recentlyPlayed || data.recentlyPlayed.length === 0) && (
+                <p className="text-xs text-gray-400">No recently played games returned by the Steam API (profile may be private).</p>
+              )}
             </div>
           </div>
         </CardContent>

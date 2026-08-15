@@ -19,7 +19,7 @@ export class GameStatsController {
       region,
     });
 
-    sendSuccess(res, result, `${game} verified and linked successfully!`);
+    sendSuccess(res, result, result.message || `${game} linked successfully.`);
   });
 
   getUserGameAccounts = asyncHandler(async (req: AuthRequest, res: Response) => {

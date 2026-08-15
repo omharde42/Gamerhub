@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Gamepad2, Sparkles, CheckCircle2, Shield, Flame, Trophy, Loader2, Trash2 } from 'lucide-react';
+import { Gamepad2, Sparkles, CheckCircle2, Shield, Flame, Trophy, Loader2, Trash2, ShieldAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -40,7 +40,9 @@ export function GameStatsVerifier({ userId, isEditable = true }: GameStatsVerifi
     }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['verified-game-accounts'] });
-      toast.success(data.data?.message || `${selectedGame} verified successfully!`);
+      // The backend never fabricates stats — the message tells the user whether
+      // the account was verified with real data or saved without stats.
+      toast.success(data.data?.data?.message || data.data?.message || `${selectedGame} saved.`);
       setInGameUid('');
       setInGameName('');
     },
@@ -57,12 +59,13 @@ export function GameStatsVerifier({ userId, isEditable = true }: GameStatsVerifi
     },
   });
 
+  // Only games with official server-side verification are offered. Free Fire,
+  // PUBG Mobile/BGMI, Valorant, CS2 and COD Mobile have no official
+  // verification integration — GamerZ Hub never fabricates their stats.
   const gameOptions = [
-    { name: 'Free Fire', icon: '🔥', placeholder: 'Enter Free Fire UID (e.g. 189238472)' },
-    { name: 'PUBG Mobile / BGMI', icon: '🍗', placeholder: 'Enter PUBG Character ID (e.g. 512938412)' },
-    { name: 'Valorant', icon: '🎯', placeholder: 'Enter Riot ID (e.g. TenZ#1234)' },
-    { name: 'CS2', icon: '💣', placeholder: 'Enter Steam64 ID or Custom URL' },
-    { name: 'COD Mobile', icon: '🔫', placeholder: 'Enter CODM OpenID / Character ID' },
+    { name: 'Clash of Clans', icon: '🏰', placeholder: 'Enter Player Tag (e.g. #GR8QQRV9J)' },
+    { name: 'PUBG PC', icon: '🪖', placeholder: 'Enter PUBG PC/Steam player name (e.g. TGLTN)' },
+    { name: 'Steam', icon: '🎮', placeholder: 'Enter Steam ID64 (e.g. 76561198012345678)' },
   ];
 
   return (
@@ -73,7 +76,7 @@ export function GameStatsVerifier({ userId, isEditable = true }: GameStatsVerifi
             <Shield className="h-5 w-5 text-[#00E676]" /> Verified In-Game Accounts & Stats
           </span>
           <Badge variant="outline" className="bg-[#00E676]/10 text-[#00E676] border-[#00E676]/30 text-xs font-mono font-bold">
-            LIVE VERIFICATION ACTIVE
+            OFFICIAL API VERIFICATION
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -139,7 +142,9 @@ export function GameStatsVerifier({ userId, isEditable = true }: GameStatsVerifi
             </div>
           ) : verifiedAccounts?.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {verifiedAccounts.map((acc: any) => (
+              {verifiedAccounts.map((acc: any) => {
+                const statsAvailable = acc.kdRatio != null || acc.winRate != null || acc.level != null || acc.rank != null;
+                return (
                 <motion.div
                   key={acc.id}
                   whileHover={{ scale: 1.01 }}
@@ -148,17 +153,31 @@ export function GameStatsVerifier({ userId, isEditable = true }: GameStatsVerifi
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-sm text-white font-inter">{acc.inGameName}</span>
-                      <Badge variant="outline" className="text-[10px] bg-[#00E676]/10 text-[#00E676] border-[#00E676]/30 font-mono font-bold">
-                        ✓ Verified
-                      </Badge>
+                      {acc.verified ? (
+                        <Badge variant="outline" className="text-[10px] bg-[#00E676]/10 text-[#00E676] border-[#00E676]/30 font-mono font-bold">
+                          ✓ Verified
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/30 font-mono font-bold">
+                          <ShieldAlert className="h-3 w-3 mr-0.5" /> No Data
+                        </Badge>
+                      )}
                     </div>
 
-                    <p className="text-xs text-[#7C3AED] font-semibold font-mono mt-0.5">{acc.game} &bull; {acc.rank}</p>
+                    <p className="text-xs text-[#7C3AED] font-semibold font-mono mt-0.5">{acc.game}{acc.rank ? ` • ${acc.rank}` : ''}</p>
 
-                    <div className="flex items-center gap-3 text-[11px] text-[#94A3B8] font-mono mt-1.5">
+                    <div className="flex items-center gap-3 text-[11px] text-[#94A3B8] font-mono mt-1.5 flex-wrap">
                       <span>UID: {acc.inGameUid}</span>
-                      <span>Level {acc.level}</span>
-                      <span className="text-amber-400 font-bold">{acc.kdRatio} K/D</span>
+                      {statsAvailable ? (
+                        <>
+                          {acc.level != null && <span>Level {acc.level}</span>}
+                          {acc.kdRatio != null && <span className="text-amber-400 font-bold">{acc.kdRatio} K/D</span>}
+                          {acc.winRate != null && <span className="text-emerald-400 font-bold">{acc.winRate}% WR</span>}
+                          {acc.totalMatches != null && acc.totalMatches > 0 && <span>{acc.totalMatches} matches</span>}
+                        </>
+                      ) : (
+                        <span className="text-[#94A3B8] italic">Statistics unavailable — GamerZ Hub never fabricates stats. Sync again later or connect an official integration.</span>
+                      )}
                     </div>
                   </div>
 
@@ -173,11 +192,12 @@ export function GameStatsVerifier({ userId, isEditable = true }: GameStatsVerifi
                     </Button>
                   )}
                 </motion.div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="p-6 rounded-2xl border border-dashed border-white/10 text-center text-xs text-[#94A3B8]">
-              No in-game accounts linked yet. Enter your Free Fire, PUBG Mobile, or Valorant UID above to display verified live stats!
+              No in-game accounts linked yet. Connect Clash of Clans, PUBG PC or Steam to display verified stats from their official APIs. Games without an official verification integration are never shown with fabricated statistics.
             </div>
           )}
         </div>

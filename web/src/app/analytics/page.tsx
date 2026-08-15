@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { GAMES_CATALOG } from '@/config/gamesCatalog';
@@ -14,6 +15,9 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
 import Link from 'next/link';
+
+const formatNumber = (value: number | null | undefined): string =>
+  value === null || value === undefined ? '—' : Number(value).toLocaleString();
 
 export default function AnalyticsPage() {
   const [selectedGameKey, setSelectedGameKey] = useState<string>('all');
