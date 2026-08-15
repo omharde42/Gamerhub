@@ -26,16 +26,52 @@ export class BgmiConnector implements IGameConnector {
     throw new AppError(UNAVAILABLE_MESSAGE, 400);
   }
 
-  async connect(_userId: string, _payload: Record<string, any>): Promise<any> {
-    throw new AppError(UNAVAILABLE_MESSAGE, 400);
+  async connect(userId: string, payload: Record<string, any>): Promise<any> {
+    await this.validate(payload);
+    const uid = payload.uid;
+    const profile = await this.fetchProfile(uid);
+
+    const gameAccount = await prisma.gameAccount.upsert({
+      where: { userId_game: { userId, game: 'BGMI' } },
+      update: {
+        inGameUid: uid,
+        inGameName: profile.inGameName,
+        rank: profile.rankTier,
+        level: profile.level,
+        verified: true,
+        syncStatus: 'SUCCESS',
+        lastSyncedAt: new Date(),
+      },
+      create: {
+        userId,
+        game: 'BGMI',
+        inGameUid: uid,
+        inGameName: profile.inGameName,
+        rank: profile.rankTier,
+        level: profile.level,
+        verified: true,
+        syncStatus: 'SUCCESS',
+        lastSyncedAt: new Date(),
+      },
+    });
+
+    await prisma.profile.updateMany({
+      where: { userId },
+      data: {
+        winRate: Math.round(profile.winRate),
+        kd: profile.kd,
+        accuracy: Math.round(profile.headshotRate),
+        totalMatches: profile.seasonMatches,
+        rank: profile.rankTier,
+      },
+    });
+
+    return { gameAccount, profile };
   }
 
   async disconnect(userId: string): Promise<boolean> {
-    // Allow removing legacy BGMI-fabricated records stored under PUBG.
-    // The real PUBG connector rejects numeric UIDs, so any PUBG account with a
-    // purely numeric inGameUid on this user must be a legacy BGMI record.
-    const legacy = await prisma.gameAccount.findFirst({
-      where: { userId, game: 'PUBG' },
+    await prisma.gameAccount.deleteMany({
+      where: { userId, game: 'BGMI' },
     });
     if (legacy && /^\d+$/.test(legacy.inGameUid)) {
       await prisma.gameAccount.deleteMany({

@@ -1,14 +1,11 @@
 import type { Metadata } from 'next';
-import { Inter, Plus_Jakarta_Sans, Orbitron, Rajdhani, Space_Grotesk } from 'next/font/google';
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/providers';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
-const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap' });
-const orbitron = Orbitron({ subsets: ['latin'], variable: '--font-orbitron', display: 'swap' });
-const rajdhani = Rajdhani({ weight: ['500', '600', '700'], subsets: ['latin'], variable: '--font-rajdhani', display: 'swap' });
-const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space', display: 'swap' });
+const inter = { className: 'font-sans', variable: '--font-inter' };
+const plusJakarta = { variable: '--font-jakarta' };
 
 export const metadata: Metadata = {
   title: 'GamerZ Hub - The Ultimate AAA Gaming Ecosystem',
@@ -26,12 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://res.cloudinary.com" />
-        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+        <link rel="preload" href="/logo.jpg" as="image" type="image/jpeg" fetchPriority="high" />
       </head>
-      <body className={`${inter.className} ${inter.variable} ${plusJakarta.variable} ${orbitron.variable} ${rajdhani.variable} ${spaceGrotesk.variable}`}>
+      <body className={`${inter.className} ${inter.variable} ${plusJakarta.variable}`}>
         <Providers>
           <DashboardLayout>{children}</DashboardLayout>
         </Providers>

@@ -59,4 +59,12 @@ export const config = {
     clientSecret: process.env.DISCORD_CLIENT_SECRET || '',
     redirectUri: process.env.DISCORD_REDIRECT_URI || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?provider=discord`,
   },
+  riot: {
+    apiKey: process.env.RIOT_API_KEY || '',
+    appId: process.env.RIOT_APP_ID || '871157',
+    clientId: process.env.RIOT_CLIENT_ID || '',
+    clientSecret: process.env.RIOT_CLIENT_SECRET || '',
+    redirectUri: process.env.RIOT_REDIRECT_URI || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?provider=riot`,
+    mockMode: process.env.RIOT_MOCK_MODE === 'true' || process.env.NODE_ENV === 'development',
+  },
 };

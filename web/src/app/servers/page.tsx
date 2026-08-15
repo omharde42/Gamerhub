@@ -227,7 +227,7 @@ export default function ServersPage() {
                 {/* Banner section */}
                 <div className="h-12 relative w-full bg-primary/10 shrink-0 border-b border-primary/5 overflow-hidden">
                   {s.banner ? (
-                    <img src={s.banner} alt={s.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={s.banner} alt={s.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" decoding="async" />
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-gaming-purple/20" />
                   )}
@@ -300,7 +300,7 @@ export default function ServersPage() {
                 {/* Banner section */}
                 <div className="h-12 relative w-full bg-primary/10 shrink-0 border-b border-primary/5 overflow-hidden">
                   {s.banner ? (
-                    <img src={s.banner} alt={s.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={s.banner} alt={s.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" decoding="async" />
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-r from-gaming-purple/20 to-gaming-pink/20" />
                   )}

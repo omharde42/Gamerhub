@@ -11,7 +11,6 @@ import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAutoHideNav } from '@/hooks/useAutoHideNav';
 import toast from 'react-hot-toast';
-import { UpdateChecker } from '../common/update-checker';
 import { PanelHost } from './panel-host';
 import { useOverlayActive } from '@/store/overlayStore';
 
@@ -103,13 +102,14 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const isRedirectingAuthenticatedUser = isAuthenticated && !!user && isAuthOrLanding && pathname !== '/auth/callback';
   const isRedirectingUnauthenticatedUser = !isAuthenticated && !isPublicRoute;
 
-  // Render a branded splash screen only until hydration completes to eliminate unauthenticated redirects or layout flashes
-  if (!hasHydrated || isRedirectingAuthenticatedUser || isRedirectingUnauthenticatedUser) {
+  // Render a branded splash screen only until hydration completes for private routes to eliminate unauthenticated redirects or layout flashes.
+  // Public landing page (/) renders immediately on initial paint.
+  if ((!hasHydrated || isRedirectingAuthenticatedUser || isRedirectingUnauthenticatedUser) && !isLanding) {
     return (
       <div className="min-h-screen bg-[#05070E] flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl overflow-hidden border border-primary/20 shadow-xl relative shrink-0">
-            <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
+            <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" loading="lazy" decoding="async" />
           </div>
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
@@ -120,8 +120,19 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Dedicated lightweight landing shell: zero dashboard navigation DOM/JS mounted on landing page
+  if (isLanding) {
+    return (
+      <div className="min-h-screen bg-[#030509] text-foreground overflow-x-hidden relative">
+        <main id="main-content" role="main" className="w-full min-h-screen">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#030509] text-foreground overflow-x-hidden relative">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden relative">
       {/* Background Floating Cybernetic Artifact Glow */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-30">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full bg-gradient-to-tr from-emerald-500/20 via-purple-600/20 to-transparent blur-[120px]" />
@@ -157,7 +168,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       {!isAuthOrLanding && !isMessages && <ScrollControls hidden={navHidden} />}
       {/* Premium overlay host: renders page-level features as panels */}
       <PanelHost />
-      <UpdateChecker />
     </div>
   );
 }

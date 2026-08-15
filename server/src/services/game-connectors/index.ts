@@ -1,5 +1,7 @@
 import { IGameConnector } from './base.connector';
 import { ClashOfClansConnector } from './clashofclans.connector';
+import { ClashRoyaleConnector } from './clashroyale.connector';
+import { BrawlStarsConnector } from './brawlstars.connector';
 import { PubgConnector } from './pubg.connector';
 import { ValorantConnector } from './valorant.connector';
 import { SteamConnector } from './steam.connector';
@@ -14,6 +16,8 @@ class GameConnectorRegistry {
 
   constructor() {
     this.register(new ClashOfClansConnector());
+    this.register(new ClashRoyaleConnector());
+    this.register(new BrawlStarsConnector());
     this.register(new PubgConnector());
     this.register(new ValorantConnector());
     this.register(new SteamConnector());

@@ -1,6 +1,18 @@
 import multer from 'multer';
 import path from 'path';
+import os from 'os';
+import fs from 'fs';
 import { AppError } from '../utils/errors';
+
+// Video clips can be up to 2GB — use disk storage to a temp dir, not memory.
+const tempDir = path.join(os.tmpdir(), 'gamerhub-uploads');
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true });
+}
+const diskStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, tempDir),
+  filename: (_req, file, cb) => cb(null, `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${path.extname(file.originalname)}`),
+});
 
 const storage = multer.memoryStorage();
 
@@ -31,3 +43,7 @@ export const uploadBanner = multer({ storage, limits: { fileSize: 10 * 1024 * 10
 export const uploadMedia = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 }, fileFilter }).array('media', 6);
 export const uploadVoice = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter }).single('voiceNote');
 export const uploadScreenshot = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter }).single('screenshot');
+// Large video clips (up to 2GB) — disk-backed, video formats only.
+export const uploadClip = multer({ storage: diskStorage, limits: { fileSize: 2 * 1024 * 1024 * 1024 }, fileFilter }).single('video');
+// Music track uploads for montage audio (up to 50MB).
+export const uploadMusic = multer({ storage: diskStorage, limits: { fileSize: 50 * 1024 * 1024 }, fileFilter }).single('music');

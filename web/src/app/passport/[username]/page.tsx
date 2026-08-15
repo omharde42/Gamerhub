@@ -30,6 +30,7 @@ import { motion } from 'framer-motion';
 import { GAMES_BY_PLATFORM } from '@/lib/constants';
 import { GamingTrustScore } from '@/components/profile/gaming-trust-score';
 import { GamingTimeline } from '@/components/profile/gaming-timeline';
+import { PassportCardExporter } from '@/components/passport/passport-card-exporter';
 
 const DEFAULT_BANNER = 'https://files.idyllic.app/files/static/2039559?width=1920&optimizer=image';
 
@@ -115,6 +116,13 @@ export default function GamerPassportPage() {
   const { data: passport, isLoading, refetch } = useQuery({
     queryKey: ['passport', username],
     queryFn: () => api.get(`/passport/${username}`).then(r => r.data.data),
+  });
+
+  // Fetch connected game accounts at top level unconditionally
+  const { data: userAccounts = [] } = useQuery({
+    queryKey: ['user-game-connections', username],
+    queryFn: () => api.get('/game/user-connections').then(r => r.data.data || []).catch(() => []),
+    enabled: Boolean(user),
   });
 
   const [showAddGame, setShowAddGame] = useState(false);
@@ -217,13 +225,31 @@ export default function GamerPassportPage() {
     { label: 'Teamwork', value: p.teamworkScore || Math.min(100, Math.round((p.accuracy || 0) * 2 + (p.communicationScore || 0) * 0.3)), color: 'from-green-500 to-emerald-500', icon: Users },
   ];
 
+  const allConnectedGames = [
+    ...(p.connectedGames || []),
+    ...(userAccounts || []).map((acc: any) => ({
+      id: acc.id,
+      gameName: acc.game,
+      rank: acc.rank || 'Connected',
+      uid: acc.inGameUid,
+      playerId: acc.inGameName,
+      level: acc.level,
+      kdRatio: acc.kdRatio || acc.kd,
+      winRate: acc.winRate,
+      matchesPlayed: acc.matchesPlayed,
+    })),
+  ];
+
+  const uniqueGames = Array.from(new Map(allConnectedGames.map((item: any) => [(item.gameName || '').toLowerCase(), item])).values());
+  const passportDataForExport = { ...p, connectedGames: uniqueGames };
+
   return (
     <motion.div className="space-y-5" variants={containerVariants} initial="hidden" animate="visible">
       {/* Profile Header */}
       <motion.div variants={itemVariants}>
         <Card className="overflow-hidden border-0 shadow-md">
           <div className={`h-36 md:h-48 relative overflow-hidden ${isOwn ? 'group cursor-pointer' : ''}`} onClick={() => isOwn && handlePhotoUpload('banner')}>
-            <img src={p.banner || DEFAULT_BANNER} alt="" className="w-full h-full object-cover" />
+            <img src={p.banner || DEFAULT_BANNER} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             {!p.banner && (
               <div className="absolute inset-0 bg-gradient-to-r from-orange-500/20 via-red-500/20 to-purple-900/30 mix-blend-overlay" />
@@ -266,6 +292,7 @@ export default function GamerPassportPage() {
                 </div>
               </div>
               <div className="flex gap-2">
+                <PassportCardExporter passport={passportDataForExport} />
                 {isOwn && (
                   <Link href="/profile/settings">
                     <Button variant="outline" size="sm" className="gap-1.5 shadow-sm">
@@ -761,11 +788,16 @@ export default function GamerPassportPage() {
           {/* Export */}
           <motion.div variants={itemVariants}>
             <Card className="border-0 shadow-sm bg-gradient-to-br from-primary/[0.02] to-primary/[0.04]">
-              <CardHeader className="pb-2"><SectionHeader icon={Download} title="Export" /></CardHeader>
+              <CardHeader className="pb-2"><SectionHeader icon={Download} title="Export Passport" /></CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2.5 shadow-sm">
-                  <Download className="h-4 w-4" /> Download PDF Resume
-                </Button>
+                <PassportCardExporter
+                  passport={p}
+                  trigger={
+                    <Button variant="default" size="sm" className="w-full justify-start gap-2.5 font-bold shadow-md">
+                      <Download className="h-4 w-4" /> Download / Print Passport
+                    </Button>
+                  }
+                />
                 <Button variant="outline" size="sm" className="w-full justify-start gap-2.5 shadow-sm" onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied!'); }}>
                   <Share2 className="h-4 w-4" /> Copy Share Link
                 </Button>

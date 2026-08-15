@@ -325,7 +325,7 @@ export default function ServerPage() {
             className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xs font-bold transition-all shrink-0 overflow-hidden relative ${ms.serverId === serverId ? 'rounded-xl bg-primary text-primary-foreground border-2 border-primary' : 'bg-muted hover:bg-muted-foreground/20 hover:rounded-xl text-muted-foreground hover:text-foreground'}`}
             title={ms.server?.name || ''}>
             {ms.server?.avatar ? (
-              <img src={ms.server?.avatar} alt={ms.server?.name} className="w-full h-full object-cover" />
+              <img src={ms.server?.avatar} alt={ms.server?.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
             ) : (
               (ms.server?.name || 'S').charAt(0).toUpperCase()
             )}
@@ -343,7 +343,7 @@ export default function ServerPage() {
           {/* Banner overlay */}
           <div className="absolute inset-0 z-0 bg-primary/10">
             {server?.banner ? (
-              <img src={server.banner} alt={server.name} className="w-full h-full object-cover" />
+              <img src={server.banner} alt={server.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
             ) : (
               <div className="w-full h-full bg-gradient-to-r from-gaming-purple/30 to-primary/30" />
             )}
@@ -614,7 +614,7 @@ export default function ServerPage() {
                   {MOCK_PARTICIPANTS.map((part) => (
                     <div key={part.id} className={`relative aspect-video rounded-2xl bg-zinc-900 border overflow-hidden flex items-center justify-center transition-all duration-300 ${activeSpeaker === part.id ? 'border-green-500 shadow-lg shadow-green-500/10' : 'border-zinc-800'}`}>
                       {part.cameraOn && part.cameraFeed ? (
-                        <img src={part.cameraFeed} alt={part.name} className="w-full h-full object-cover" />
+                        <img src={part.cameraFeed} alt={part.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                         <div className="flex flex-col items-center gap-3">
                           <Avatar className="h-16 w-16 border-2 border-zinc-700">

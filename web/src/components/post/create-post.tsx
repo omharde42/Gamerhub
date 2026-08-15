@@ -302,7 +302,7 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
                 {isVideoFile ? (
                   <div className="w-32 h-24 rounded-xl overflow-hidden relative border border-border bg-black flex items-center justify-center shadow-sm cursor-pointer group/vid">
                     {thumb ? (
-                      <img src={thumb} alt="Video preview" className="h-full w-full object-cover" />
+                      <img src={thumb} alt="Video preview" className="h-full w-full object-cover" loading="lazy" decoding="async" />
                     ) : (
                       <video src={url} className="h-full w-full object-cover" />
                     )}
@@ -329,7 +329,7 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
                       setPreviewOpen(true);
                     }}
                   >
-                    <img src={url} alt="" className="h-full w-full object-cover group-hover/img:scale-105 transition-transform duration-300" />
+                    <img src={url} alt="" className="h-full w-full object-cover group-hover/img:scale-105 transition-transform duration-300" loading="lazy" decoding="async" />
                   </div>
                 )}
                 <button
@@ -496,7 +496,7 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
                       {isVideoFile ? (
                         <div className="h-28 w-28 rounded-2xl overflow-hidden relative border border-border/60 bg-black flex items-center justify-center shadow-md">
                           {thumb ? (
-                            <img src={thumb} alt="" className="h-full w-full object-cover" />
+                            <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
                           ) : (
                             <video src={url} className="h-full w-full object-cover" />
                           )}
@@ -514,7 +514,7 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
                             setPreviewOpen(true);
                           }}
                         >
-                          <img src={url} alt="" className="h-full w-full object-cover group-hover/img:scale-105 transition-transform duration-300" />
+<img src={url} alt="" className="h-full w-full object-cover group-hover/img:scale-105 transition-transform duration-300" loading="lazy" decoding="async" />
                         </div>
                       )}
                       <button
@@ -605,7 +605,7 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
                     {media.length > 0 && (
                       <div className="grid grid-cols-2 gap-2 mt-2">
                         {media.map((url, idx) => (
-                          <img key={idx} src={url} alt="" className="rounded-xl h-24 w-full object-cover" />
+                          <img key={idx} src={url} alt="" className="rounded-xl h-24 w-full object-cover" loading="lazy" decoding="async" />
                         ))}
                       </div>
                     )}

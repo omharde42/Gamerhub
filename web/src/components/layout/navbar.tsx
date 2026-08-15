@@ -15,6 +15,8 @@ import api from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { gamerLevel, levelTitle, levelColor } from '@/lib/gamer-level';
+import { LevelChip } from '@/components/hud/level-chip';
 import {
   Search, Bell, MessageSquare, Users,
   LogOut, User, Settings, Crown, Home, ChevronDown,
@@ -106,6 +108,18 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
     refetchInterval: 15000,
     enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
   });
+
+  const { data: navStats } = useQuery({
+    queryKey: ['analytics-stats-nav'],
+    queryFn: () => api.get('/analytics/stats').then(r => r.data.data).catch(() => null),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
+  });
+
+  const navMatches = navStats?.profile?.totalMatches ? Number(navStats.profile.totalMatches) : 0;
+  const navLevel = gamerLevel(navMatches);
+  const navRankTitle = levelTitle(navLevel.level);
+  const navRankColor = levelColor(navLevel.level);
 
   const unreadCount = notifData?.count || 0;
   const totalChatUnread = Object.values(chatUnreadData || {}).reduce((sum: number, c: any) => sum + (c as number), 0);
@@ -213,56 +227,35 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
             </button>
           </nav>
 
-          {/* Theme Switcher (Desktop only) */}
-          <div className="hidden md:block">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button aria-label="Switch theme" variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground">
-                  {mounted && activeTheme === 'light' ? (
-                    <Sun className="h-4.5 w-4.5" />
-                  ) : mounted && activeTheme === 'gray' ? (
-                    <Palette className="h-4.5 w-4.5" />
-                  ) : (
-                    <Moon className="h-4.5 w-4.5" />
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36 glass-strong">
-                <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2 cursor-pointer text-xs font-semibold">
-                  <Sun className="h-4 w-4 text-orange-500" /> Light Mode
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2 cursor-pointer text-xs font-semibold">
-                  <Moon className="h-4 w-4 text-primary" /> Dark Mode
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('gray')} className="gap-2 cursor-pointer text-xs font-semibold">
-                  <Palette className="h-4 w-4 text-muted-foreground" /> Gray Mode
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
           {/* Profile Dropdown (Both Mobile & Desktop) */}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button aria-label="User account menu" variant="ghost" className="flex items-center gap-1.5 px-2 h-11 w-11 md:w-auto rounded-lg hover:bg-accent/50 shrink-0">
-                  <Avatar className="h-8 w-8 md:h-7 md:w-7" ring status="online">
-                    <AvatarImage src={user?.profile?.avatar || ''} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-extrabold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
-                  </Avatar>
+                  <div className="level-ring shrink-0" style={{ ['--lvl-pct' as any]: `${navLevel.xp}%`, padding: 2 }}>
+                    <Avatar className="h-7 w-7 md:h-6 md:w-6 border-0" status="online">
+                      <AvatarImage src={user?.profile?.avatar || ''} />
+                      <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-extrabold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                    </Avatar>
+                  </div>
                   <ChevronDown className="h-3 w-3 text-muted-foreground hidden md:block" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 glass-strong">
                 <div className="flex items-center gap-3 p-3">
-                  <Avatar className="h-12 w-12" ring>
-                    <AvatarImage src={user?.profile?.avatar || ''} />
-                    <AvatarFallback className="bg-primary/10 text-primary">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
-                  </Avatar>
+                  <div className="level-ring shrink-0" style={{ ['--lvl-pct' as any]: `${navLevel.xp}%` }}>
+                    <Avatar className="h-11 w-11 border-0" ring>
+                      <AvatarImage src={user?.profile?.avatar || ''} />
+                      <AvatarFallback className="bg-primary/10 text-primary">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                    </Avatar>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate">{user?.profile?.displayName || user?.profile?.username}</p>
                     <p className="text-xs text-muted-foreground truncate">{(user?.profile as any)?.headline || 'Gamer'}</p>
                   </div>
+                </div>
+                <div className="px-3 pb-2">
+                  <LevelChip totalMatches={navMatches} compact />
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => openPanelFromNav('profile', { username: user?.profile?.username })}>
@@ -277,6 +270,31 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
                 <Link href="/explore">
                   <DropdownMenuItem><Home className="h-4 w-4 mr-3" /> Explore</DropdownMenuItem>
                 </Link>
+                <DropdownMenuSeparator />
+                {/* Single Theme Selector inside Profile Dropdown */}
+                <div className="px-3 py-2 space-y-1.5">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Appearance Theme</p>
+                  <div className="grid grid-cols-3 gap-1">
+                    <button
+                      onClick={() => setTheme('dark')}
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'dark' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
+                    >
+                      <Moon className="h-3.5 w-3.5" /> Dark
+                    </button>
+                    <button
+                      onClick={() => setTheme('light')}
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'light' ? 'bg-orange-500/20 text-orange-400 border-orange-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
+                    >
+                      <Sun className="h-3.5 w-3.5" /> Light
+                    </button>
+                    <button
+                      onClick={() => setTheme('gray')}
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'gray' ? 'bg-slate-500/20 text-slate-300 border-slate-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
+                    >
+                      <Palette className="h-3.5 w-3.5" /> Gray
+                    </button>
+                  </div>
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive">
                   <LogOut className="h-4 w-4 mr-3" /> Sign Out
@@ -313,13 +331,18 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/50 bg-muted/10 p-4 shrink-0">
           <div className="flex items-center gap-2.5">
-            <Avatar className="h-9 w-9 border border-border/60">
-              <AvatarImage src={user?.profile?.avatar || ''} />
-              <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
-            </Avatar>
-            <div className="text-left">
+            <div className="level-ring shrink-0" style={{ ['--lvl-pct' as any]: `${navLevel.xp}%`, padding: 2 }}>
+              <Avatar className="h-9 w-9 border-0">
+                <AvatarImage src={user?.profile?.avatar || ''} />
+                <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+              </Avatar>
+            </div>
+            <div className="text-left min-w-0">
               <p className="font-semibold text-xs truncate max-w-[150px]">{user?.profile?.displayName || user?.profile?.username}</p>
               <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">@{user?.profile?.username}</p>
+              <p className="text-[9px] font-mono font-black mt-0.5" style={{ color: navRankColor, textShadow: `0 0 8px ${navRankColor}88` }}>
+                LVL {navLevel.level} • {navRankTitle}
+              </p>
             </div>
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setDrawerOpen(false)}>
@@ -350,6 +373,47 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
           <Link href={`/passport/${user?.profile?.username}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/85 text-sm text-foreground transition-all">
             <Shield className="h-4 w-4 text-primary" /> AI Resume & Passport
           </Link>
+          <div className="my-3 border-t border-border/45" />
+          {/* Theme Selector Section in Mobile Drawer */}
+          <div className="p-3 rounded-2xl bg-card/60 border border-border/40 space-y-2">
+            <p className="text-[10px] font-mono font-bold uppercase text-muted-foreground tracking-wider px-1">Theme System</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold transition-all border",
+                  mounted && activeTheme === 'light' ? "bg-orange-500/15 text-orange-500 border-orange-500/40 shadow-sm" : "bg-card/40 text-muted-foreground border-transparent hover:bg-card/80"
+                )}
+              >
+                <Sun className="h-4 w-4 text-orange-500" />
+                <span>Light</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold transition-all border",
+                  mounted && activeTheme === 'dark' ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40 shadow-sm" : "bg-card/40 text-muted-foreground border-transparent hover:bg-card/80"
+                )}
+              >
+                <Moon className="h-4 w-4 text-emerald-400" />
+                <span>Dark</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('gray')}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold transition-all border",
+                  mounted && activeTheme === 'gray' ? "bg-slate-500/15 text-slate-300 border-slate-500/40 shadow-sm" : "bg-card/40 text-muted-foreground border-transparent hover:bg-card/80"
+                )}
+              >
+                <Palette className="h-4 w-4 text-slate-400" />
+                <span>Gray</span>
+              </button>
+            </div>
+          </div>
+
           <div className="my-3 border-t border-border/45" />
           <Button variant="ghost" onClick={() => { setDrawerOpen(false); handleLogout(); }} className="w-full flex items-center justify-start gap-3 p-3 h-11 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10">
             <LogOut className="h-4 w-4" /> Sign Out

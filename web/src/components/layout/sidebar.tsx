@@ -154,36 +154,6 @@ export function Sidebar() {
             );
           })}
 
-          {/* Theme Quick Switcher */}
-          <div className="pt-2 px-1">
-            <div className="flex items-center justify-between p-1 rounded-xl bg-card/60 border border-border/40 gap-1">
-              <button
-                onClick={() => setTheme('light')}
-                className={cn('flex-1 py-1.5 flex items-center justify-center rounded-lg text-xs font-bold transition-all', activeTheme === 'light' ? 'bg-primary text-white shadow-md' : 'text-muted-foreground hover:text-foreground')}
-                title="Light Mode"
-              >
-                <Sun className="h-3.5 w-3.5" />
-                <span className="hidden lg:inline ml-1 text-[10px]">Light</span>
-              </button>
-              <button
-                onClick={() => setTheme('dark')}
-                className={cn('flex-1 py-1.5 flex items-center justify-center rounded-lg text-xs font-bold transition-all', activeTheme === 'dark' ? 'bg-primary text-white shadow-md' : 'text-muted-foreground hover:text-foreground')}
-                title="Dark Mode"
-              >
-                <Moon className="h-3.5 w-3.5" />
-                <span className="hidden lg:inline ml-1 text-[10px]">Dark</span>
-              </button>
-              <button
-                onClick={() => setTheme('gray')}
-                className={cn('flex-1 py-1.5 flex items-center justify-center rounded-lg text-xs font-bold transition-all', activeTheme === 'gray' ? 'bg-primary text-white shadow-md' : 'text-muted-foreground hover:text-foreground')}
-                title="Obsidian Gray"
-              >
-                <Palette className="h-3.5 w-3.5" />
-                <span className="hidden lg:inline ml-1 text-[10px]">Gray</span>
-              </button>
-            </div>
-          </div>
-
           {/* Logout Button */}
           {user && (
             <button
