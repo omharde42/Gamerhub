@@ -5,4 +5,6 @@ const router = Router();
 router.get('/stats', authenticate, analyticsController.getStats.bind(analyticsController));
 router.get('/heatmap', authenticate, analyticsController.getHeatmap.bind(analyticsController));
 router.get('/weekly-progress', authenticate, analyticsController.getWeeklyProgress.bind(analyticsController));
+router.post('/matches', authenticate, analyticsController.logMatch.bind(analyticsController));
+router.delete('/matches/:id', authenticate, analyticsController.deleteMatch.bind(analyticsController));
 export default router;

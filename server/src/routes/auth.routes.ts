@@ -31,5 +31,6 @@ router.post('/2fa/disable', authenticate, authController.disableTwoFactor);
 router.get('/me', authenticate, authController.getMe);
 router.post('/set-password', authenticate, authController.setPassword);
 router.post('/change-password', authenticate, authLimiter, authController.changePassword);
+router.delete('/account', authenticate, authController.deleteAccount);
 
 export default router;

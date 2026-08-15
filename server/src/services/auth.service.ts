@@ -4,6 +4,7 @@ import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from
 import { sendEmail } from './email.service';
 import { verifySupabaseJwt } from '../utils/supabaseAuth';
 import { redis } from '../config/redis';
+import { config } from '../config';
 import crypto from 'crypto';
 import speakeasy from 'speakeasy';
 export class AuthService {
@@ -795,6 +796,72 @@ export class AuthService {
         provider,
       },
     });
+    return { success: true };
+  }
+
+  /**
+   * Best-effort removal of the matching Supabase auth identity (used for
+   * social sign-in). Uses the GoTrue admin API with the service role key so
+   * the user cannot sign in again via Supabase after their account is gone.
+   * Silently skipped when Supabase is not configured.
+   */
+  private async deleteSupabaseAuthUser(email: string) {
+    const { url, serviceRoleKey } = config.supabase;
+    if (!url || !serviceRoleKey) return;
+
+    try {
+      const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
+      const listRes = await fetch(`${url}/auth/v1/admin/users?per_page=1000`, { headers });
+      if (!listRes.ok) return;
+      const { users = [] } = await listRes.json();
+      const match = users.find((u: any) => u?.email && u.email.toLowerCase() === email.toLowerCase());
+      if (match?.id) {
+        await fetch(`${url}/auth/v1/admin/users/${match.id}`, { method: 'DELETE', headers });
+      }
+    } catch (err) {
+      console.warn('Could not delete Supabase auth user:', err);
+    }
+  }
+
+  /**
+   * Permanently deletes the account and all associated data.
+   *
+   * Most relations cascade from User in the schema, but a handful do not
+   * (friend requests, endorsements given, server membership/messages,
+   * reactions, audit logs, challenge teams the user captains, and owned
+   * organizations/servers) — those are cleaned up explicitly first.
+   */
+  async deleteAccount(userId: string, password?: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, include: { accounts: true } });
+    if (!user) throw new NotFoundError('User');
+
+    // Password users must confirm their password before deletion.
+    if (user.password) {
+      if (!password) {
+        throw new ValidationError({ password: ['Password is required to delete your account'] });
+      }
+      const isValid = await comparePassword(password, user.password);
+      if (!isValid) throw new UnauthorizedError('Password is incorrect');
+    }
+
+    // Non-cascading relations
+    await prisma.friendRequest.deleteMany({ where: { OR: [{ senderId: userId }, { receiverId: userId }] } });
+    await prisma.endorsement.deleteMany({ where: { endorserId: userId } });
+    await prisma.auditLog.deleteMany({ where: { userId } });
+    await prisma.serverMember.deleteMany({ where: { userId } });
+    await prisma.serverMessage.deleteMany({ where: { senderId: userId } });
+    await prisma.messageReaction.deleteMany({ where: { userId } });
+    await prisma.challengeTeam.deleteMany({ where: { captainId: userId } });
+    // Owned organizations/servers are removed with their cascading content
+    // (tournaments, jobs, channels, messages, etc.).
+    await prisma.organization.deleteMany({ where: { ownerId: userId } });
+    await prisma.server.deleteMany({ where: { ownerId: userId } });
+
+    await this.deleteSupabaseAuthUser(user.email);
+
+    // Everything else (profile, posts, sessions, accounts, match history, ...)
+    // is removed by the schema-level ON DELETE CASCADE.
+    await prisma.user.delete({ where: { id: userId } });
     return { success: true };
   }
 }

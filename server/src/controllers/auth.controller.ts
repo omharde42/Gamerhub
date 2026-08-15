@@ -365,6 +365,12 @@ export class AuthController {
     await authService.unlinkSocialAccount(req.user!.userId, provider);
     sendSuccess(res, null, `${provider} account unlinked successfully!`);
   });
+
+  deleteAccount = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { password } = req.body || {};
+    await authService.deleteAccount(req.user!.userId, password);
+    sendSuccess(res, null, 'Account deleted successfully');
+  });
 }
 
 export const authController = new AuthController();
