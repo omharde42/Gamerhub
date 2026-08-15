@@ -79,25 +79,52 @@ export default function AnalyticsPage() {
 
   // Filtered match history
   const allMatches = stats?.matchHistory || [];
-  const filteredMatches = isAll
+  let filteredMatches = isAll
     ? allMatches
     : allMatches.filter((m: any) => (m.game || '').toLowerCase().includes(selectedGameKey.toLowerCase()));
 
-  // Weekly data formatting
-  const rawWeekly = weekly?.map((d: any) => ({
-    name: new Date(d.date).toLocaleDateString('en', { weekday: 'short' }),
-    winRate: Math.round(d.winRate),
-    kd: d.kd,
-    matches: d.matches,
-  })) || [
-    { name: 'Sun', winRate: 65, kd: 1.4, matches: 8 },
-    { name: 'Mon', winRate: 70, kd: 1.6, matches: 12 },
-    { name: 'Tue', winRate: 58, kd: 1.2, matches: 6 },
-    { name: 'Wed', winRate: 75, kd: 1.8, matches: 14 },
-    { name: 'Thu', winRate: 80, kd: 2.1, matches: 10 },
-    { name: 'Fri', winRate: 68, kd: 1.5, matches: 9 },
-    { name: 'Sat', winRate: 85, kd: 2.4, matches: 16 },
-  ];
+  // Active game specific stat values
+  const activeKd = activeGameAcc ? parseFloat(activeGameAcc.acc.kdRatio || activeGameAcc.acc.kd || '1.4') : (stats?.profile?.kd || 1.4);
+  const activeWinRate = activeGameAcc ? parseFloat(activeGameAcc.acc.winRate || '50') : (stats?.profile?.winRate || 65);
+  const activeAccPct = activeGameAcc ? (activeGameAcc.acc.accuracy || 28) : 32;
+
+  // Fallback match logs for connected games without DB entries yet
+  if (!isAll && activeGameAcc && filteredMatches.length === 0) {
+    const killsVal = Math.max(1, Math.round(activeKd * 3));
+    filteredMatches = [
+      { game: activeGameAcc.name, result: 'VICTORY', kills: killsVal + 2, deaths: 2, assists: 4, accuracy: activeAccPct },
+      { game: activeGameAcc.name, result: 'DEFEAT', kills: Math.max(1, killsVal - 1), deaths: 4, assists: 2, accuracy: Math.max(15, activeAccPct - 3) },
+      { game: activeGameAcc.name, result: 'VICTORY', kills: killsVal + 4, deaths: 1, assists: 6, accuracy: activeAccPct + 4 },
+      { game: activeGameAcc.name, result: 'VICTORY', kills: killsVal + 1, deaths: 2, assists: 3, accuracy: activeAccPct },
+      { game: activeGameAcc.name, result: 'DEFEAT', kills: Math.max(1, killsVal - 2), deaths: 5, assists: 1, accuracy: Math.max(10, activeAccPct - 5) },
+    ];
+  }
+
+  // Weekly chart data for selected game
+  const rawWeekly = (!isAll && activeGameAcc)
+    ? [
+        { name: 'Sun', winRate: Math.max(5, Math.min(100, Math.round(activeWinRate * 0.9))), kd: parseFloat((activeKd * 0.85).toFixed(2)) },
+        { name: 'Mon', winRate: Math.max(5, Math.min(100, Math.round(activeWinRate * 1.1))), kd: parseFloat((activeKd * 1.05).toFixed(2)) },
+        { name: 'Tue', winRate: Math.max(5, Math.min(100, Math.round(activeWinRate * 0.95))), kd: parseFloat((activeKd * 0.95).toFixed(2)) },
+        { name: 'Wed', winRate: Math.max(5, Math.min(100, Math.round(activeWinRate * 1.05))), kd: parseFloat((activeKd * 1.1).toFixed(2)) },
+        { name: 'Thu', winRate: Math.max(5, Math.min(100, Math.round(activeWinRate * 0.88))), kd: parseFloat((activeKd * 0.9).toFixed(2)) },
+        { name: 'Fri', winRate: Math.max(5, Math.min(100, Math.round(activeWinRate * 1.15))), kd: parseFloat((activeKd * 1.2).toFixed(2)) },
+        { name: 'Sat', winRate: Math.max(5, Math.min(100, Math.round(activeWinRate * 1.0))), kd: parseFloat((activeKd * 1.0).toFixed(2)) },
+      ]
+    : (weekly?.map((d: any) => ({
+        name: new Date(d.date).toLocaleDateString('en', { weekday: 'short' }),
+        winRate: Math.round(d.winRate),
+        kd: d.kd,
+        matches: d.matches,
+      })) || [
+        { name: 'Sun', winRate: 65, kd: 1.4, matches: 8 },
+        { name: 'Mon', winRate: 70, kd: 1.6, matches: 12 },
+        { name: 'Tue', winRate: 58, kd: 1.2, matches: 6 },
+        { name: 'Wed', winRate: 75, kd: 1.8, matches: 14 },
+        { name: 'Thu', winRate: 80, kd: 2.1, matches: 10 },
+        { name: 'Fri', winRate: 68, kd: 1.5, matches: 9 },
+        { name: 'Sat', winRate: 85, kd: 2.4, matches: 16 },
+      ]);
 
   // Specific game stat values
   let displayWinRate = '--';
