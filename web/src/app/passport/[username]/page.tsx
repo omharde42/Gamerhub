@@ -218,6 +218,30 @@ export default function GamerPassportPage() {
     { label: 'Teamwork', value: p.teamworkScore || Math.min(100, Math.round((p.accuracy || 0) * 2 + (p.communicationScore || 0) * 0.3)), color: 'from-green-500 to-emerald-500', icon: Users },
   ];
 
+  // Fetch connected game accounts
+  const { data: userAccounts = [] } = useQuery({
+    queryKey: ['user-game-connections'],
+    queryFn: () => api.get('/game/user-connections').then(r => r.data.data || []).catch(() => []),
+  });
+
+  const allConnectedGames = [
+    ...(p.connectedGames || []),
+    ...(userAccounts || []).map((acc: any) => ({
+      id: acc.id,
+      gameName: acc.game,
+      rank: acc.rank || 'Connected',
+      uid: acc.inGameUid,
+      playerId: acc.inGameName,
+      level: acc.level,
+      kdRatio: acc.kdRatio || acc.kd,
+      winRate: acc.winRate,
+      matchesPlayed: acc.matchesPlayed,
+    })),
+  ];
+
+  const uniqueGames = Array.from(new Map(allConnectedGames.map((item: any) => [(item.gameName || '').toLowerCase(), item])).values());
+  const passportDataForExport = { ...p, connectedGames: uniqueGames };
+
   return (
     <motion.div className="space-y-5" variants={containerVariants} initial="hidden" animate="visible">
       {/* Profile Header */}
@@ -267,7 +291,7 @@ export default function GamerPassportPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <PassportCardExporter passport={p} />
+                <PassportCardExporter passport={passportDataForExport} />
                 {isOwn && (
                   <Link href="/profile/settings">
                     <Button variant="outline" size="sm" className="gap-1.5 shadow-sm">
