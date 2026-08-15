@@ -9,7 +9,6 @@ import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAutoHideNav } from '@/hooks/useAutoHideNav';
 import toast from 'react-hot-toast';
-import { UpdateChecker } from '../common/update-checker';
 import { PanelHost } from './panel-host';
 import { useOverlayActive } from '@/store/overlayStore';
 
@@ -156,7 +155,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       {!isAuthOrLanding && !isMessages && <ScrollControls hidden={navHidden} />}
       {/* Premium overlay host: renders page-level features as panels */}
       <PanelHost />
-      <UpdateChecker />
     </div>
   );
 }
