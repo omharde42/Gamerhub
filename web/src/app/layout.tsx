@@ -24,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://res.cloudinary.com" />
+        <link rel="preload" href="/logo.jpg" as="image" type="image/jpeg" fetchPriority="high" />
       </head>
       <body className={`${inter.className} ${inter.variable} ${plusJakarta.variable}`}>
         <Providers>
