@@ -3,7 +3,9 @@ import { ReactNode, useEffect, useState } from 'react';
 import { Navbar } from './navbar';
 import { Sidebar } from './sidebar';
 import { MobileBottomNav } from './mobile-bottom-nav';
+import { Footer } from './footer';
 import { ScrollControls } from './scroll-controls';
+import { LEGAL_ROUTES } from '@/config/legal';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,11 +41,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   const isLanding = pathname === '/';
   const isAuthOrLanding = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/');
-  const hideSidebar = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
-  const hideBottomNav = pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/auth/') || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
+  // Legal/documentation routes are public — never behind the auth guard, and
+  // rendered full-width (no sidebar/bottom nav) like the landing page.
+  const isLegalRoute = LEGAL_ROUTES.some((route) => pathname === route || pathname?.startsWith(`${route}/`));
+  const isPublicRoute = isAuthOrLanding || isLegalRoute;
+  const hideSidebar = isPublicRoute || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
+  const hideBottomNav = isPublicRoute || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
   const isServerPage = pathname?.startsWith('/servers/');
   const isMessages = pathname?.startsWith('/messages');
   const isSearch = pathname?.startsWith('/search');
+  // Immersive full-screen experiences (chat, search) don't carry a footer.
+  const hideFooter = isMessages || isSearch;
 
   useEffect(() => {
     // Check if the auth store is already hydrated from localStorage
@@ -66,7 +74,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     if (!hasHydrated) return;
 
     // Guard 1: Redirect to login if unauthenticated and trying to access private page
-    if (!isAuthenticated && !isAuthOrLanding) {
+    if (!isAuthenticated && !isPublicRoute) {
       router.push('/auth/login');
       return;
     }
@@ -85,15 +93,15 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       const onSettingsPage = pathname === '/profile/settings';
 
-      if (isProfileIncomplete && !onSettingsPage && !isAuthOrLanding) {
+      if (isProfileIncomplete && !onSettingsPage && !isPublicRoute) {
         toast('Gamer Passport incomplete. Please complete setup!', { id: 'setup-guard-toast' });
         router.push('/profile/settings');
       }
     }
-  }, [hasHydrated, user, isAuthenticated, isAuthOrLanding, pathname, router]);
+  }, [hasHydrated, user, isAuthenticated, isPublicRoute, isAuthOrLanding, pathname, router]);
 
   const isRedirectingAuthenticatedUser = isAuthenticated && !!user && isAuthOrLanding && pathname !== '/auth/callback';
-  const isRedirectingUnauthenticatedUser = !isAuthenticated && !isAuthOrLanding;
+  const isRedirectingUnauthenticatedUser = !isAuthenticated && !isPublicRoute;
 
   // Render a branded splash screen only until hydration completes to eliminate unauthenticated redirects or layout flashes
   if (!hasHydrated || isRedirectingAuthenticatedUser || isRedirectingUnauthenticatedUser) {
@@ -134,6 +142,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             {children}
           </main>
         </div>
+        {!hideFooter && (
+          <div className="mt-10 md:mt-14">
+            <Footer />
+          </div>
+        )}
       </div>
       {!hideBottomNav && (
         <nav aria-label="Mobile Navigation" className="block md:hidden">
