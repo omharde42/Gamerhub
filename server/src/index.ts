@@ -44,8 +44,7 @@ import steamRoutes from './routes/steam.routes';
 import gameStatsRoutes from './routes/game-stats.routes';
 import clashOfClansRoutes from './routes/clashofclans.routes';
 import challengeRoutes from './routes/challenge.routes';
-import leaderboardRoutes from './routes/leaderboard.routes';
-import partnershipRoutes from './routes/partnership.routes';
+import videoRoutes from './routes/video.routes';
 import { setSocketIo } from './socket-emitter';
 import { challengeService } from './services/challenge.service';
 import { registerSocketEvents } from './socket/handlers';
@@ -182,6 +181,10 @@ app.use('/api/crypto', cryptoRoutes);
 app.use('/api/steam', steamRoutes);
 // Public keep-alive health check (no auth, no DB, used by the Render keep-alive workflow)
 app.get('/health', (_req: any, res: any) => res.json({ status: 'ok', service: 'GamerZHub API' }));
+app.get('/riot.txt', (_req: any, res: any) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.status(200).send('71dcd910-804e-42e8-8e2a-91d7bb1b93af\n');
+});
 import gameSyncRoutes from './routes/game-sync.routes';
 import gameModularRoutes from './routes/game-modular.routes';
 import pubgRoutes from './routes/pubg.routes';
@@ -199,8 +202,7 @@ app.use('/api/game-sync', gameSyncRoutes);
 app.use('/api/game-stats', gameStatsRoutes);
 app.use('/api/game', gameModularRoutes);
 app.use('/api/challenges', challengeRoutes);
-app.use('/api/leaderboards', leaderboardRoutes);
-app.use('/api/partnerships', partnershipRoutes);
+app.use('/api/video', videoRoutes);
 
 // Error handling
 app.use(notFoundHandler);
@@ -214,6 +216,29 @@ setInterval(() => {
 httpServer.listen(config.port, () => {
   console.log(`GamerHub API running on port ${config.port}`);
   console.log(`Environment: ${config.nodeEnv}`);
+
+  // Automatically clean synthetic seeded users on startup (preserving genuine real users)
+  try {
+    const { cleanSeededUsers } = require('../prisma/clean-seeded-users');
+    cleanSeededUsers().catch((err: any) => console.error('[clean-seeded-users]', err?.message));
+  } catch (e: any) {
+    console.warn('[clean-seeded-users] Skipped startup cleanup:', e?.message);
+  }
+
+  // Self Keep-Alive ping to keep Render web service warm and eliminate cold starts
+  const BACKEND_URL = process.env.BACKEND_URL || 'https://gamerhub-c944.onrender.com';
+  setInterval(() => {
+    try {
+      const http = BACKEND_URL.startsWith('https') ? require('https') : require('http');
+      http.get(`${BACKEND_URL}/health`, (res: any) => {
+        console.log(`[Keep-Alive] Pinged ${BACKEND_URL}/health - Status: ${res.statusCode}`);
+      }).on('error', (err: any) => {
+        console.warn(`[Keep-Alive] Ping warn:`, err?.message);
+      });
+    } catch (e: any) {
+      console.warn(`[Keep-Alive] Exception:`, e?.message);
+    }
+  }, 5 * 60 * 1000);
 });
 
 export { app, httpServer, io };

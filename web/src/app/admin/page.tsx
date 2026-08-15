@@ -147,7 +147,7 @@ export default function AdminPage() {
                       <div key={req.id} className={`flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-xl border transition-all duration-200 ${isPending ? 'border-yellow-500/20 bg-yellow-500/5' : req.status === 'APPROVED' ? 'border-green-500/10 bg-green-500/5' : 'border-red-500/10 bg-red-500/5'}`}>
                         <div className="flex items-center gap-4 min-w-0">
                           {req.logo ? (
-                            <img src={req.logo} alt={req.gameName} className="h-12 w-12 rounded-xl object-cover border border-primary/10 shrink-0" />
+                            <img src={req.logo} alt={req.gameName} className="h-12 w-12 rounded-xl object-cover border border-primary/10 shrink-0" loading="lazy" decoding="async" />
                           ) : (
                             <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/10">
                               <Gamepad2 className="h-6 w-6 text-primary" />

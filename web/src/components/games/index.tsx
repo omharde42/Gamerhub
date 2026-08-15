@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { ClashOfClansRenderer, GameRendererProps } from './clashofclans/ClashOfClansRenderer';
+import { ClashRoyaleRenderer } from './clashroyale/ClashRoyaleRenderer';
+import { BrawlStarsRenderer } from './brawlstars/BrawlStarsRenderer';
 import { PubgRenderer } from './pubg/PubgRenderer';
 import { ValorantRenderer } from './valorant/ValorantRenderer';
 import { SteamRenderer } from './steam/SteamRenderer';
@@ -21,8 +23,12 @@ const GAME_RENDERERS: Record<string, React.ComponentType<GameRendererProps>> = {
   steam: SteamRenderer,
   freefire: FreeFireRenderer,
   bgmi: BgmiRenderer,
-  clashroyale: ClashOfClansRenderer,
-  brawlstars: ClashOfClansRenderer,
+  clashroyale: ClashRoyaleRenderer,
+  clash_royale: ClashRoyaleRenderer,
+  cr: ClashRoyaleRenderer,
+  brawlstars: BrawlStarsRenderer,
+  brawl_stars: BrawlStarsRenderer,
+  bs: BrawlStarsRenderer,
 };
 
 /**

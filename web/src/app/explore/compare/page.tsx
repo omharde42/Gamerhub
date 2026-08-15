@@ -239,7 +239,7 @@ export default function ComparePage() {
                         }`}
                       >
                         {/* Rank & User Details */}
-                        <div className="flex items-center gap-3.5">
+                        <div className="flex items-center gap-3.5 min-w-0">
                           <div className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 ${
                             player.rank === 1 ? 'bg-amber-400 text-black shadow-md shadow-amber-400/40' :
                             player.rank === 2 ? 'bg-slate-300 text-black' :
@@ -248,30 +248,30 @@ export default function ComparePage() {
                             {player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : player.rank === 3 ? '🥉' : `#${player.rank}`}
                           </div>
 
-                          <Avatar className="h-10 w-10 border border-white/10">
+                          <Avatar className="h-10 w-10 border border-white/10 shrink-0">
                             <AvatarImage src={player.avatar || undefined} />
                             <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
                               {getInitials(player.displayName)}
                             </AvatarFallback>
                           </Avatar>
 
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-sm text-white">{player.displayName}</span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-extrabold text-sm text-white truncate block">{player.displayName}</span>
                               {isUser && (
-                                <Badge className="bg-amber-500 text-black font-extrabold text-[10px] px-1.5 py-0">
+                                <Badge className="bg-amber-500 text-black font-extrabold text-[10px] px-1.5 py-0 shrink-0">
                                   YOU
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-xs text-gray-400 font-mono">
+                            <p className="text-xs text-gray-400 font-mono truncate">
                               {player.inGameName} <span className="text-gray-500">({player.tag})</span>
                             </p>
                           </div>
                         </div>
 
                         {/* Score & 1v1 Compare Action */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 shrink-0">
                           <div className="text-right">
                             <div className="text-base font-black text-amber-400">{player.scoreLabel}</div>
                             <p className="text-[10px] text-gray-400 uppercase font-semibold">Verified Live Stats</p>
@@ -308,10 +308,10 @@ export default function ComparePage() {
                       transition={{ duration: 0.3 }}
                     >
                       <Card variant="glass" className="border-purple-500/40 bg-gradient-to-br from-purple-950/40 via-black to-zinc-950 p-6 space-y-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Swords className="h-5 w-5 text-purple-400" />
-                            <h4 className="font-extrabold text-base text-white">Head-to-Head Comparison</h4>
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Swords className="h-5 w-5 text-purple-400 shrink-0" />
+                            <h4 className="font-extrabold text-base text-white truncate">Head-to-Head Comparison</h4>
                           </div>
                           <Button
                             variant="ghost"

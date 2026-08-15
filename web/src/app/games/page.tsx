@@ -146,7 +146,7 @@ export default function GamesPage() {
                     />
                     {logo && (
                       <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/40 border border-border mt-2">
-                        <img src={logo} alt="Preview" className="h-12 w-12 rounded-lg object-cover border border-primary/10" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                        <img src={logo} alt="Preview" className="h-12 w-12 rounded-lg object-cover border border-primary/10" loading="lazy" decoding="async" onError={(e) => (e.currentTarget.style.display = 'none')} />
                         <span className="text-xs text-muted-foreground">Logo preview</span>
                       </div>
                     )}
@@ -219,6 +219,8 @@ export default function GamesPage() {
                       src={game.logo}
                       alt={game.gameName}
                       className="h-10 w-10 rounded-xl object-cover border border-primary/10 mb-2 group-hover:scale-110 transition-transform duration-300"
+                      loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/20 to-gaming-purple/20 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300 border border-primary/10">
@@ -268,7 +270,7 @@ export default function GamesPage() {
                     <Card key={req.id} className="border-primary/10 hover:border-primary/20 transition-all duration-200 bg-muted/5">
                       <CardContent className="p-4 flex items-center gap-4">
                         {req.logo ? (
-                          <img src={req.logo} alt={req.gameName} className="h-12 w-12 rounded-xl object-cover border border-primary/10 shrink-0" />
+                          <img src={req.logo} alt={req.gameName} className="h-12 w-12 rounded-xl object-cover border border-primary/10 shrink-0" loading="lazy" decoding="async" />
                         ) : (
                           <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/10">
                             <Gamepad2 className="h-6 w-6 text-primary" />

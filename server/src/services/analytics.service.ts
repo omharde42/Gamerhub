@@ -4,13 +4,28 @@ import { NotFoundError, ValidationError } from '../utils/errors';
 export class AnalyticsService {
   async getUserStats(userId: string) {
     const profile = await prisma.profile.findUnique({ where: { userId } }); if (!profile) throw new NotFoundError('Profile');
-    const recentMatches = await prisma.matchHistory.findMany({ where: { userId }, orderBy: { playedAt: 'desc' }, take: 50 });
+    const [recentMatches, gameAccounts] = await Promise.all([
+      prisma.matchHistory.findMany({ where: { userId }, orderBy: { playedAt: 'desc' }, take: 50 }),
+      prisma.gameAccount.findMany({ where: { userId } }),
+    ]);
     const totalMatches = recentMatches.length; const wins = recentMatches.filter((m) => m.result === 'WIN').length;
     const avgKd = totalMatches > 0 ? recentMatches.reduce((sum, m) => sum + (m.deaths > 0 ? m.kills / m.deaths : m.kills), 0) / totalMatches : 0;
     const avgAccuracy = totalMatches > 0 ? recentMatches.reduce((sum, m) => sum + m.accuracy, 0) / totalMatches : 0;
     const last7Days = recentMatches.filter((m) => m.playedAt >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length;
     const last30Days = recentMatches.filter((m) => m.playedAt >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length;
-    return { profile: { winRate: profile.winRate, kd: profile.kd, accuracy: profile.accuracy, rank: profile.rank, totalMatches: profile.totalMatches, wins: profile.wins, losses: profile.losses }, recentPerformance: { matches: totalMatches, wins, losses: totalMatches - wins, winRate: totalMatches > 0 ? (wins / totalMatches) * 100 : 0, avgKd: Math.round(avgKd * 100) / 100, avgAccuracy: Math.round(avgAccuracy * 100) / 100 }, activity: { last7Days, last30Days }, matchHistory: recentMatches.slice(0, 20) };
+    const accountMatches = gameAccounts.reduce((sum, a) => sum + (a.totalMatches || 0), 0);
+    const accountWins = gameAccounts.reduce((sum, a) => sum + Math.round(((a.winRate || 0) / 100) * (a.totalMatches || 0)), 0);
+    const kdRatios = gameAccounts.map((a) => a.kdRatio).filter((v): v is number => typeof v === 'number' && v > 0);
+    const totalMatchesAggregated = accountMatches > 0 ? accountMatches : profile.totalMatches || 0;
+    const winsAggregated = accountWins > 0 ? accountWins : profile.wins || 0;
+    const winRate = totalMatchesAggregated > 0 ? Math.round((winsAggregated / totalMatchesAggregated) * 100) : profile.winRate ?? 0;
+    const kd = kdRatios.length > 0 ? Math.round((kdRatios.reduce((s, v) => s + v, 0) / kdRatios.length) * 100) / 100 : profile.kd ?? 0;
+    return {
+      profile: { winRate, kd, accuracy: profile.accuracy ?? null, rank: profile.rank, totalMatches: totalMatchesAggregated, wins: winsAggregated, losses: totalMatchesAggregated - winsAggregated, connectedGames: gameAccounts.length },
+      recentPerformance: { matches: totalMatches, wins, losses: totalMatches - wins, winRate: totalMatches > 0 ? (wins / totalMatches) * 100 : 0, avgKd: Math.round(avgKd * 100) / 100, avgAccuracy: Math.round(avgAccuracy * 100) / 100 },
+      activity: { last7Days, last30Days },
+      matchHistory: recentMatches.slice(0, 20),
+    };
   }
   async getUserHeatmapData(userId: string) {
     const matches = await prisma.matchHistory.findMany({ where: { userId }, orderBy: { playedAt: 'asc' } });

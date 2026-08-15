@@ -207,6 +207,8 @@ export default function SavedPostsPage() {
                           src={thumb} 
                           alt="" 
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                          loading="lazy"
+                          decoding="async"
                         />
                         {isVideo && (
                           <div className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-lg border border-white/10 backdrop-blur-sm z-10">
@@ -234,6 +236,8 @@ export default function SavedPostsPage() {
                             src={post.user?.profile?.avatar || '/placeholder.png'} 
                             alt=""
                             className="h-6 w-6 rounded-full border border-white/20 object-cover"
+                            loading="lazy"
+                            decoding="async"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${post.user?.profile?.username || 'G'}`;
                             }}

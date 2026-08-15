@@ -41,8 +41,11 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
   // Map database enum/key to catalog items
   const connectedGames = userAccounts.map((acc: any) => {
     let key = (acc.game || '').toLowerCase().replace(/_/g, '');
-    if (key.includes('clash')) key = 'clash_of_clans';
-    if (key.includes('pubg')) key = 'pubg';
+    if (key.includes('clashroyale') || key.includes('cr')) key = 'clash_royale';
+    else if (key.includes('clash')) key = 'clash_of_clans';
+    if (key.includes('brawlstars')) key = 'brawl_stars';
+    else if (key.includes('pubg') && key.includes('mobile')) key = 'bgmi';
+    else if (key.includes('pubg')) key = 'pubg';
 
     const catalogItem = GAMES_CATALOG.find((g) => g.id === key) || {
       id: key,

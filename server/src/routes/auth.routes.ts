@@ -17,6 +17,8 @@ router.get('/discord', authController.discordRedirect);
 router.post('/discord/link', authenticate, authController.discordLinkInitiate);
 router.get('/discord/callback', authController.discordCallback);
 router.post('/discord/disconnect', authenticate, authController.discordDisconnect);
+router.get('/riot', authController.riotAuth);
+router.get('/riot/callback', authController.riotCallback);
 router.get('/accounts', authenticate, authController.getLinkedAccounts);
 router.post('/accounts/link', authenticate, authController.linkAccount);
 router.post('/accounts/unlink', authenticate, authController.unlinkAccount);

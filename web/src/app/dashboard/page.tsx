@@ -12,8 +12,12 @@ import api from '@/lib/api';
 import { getInitials } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { SteamShowcase } from '@/components/profile/steam-showcase';
+import { HudCard } from '@/components/hud/hud-card';
+import { StatCounter } from '@/components/hud/stat-counter';
+import { LevelChip } from '@/components/hud/level-chip';
+import { gamerLevel, levelTitle, levelColor } from '@/lib/gamer-level';
 
-function AnimatedStat({ value, label, icon: Icon, color, bg }: { value: string; label: string; icon: any; color: string; bg: string }) {
+function AnimatedStat({ value, label, icon: Icon, color, bg, raw }: { value: string; label: string; icon: any; color: string; bg: string; raw?: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -21,21 +25,28 @@ function AnimatedStat({ value, label, icon: Icon, color, bg }: { value: string; 
       whileHover={{ y: -4 }}
       transition={{ duration: 0.3 }}
     >
-      <Card variant="bento" hover={false} className="p-4 bg-card/60 border border-white/10 backdrop-blur-xl shadow-lg">
+      <HudCard glow="emerald" className="p-4 border-white/10 bg-card/60" corners scanlines>
         <CardContent className="p-0">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-              <p className="text-2xl font-black tracking-tight text-foreground font-mono">
-                {value}
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 rotate-45 bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+                {label}
+              </p>
+              <p className={`text-2xl font-black tracking-tight text-foreground font-mono ${value === '--' ? 'text-muted-foreground' : 'neon-emerald'}`}>
+                {raw != null && value !== '--' ? (
+                  <StatCounter value={raw} suffix={label === 'Win Rate' ? '%' : ''} />
+                ) : (
+                  value
+                )}
               </p>
             </div>
-            <div className={`w-11 h-11 rounded-2xl ${bg} flex items-center justify-center border border-white/10 shadow-md`}>
+            <div className={`w-11 h-11 clip-hud ${bg} flex items-center justify-center border border-white/10 shadow-md`}>
               <Icon className={`h-5 w-5 ${color}`} />
             </div>
           </div>
         </CardContent>
-      </Card>
+      </HudCard>
     </motion.div>
   );
 }
@@ -52,11 +63,16 @@ export default function DashboardPage() {
   });
 
   const stats = [
-    { label: 'Win Rate', value: statsLoading ? '...' : (statsData?.profile?.winRate ? `${statsData.profile.winRate}%` : '--'), icon: Target, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-    { label: 'K/D Ratio', value: statsLoading ? '...' : (statsData?.profile?.kd ? `${statsData.profile.kd}` : '--'), icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/20' },
-    { label: 'Rank Score', value: statsLoading ? '...' : (statsData?.profile?.rankScore ? `${statsData.profile.rankScore}` : '--'), icon: Trophy, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
-    { label: 'Matches Played', value: statsLoading ? '...' : (statsData?.profile?.totalMatches ? `${statsData.profile.totalMatches}` : '--'), icon: Zap, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
+    { label: 'Win Rate', value: statsLoading ? '...' : (statsData?.profile?.winRate ? `${statsData.profile.winRate}%` : '--'), raw: statsLoading ? undefined : (statsData?.profile?.winRate ? Number(statsData.profile.winRate) : undefined), icon: Target, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+    { label: 'K/D Ratio', value: statsLoading ? '...' : (statsData?.profile?.kd ? `${statsData.profile.kd}` : '--'), raw: statsLoading ? undefined : (statsData?.profile?.kd ? Number(statsData.profile.kd) : undefined), icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/20' },
+    { label: 'Rank Score', value: statsLoading ? '...' : (statsData?.profile?.rankScore ? `${statsData.profile.rankScore}` : '--'), raw: statsLoading ? undefined : (statsData?.profile?.rankScore ? Number(statsData.profile.rankScore) : undefined), icon: Trophy, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
+    { label: 'Matches Played', value: statsLoading ? '...' : (statsData?.profile?.totalMatches ? `${statsData.profile.totalMatches}` : '--'), raw: statsLoading ? undefined : (statsData?.profile?.totalMatches ? Number(statsData.profile.totalMatches) : undefined), icon: Zap, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
   ];
+
+  const totalMatches = statsData?.profile?.totalMatches ? Number(statsData.profile.totalMatches) : 0;
+  const { level, xp } = gamerLevel(totalMatches);
+  const rankTitle = levelTitle(level);
+  const rankColor = levelColor(level);
 
   const quickActions = [
     { title: 'Find Teammates', href: '/feed', icon: Users, desc: 'Connect & squad up' },
@@ -67,18 +83,19 @@ export default function DashboardPage() {
 
   return (
     <motion.div className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      {/* Concept Art Obsidian Glass Hero Banner with Floating Cybernetic Artifact */}
+      {/* Concept Art Obsidian Glass Hero Banner with Cybernetic Artifact */}
       <motion.div
-        className="relative overflow-hidden rounded-[32px] border border-emerald-500/40 bg-gradient-to-r from-[#030509]/95 via-[#0A0E1D]/90 to-[#0F172A]/95 p-6 md:p-8 backdrop-blur-3xl shadow-[0_25px_60px_-15px_rgba(16,185,129,0.25)] text-white"
+        className="hud-corners relative overflow-hidden rounded-[32px] border border-emerald-500/40 bg-gradient-to-r from-[#030509]/95 via-[#0A0E1D]/90 to-[#0F172A]/95 p-6 md:p-8 backdrop-blur-3xl shadow-[0_25px_60px_-15px_rgba(16,185,129,0.25)] text-white"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
+        <div className="scanlines absolute inset-0 pointer-events-none z-[1]" />
         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-64 md:w-80 h-64 md:h-80 rounded-full overflow-hidden opacity-40 pointer-events-none mix-blend-screen animate-pulse shrink-0 hidden sm:block">
-          <img src="/cybernetic-artifact.jpg" alt="Cybernetic Artifact" className="w-full h-full object-cover rounded-full" />
+          <img src="/cybernetic-artifact.jpg" alt="Cybernetic Artifact" className="w-full h-full object-cover rounded-full" loading="lazy" decoding="async" />
         </div>
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl">
+          <div className="space-y-3 max-w-xl">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="bg-emerald-500/15 border-emerald-400/40 text-emerald-400 text-xs font-mono font-bold px-3 py-1 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)]">
                 ⚡ GAMER PASSPORT DASHBOARD
@@ -87,26 +104,56 @@ export default function DashboardPage() {
                 OBSIDIAN HYPER-UI v3.0
               </Badge>
             </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
-              Welcome back, <span className="text-emerald-400 font-mono">{user?.profile?.username || 'Gamer'}</span>
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white flex items-center gap-3 flex-wrap">
+              Welcome back, <span className="holo-text font-mono">{user?.profile?.username || 'Gamer'}</span>
               <Sparkles className="h-6 w-6 text-emerald-400 animate-pulse" />
             </h1>
             <p className="text-sm text-slate-300 max-w-xl leading-relaxed">
               Your esports hub performance summary, Steam achievements, AI recommendations, and live matchmaking queue.
             </p>
+            <div className="hud-divider !justify-start max-w-md">
+              <span className="hud-diamond" />
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto relative z-20">
-            <Link href="/profile/settings" className="flex-1 md:flex-none">
-              <Button variant="outline" size="sm" className="w-full font-bold rounded-2xl border-white/20 hover:border-emerald-400">
-                Edit Profile
-              </Button>
-            </Link>
-            <Link href="/matchmaking" className="flex-1 md:flex-none">
-              <Button variant="gradient" size="sm" className="w-full font-extrabold gap-2 rounded-2xl shadow-lg shadow-emerald-500/30 bg-gradient-to-r from-emerald-500 to-teal-600 text-white" animate>
-                <Zap className="h-4 w-4" /> Find Match
-              </Button>
-            </Link>
+          {/* Gamified Level HUD */}
+          <div className="flex items-center gap-4 w-full md:w-auto relative z-20">
+            <div
+              className="level-ring shrink-0"
+              style={{ ['--lvl-pct' as any]: `${xp}%` }}
+            >
+              <div className="w-16 h-16 rounded-full bg-[#0A0E17] border border-white/10 flex flex-col items-center justify-center">
+                <span className="text-[9px] font-mono font-bold text-slate-400 tracking-widest">LVL</span>
+                <span className="text-xl font-black font-mono leading-none" style={{ color: rankColor, textShadow: `0 0 12px ${rankColor}` }}>
+                  {level}
+                </span>
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-mono font-black tracking-wider" style={{ color: rankColor, textShadow: `0 0 10px ${rankColor}88` }}>
+                  {rankTitle}
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">{xp}% XP TO NEXT LVL</span>
+              </div>
+              <div className="xp-shell mt-1.5 w-full max-w-[220px]">
+                <div className="xp-fill" style={{ width: `${xp}%`, background: `linear-gradient(90deg, ${rankColor}99, ${rankColor})` }}>
+                  <div className="xp-shine" />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 mt-2.5">
+                <Link href="/profile/settings" className="flex-1 md:flex-none">
+                  <Button variant="outline" size="sm" className="w-full font-bold rounded-2xl border-white/20 hover:border-emerald-400">
+                    Edit Profile
+                  </Button>
+                </Link>
+                <Link href="/matchmaking" className="flex-1 md:flex-none">
+                  <Button variant="gradient" size="sm" className="w-full font-extrabold gap-2 rounded-2xl shadow-lg shadow-emerald-500/30 bg-gradient-to-r from-emerald-500 to-teal-600 text-white" animate>
+                    <Zap className="h-4 w-4" /> Find Match
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </motion.div>
