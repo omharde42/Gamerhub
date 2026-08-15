@@ -338,6 +338,10 @@ app.use('/api/crypto', cryptoRoutes);
 app.use('/api/steam', steamRoutes);
 // Public keep-alive health check (no auth, no DB, used by the Render keep-alive workflow)
 app.get('/health', (_req: any, res: any) => res.json({ status: 'ok', service: 'GamerZHub API' }));
+app.get('/riot.txt', (_req: any, res: any) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.status(200).send('71dcd910-804e-42e8-8e2a-91d7bb1b93af\n');
+});
 import gameSyncRoutes from './routes/game-sync.routes';
 import gameModularRoutes from './routes/game-modular.routes';
 import pubgRoutes from './routes/pubg.routes';
