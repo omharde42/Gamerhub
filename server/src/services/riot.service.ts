@@ -100,7 +100,7 @@ export class RiotService {
       let totalHeadshots = 0;
       let totalShots = 0;
       let wins = 0;
-      let totalMatches = data.length;
+      const totalMatches = data.length;
 
       for (const match of data) {
         const player = match.players?.all_players?.find(
