@@ -12,7 +12,7 @@ import {
   Search, Send, Paperclip, Image as ImageIcon, Camera, MoreVertical, Plus, Loader2,
   MessageSquare, UserPlus, Phone, Video, Mic, Headphones, Settings,
   Hash, Users, ChevronLeft, ArrowLeft, Heart, Smile, Reply,
-  Trash2, Play, Pause, Square, Volume2, X, Link as LinkIcon, Lock
+  Trash2, Play, Pause, Square, Volume2, X, Link as LinkIcon, Lock, RefreshCw
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useKeyboard, scrollInputIntoView } from '@/hooks/useKeyboard';
@@ -202,7 +202,7 @@ function DiscordMessagesPage() {
     staleTime: 15 * 1000,
   });
 
-  const { data: messagesData, refetch: refetchMessages, isLoading: messagesLoading } = useQuery({
+  const { data: messagesData, refetch: refetchMessages, isLoading: messagesLoading, isError: messagesError } = useQuery({
     queryKey: ['messages', selectedChat],
     queryFn: () => api.get(`/chat/${selectedChat}/messages`).then(r => r.data.data),
     enabled: !!selectedChat,
@@ -400,7 +400,13 @@ function DiscordMessagesPage() {
       const onMessage = (msg: any) => {
         setMessages(prev => {
           const filtered = prev.filter(m => !(m.status === 'sending' && m.content === msg.content));
+          if (filtered.some(m => m.id === msg.id)) return filtered;
           return [...filtered, msg];
+        });
+        queryClient.setQueryData(['messages', msg.chatId || selectedChat], (old: any[] | undefined) => {
+          if (!old) return [msg];
+          if (old.some((m: any) => m.id === msg.id)) return old;
+          return [...old, msg];
         });
         queryClient.invalidateQueries({ queryKey: ['chats'] });
       };
@@ -901,7 +907,20 @@ function DiscordMessagesPage() {
             {/* Messages list - Fully optimized standard div with native scrolling */}
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 bg-grid bg-[length:40px_40px]">
               <div className="py-6 space-y-3 max-w-4xl mx-auto">
-                {messagesLoading ? (
+                {messagesError ? (
+                  <div className="flex flex-col items-center justify-center py-16 px-4 text-center space-y-3 max-w-md mx-auto">
+                    <div className="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20">
+                      <X className="h-6 w-6" />
+                    </div>
+                    <p className="text-sm font-extrabold text-foreground">Unable to load messages</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Something went wrong while fetching this conversation. Please check your network connection and try again.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => refetchMessages()} className="h-9 rounded-xl font-bold gap-1.5 mt-2">
+                      <RefreshCw className="h-3.5 w-3.5" /> Retry
+                    </Button>
+                  </div>
+                ) : messagesLoading && !messagesData ? (
                   <div className="space-y-4 py-4 max-w-2xl mx-auto">
                     {[
                       { align: 'left', w: 'w-48 sm:w-64' },

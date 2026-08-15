@@ -4,8 +4,8 @@ import './globals.css';
 import { Providers } from '@/providers';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
-const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap', fallback: ['system-ui', 'sans-serif'] });
+const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap', fallback: ['system-ui', 'sans-serif'] });
 
 export const metadata: Metadata = {
   title: 'GamerZ Hub - The Ultimate AAA Gaming Ecosystem',
