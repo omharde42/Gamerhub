@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
+import prisma from '../config/database';
 
 export class AppController {
   getVersion = asyncHandler(async (req: Request, res: Response) => {
@@ -32,6 +33,22 @@ export class AppController {
       return sendError(res, 404, 'APK not yet available. Please check back soon or visit GitHub Releases for the latest build.');
     }
     res.download(apkPath, 'GamerHub-latest.apk');
+  });
+
+  getPublicStats = asyncHandler(async (req: Request, res: Response) => {
+    const [usersCount, teamsCount, tournamentsCount, gamesCount] = await Promise.all([
+      prisma.user.count(),
+      prisma.team.count(),
+      prisma.tournament.count(),
+      prisma.connectedGame.count(),
+    ]);
+
+    sendSuccess(res, {
+      activePlayers: usersCount > 0 ? `${usersCount}` : '1',
+      teams: teamsCount > 0 ? `${teamsCount}` : '0',
+      tournaments: tournamentsCount > 0 ? `${tournamentsCount}` : '0',
+      gamesSupported: gamesCount > 0 ? `${gamesCount}` : '10+',
+    });
   });
 }
 

@@ -59,4 +59,7 @@ export const config = {
     clientSecret: process.env.DISCORD_CLIENT_SECRET || '',
     redirectUri: process.env.DISCORD_REDIRECT_URI || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?provider=discord`,
   },
+  riot: {
+    apiKey: process.env.RIOT_API_KEY || '',
+  },
 };

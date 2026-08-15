@@ -6,6 +6,8 @@ import { Gamepad2, Sparkles, Zap, Trophy, Users, Globe, LogIn, UserPlus, Film, S
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
 
 const typewriterTexts = [
   'Connect with pro gamers worldwide',
@@ -73,16 +75,22 @@ function TypewriterText() {
   );
 }
 
-const stats = [
-  { value: '10K+', label: 'Active Players', icon: Users },
-  { value: '500+', label: 'Teams', icon: Trophy },
-  { value: '100+', label: 'Tournaments', icon: Zap },
-  { value: '50+', label: 'Games Supported', icon: Globe },
-];
-
 export default function EnterPage() {
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
+
+  const { data: realStats } = useQuery({
+    queryKey: ['public-app-stats'],
+    queryFn: () => api.get('/app/stats').then(r => r.data.data).catch(() => null),
+    staleTime: 60 * 1000,
+  });
+
+  const stats = [
+    { value: realStats?.activePlayers || '1+', label: 'Active Players', icon: Users },
+    { value: realStats?.teams || '0', label: 'Teams', icon: Trophy },
+    { value: realStats?.tournaments || '0', label: 'Tournaments', icon: Zap },
+    { value: realStats?.gamesSupported || '10+', label: 'Games Supported', icon: Globe },
+  ];
 
   useEffect(() => {
     if (isAuthenticated && user) {

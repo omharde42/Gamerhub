@@ -74,10 +74,10 @@ export function ValorantRenderer({ gameUid }: GameRendererProps) {
               </div>
               <div>
                 <h4 className="font-extrabold text-lg text-white flex items-center gap-2">
-                  {data.riotId}
-                  <Badge className="bg-red-500/20 text-red-400 border border-red-500/40 text-xs font-mono">{data.region}</Badge>
+                  {data.riotId || gameUid}
+                  {data.region && <Badge className="bg-red-500/20 text-red-400 border border-red-500/40 text-xs font-mono">{data.region}</Badge>}
                 </h4>
-                <p className="text-xs text-red-400 font-bold mt-0.5">{data.rank} • {data.rr} RR</p>
+                <p className="text-xs text-red-400 font-bold mt-0.5">{data.rank || 'Unranked'} {data.rr ? `• ${data.rr} RR` : ''}</p>
               </div>
             </div>
             <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold gap-1 px-3 py-1">
@@ -85,32 +85,42 @@ export function ValorantRenderer({ gameUid }: GameRendererProps) {
             </Badge>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
-              <p className="text-xs text-gray-400 font-medium">K/D Ratio</p>
-              <p className="text-2xl font-black text-red-400 font-mono">{data.kd}</p>
-              <p className="text-[10px] text-gray-400">ACS: {data.scorePerRound}</p>
+          {data.statsUnavailable ? (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-amber-300 text-xs font-bold">
+                <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
+                <span>⚠ Statistics unavailable — We couldn't retrieve verified stats right now.</span>
+              </div>
+              <button onClick={() => refetch()} className="text-xs font-bold text-amber-300 border border-amber-500/40 rounded-xl px-3 py-1.5 hover:bg-amber-500/10">Try Again</button>
             </div>
+          ) : (
+            /* Stats Grid */
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
+                <p className="text-xs text-gray-400 font-medium">K/D Ratio</p>
+                <p className="text-2xl font-black text-red-400 font-mono">{data.kd !== null && data.kd !== undefined ? data.kd : 'N/A'}</p>
+                <p className="text-[10px] text-gray-400">Competitive K/D</p>
+              </div>
 
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
-              <p className="text-xs text-gray-400 font-medium">Win Rate</p>
-              <p className="text-2xl font-black text-emerald-400 font-mono">{data.winRate}%</p>
-              <p className="text-[10px] text-gray-400">Ranked Competitive</p>
-            </div>
+              <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
+                <p className="text-xs text-gray-400 font-medium">Win Rate</p>
+                <p className="text-2xl font-black text-emerald-400 font-mono">{data.winRate !== null && data.winRate !== undefined ? `${data.winRate}%` : 'N/A'}</p>
+                <p className="text-[10px] text-gray-400">Ranked Competitive</p>
+              </div>
 
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
-              <p className="text-xs text-gray-400 font-medium">Headshot %</p>
-              <p className="text-2xl font-black text-amber-400 font-mono">{data.headshotPercentage}%</p>
-              <p className="text-[10px] text-gray-400">Vandal / Phantom</p>
-            </div>
+              <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
+                <p className="text-xs text-gray-400 font-medium">Headshot %</p>
+                <p className="text-2xl font-black text-amber-400 font-mono">{data.headshotPercentage !== null && data.headshotPercentage !== undefined ? `${data.headshotPercentage}%` : 'N/A'}</p>
+                <p className="text-[10px] text-gray-400">Accuracy Rate</p>
+              </div>
 
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
-              <p className="text-xs text-gray-400 font-medium">Main Agent</p>
-              <p className="text-2xl font-black text-purple-400 font-mono">{data.mostUsedAgent}</p>
-              <p className="text-[10px] text-gray-400">Duellist</p>
+              <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1">
+                <p className="text-xs text-gray-400 font-medium">Matches</p>
+                <p className="text-2xl font-black text-purple-400 font-mono">{data.matchesPlayed !== null && data.matchesPlayed !== undefined ? data.matchesPlayed : 'N/A'}</p>
+                <p className="text-[10px] text-gray-400">Tracked Matches</p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Recent Matches */}
           <div className="space-y-3">
