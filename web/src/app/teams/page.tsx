@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Search, Users, Trophy, MapPin, Shield, Zap, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, Users, Trophy, MapPin, Shield, Zap, Sparkles, CheckCircle2, Loader2, ArrowRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -74,9 +75,17 @@ export default function TeamsPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
+  // 1. Fetch team list
   const { data: teamsData, isLoading } = useQuery({
     queryKey: ['teams', search],
     queryFn: () => api.get(`/teams?search=${search}`).then(r => r.data)
+  });
+
+  // 2. Fetch my pending team invites
+  const { data: myInvites = [] } = useQuery({
+    queryKey: ['my-team-invites'],
+    queryFn: () => api.get('/teams/invites/mine').then(r => r.data.data || []),
+    enabled: Boolean(user),
   });
 
   const createTeam = useMutation({
@@ -85,15 +94,34 @@ export default function TeamsPage() {
       setShowCreate(false);
       setForm({ name: '', tag: '', description: '', region: '' });
       queryClient.invalidateQueries({ queryKey: ['teams'] });
-      toast.success('Team created!');
+      toast.success('Team created successfully!');
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to create team')
+  });
+
+  const acceptInviteMutation = useMutation({
+    mutationFn: (teamId: string) => api.post(`/teams/${teamId}/accept-invite`),
+    onSuccess: (res) => {
+      toast.success(res.data?.message || 'Successfully joined team!');
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ['my-team-invites'] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to accept invitation')
+  });
+
+  const declineInviteMutation = useMutation({
+    mutationFn: (teamId: string) => api.post(`/teams/${teamId}/decline-invite`),
+    onSuccess: () => {
+      toast.success('Invite declined.');
+      queryClient.invalidateQueries({ queryKey: ['my-team-invites'] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to decline invite')
   });
 
   const displayTeams = (teamsData?.data && teamsData.data.length > 0) ? teamsData.data : FEATURED_TEAMS;
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden">
+    <div className="space-y-6 max-w-full overflow-x-hidden pb-12">
       {/* Header Bar */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
@@ -119,11 +147,11 @@ export default function TeamsPage() {
             <div className="space-y-4 pt-2">
               <div>
                 <Label className="text-xs font-bold text-muted-foreground">Team Name</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Sentinels Apex" className="mt-1 rounded-xl bg-card/60 border-white/10" />
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. mh-guj Esports" className="mt-1 rounded-xl bg-card/60 border-white/10" />
               </div>
               <div>
                 <Label className="text-xs font-bold text-muted-foreground">Tag (optional)</Label>
-                <Input value={form.tag} onChange={(e) => setForm({ ...form, tag: e.target.value })} placeholder="e.g. SEN" maxLength={5} className="mt-1 rounded-xl bg-card/60 border-white/10" />
+                <Input value={form.tag} onChange={(e) => setForm({ ...form, tag: e.target.value })} placeholder="e.g. MHG" maxLength={5} className="mt-1 rounded-xl bg-card/60 border-white/10" />
               </div>
               <div>
                 <Label className="text-xs font-bold text-muted-foreground">Description</Label>
@@ -131,7 +159,7 @@ export default function TeamsPage() {
               </div>
               <div>
                 <Label className="text-xs font-bold text-muted-foreground">Region</Label>
-                <Input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} placeholder="e.g. NA, EU, APAC" className="mt-1 rounded-xl bg-card/60 border-white/10" />
+                <Input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} placeholder="e.g. India, NA, EU, APAC" className="mt-1 rounded-xl bg-card/60 border-white/10" />
               </div>
               <Button variant="gradient" className="w-full rounded-xl font-bold h-11 shadow-lg shadow-emerald-500/30" disabled={!form.name || createTeam.isPending} onClick={() => createTeam.mutate()}>
                 {createTeam.isPending ? 'Creating Squad...' : 'Create Team'}
@@ -140,6 +168,56 @@ export default function TeamsPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Pending Invitations Section */}
+      {myInvites.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-extrabold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+            <Trophy className="h-4 w-4" /> Pending Squad Invitations ({myInvites.length})
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {myInvites.map((inv: any) => (
+              <Card key={inv.id} variant="glass" className="border-emerald-500/40 bg-emerald-500/10">
+                <CardContent className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="h-10 w-10 border border-emerald-500/30 shrink-0">
+                      <AvatarImage src={inv.team?.avatar || ''} />
+                      <AvatarFallback className="bg-emerald-500 text-black font-black">
+                        {inv.team?.name?.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="font-extrabold text-sm text-foreground truncate">{inv.team?.name}</p>
+                      <p className="text-xs text-muted-foreground">Invited by Captain</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={() => acceptInviteMutation.mutate(inv.teamId)}
+                      disabled={acceptInviteMutation.isPending}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-black font-extrabold rounded-xl h-8 px-3 text-xs gap-1"
+                    >
+                      {acceptInviteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                      Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => declineInviteMutation.mutate(inv.teamId)}
+                      disabled={declineInviteMutation.isPending}
+                      className="rounded-xl h-8 px-2.5 text-xs font-bold border-red-500/40 text-red-400 hover:bg-red-500/10"
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search Input */}
       <div className="relative max-w-md">
@@ -184,14 +262,16 @@ export default function TeamsPage() {
 
                 <div className="flex items-center justify-between pt-2 border-t border-white/10 text-xs text-muted-foreground">
                   <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1 font-semibold text-foreground"><Users className="h-3.5 w-3.5 text-emerald-400" />{team.members || team._count?.members || 5} players</span>
+                    <span className="flex items-center gap-1 font-semibold text-foreground"><Users className="h-3.5 w-3.5 text-emerald-400" />{team.members || team._count?.members || 1} players</span>
                     <span className="flex items-center gap-1 font-semibold text-foreground"><Trophy className="h-3.5 w-3.5 text-amber-400" />{team.rank || 'MASTER'}</span>
                     <span className="flex items-center gap-1 font-semibold text-foreground"><MapPin className="h-3.5 w-3.5 text-teal-400" />{team.region || 'Global'}</span>
                   </div>
 
-                  <Button variant="outline" size="sm" className="h-8 px-3 text-xs font-bold rounded-xl border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20">
-                    Join Squad
-                  </Button>
+                  <Link href={`/teams/${team.id}`}>
+                    <Button variant="outline" size="sm" className="h-8 px-3 text-xs font-bold rounded-xl border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 gap-1">
+                      View Squad <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
