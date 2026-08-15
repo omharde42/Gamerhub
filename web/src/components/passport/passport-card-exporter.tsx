@@ -88,14 +88,15 @@ export function PassportCardExporter({ passport, trigger }: PassportCardExporter
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-3xl bg-[#060913] text-foreground border-primary/30 max-h-[90vh] overflow-y-auto p-6">
-        <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-border/40">
-          <DialogTitle className="text-lg font-extrabold flex items-center gap-2 text-primary">
-            <Shield className="h-5 w-5" /> Official Gamer Passport Preview
+      <DialogContent className="max-w-3xl bg-[#060913] text-foreground border-primary/30 max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/40 pr-8">
+          <DialogTitle className="text-base sm:text-lg font-extrabold flex items-center gap-2 text-primary shrink-0">
+            <Shield className="h-5 w-5 shrink-0" />
+            <span className="truncate">Official Gamer Passport</span>
           </DialogTitle>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={handlePrint} className="gap-1.5 font-bold shadow-sm">
-              <FileText className="h-4 w-4" /> Print / Save PDF
+          <div className="flex items-center gap-2 shrink-0">
+            <Button size="sm" onClick={handlePrint} className="gap-1.5 font-bold shadow-sm h-8 text-xs sm:h-9 sm:text-sm">
+              <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Print / Save PDF
             </Button>
           </div>
         </DialogHeader>
