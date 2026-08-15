@@ -365,6 +365,55 @@ export class AuthController {
     await authService.unlinkSocialAccount(req.user!.userId, provider);
     sendSuccess(res, null, `${provider} account unlinked successfully!`);
   });
+  riotAuth = asyncHandler(async (req: Request, res: Response) => {
+    const action = req.query.action === 'login' ? 'login' : 'link';
+    const userId = (req as AuthRequest).user?.userId;
+    const state = signOAuthState({ action, userId, nonce: crypto.randomBytes(16).toString('hex'), iat: Date.now() }, config.jwt.secret);
+
+    if (config.riot.mockMode) {
+      // Development / Mock Mode: Redirect directly to callback with simulated state
+      return res.redirect(`/api/auth/riot/callback?state=${encodeURIComponent(state)}&code=mock_riot_auth_code_001`);
+    }
+
+    // Production RSO boundary check
+    if (!config.riot.clientId) {
+      const clientUrl = config.frontendUrl || 'http://localhost:3000';
+      return res.redirect(`${clientUrl}/connections?error=${encodeURIComponent('VALORANT Riot RSO connection is currently unavailable while production access is pending review (Riot App ID: 871157).')}`);
+    }
+
+    // RSO Authorization URL once approved
+    const rsoAuthUrl = `https://auth.riotgames.com/authorize?client_id=${config.riot.clientId}&redirect_uri=${encodeURIComponent(config.riot.redirectUri)}&response_type=code&scope=openid+offline_access&state=${encodeURIComponent(state)}`;
+    return res.redirect(rsoAuthUrl);
+  });
+
+  riotCallback = asyncHandler(async (req: Request, res: Response) => {
+    const clientUrl = config.frontendUrl || 'http://localhost:3000';
+    const { code, state, error } = req.query;
+
+    if (error) {
+      return res.redirect(`${clientUrl}/connections?error=${encodeURIComponent(error as string)}`);
+    }
+
+    let decodedState: OAuthStatePayload | null = null;
+    if (state) {
+      decodedState = verifyOAuthState(state as string, config.jwt.secret);
+    }
+
+    const userId = decodedState?.userId;
+
+    if (config.riot.mockMode) {
+      // Link mock test account to user safely
+      if (userId) {
+        const { valorantConnector } = require('../services/game-connectors/valorant.connector');
+        await valorantConnector.connect(userId, { riotId: 'TestPlayer#TEST' });
+        return res.redirect(`${clientUrl}/connections?linked=riot&mock=true`);
+      }
+      return res.redirect(`${clientUrl}/connections?linked=riot&mock=true`);
+    }
+
+    // Production RSO Token Exchange (Pending Approval Guard)
+    return res.redirect(`${clientUrl}/connections?error=${encodeURIComponent('VALORANT Riot RSO connection is currently unavailable while production access is pending review (Riot App ID: 871157).')}`);
+  });
 }
 
 export const authController = new AuthController();

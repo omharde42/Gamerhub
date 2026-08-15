@@ -43,6 +43,26 @@ export class RiotService {
   async getValorantProfile(riotId: string, region = 'ap'): Promise<NormalizedRiotProfile> {
     const { name, tag } = this.parseRiotId(riotId);
     const normalizedRegion = (region || 'ap').toLowerCase();
+
+    // Development / Mock Riot Mode
+    if (config.riot.mockMode) {
+      return {
+        game: 'VALORANT',
+        riotId: `${name}#${tag}`,
+        name,
+        tag,
+        region: normalizedRegion.toUpperCase(),
+        rank: 'Ascendant 2 (Simulated)',
+        level: 145,
+        kd: 1.28,
+        winRate: 62.5,
+        headshotPercentage: 26.4,
+        matchesPlayed: 140,
+        statsUnavailable: false,
+        rawVerified: true,
+      };
+    }
+
     const apiKey = config.riot.apiKey || process.env.RIOT_API_KEY;
 
     try {

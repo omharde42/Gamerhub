@@ -67,6 +67,25 @@ export function GameConnectForm({ gameKey, placeholder, fieldName = 'uid', gameL
           className={`bg-black/80 ${style.border} ${style.focus} text-white font-mono text-sm placeholder:text-gray-500 h-11`}
         />
       </div>
+      {gameKey === 'valorant' && (
+        <div className="pt-2 pb-1 border-t border-white/10 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-300">Official Riot Sign-On (RSO)</span>
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/40">
+              App ID: 871157 • RSO Ready
+            </span>
+          </div>
+          <Button
+            type="button"
+            onClick={() => {
+              window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/riot`;
+            }}
+            className="w-full bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-extrabold rounded-xl h-11 gap-2 shadow-lg"
+          >
+            <Link className="h-4 w-4" /> Connect with Riot Sign On
+          </Button>
+        </div>
+      )}
       <Button
         type="submit"
         disabled={connectMutation.isPending}
