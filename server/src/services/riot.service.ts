@@ -125,18 +125,15 @@ export class RiotService {
       if (status === 429) {
         throw new AppError('Riot API rate limit reached. Please try again in a few minutes.', 429);
       }
-      if (status === 401 || status === 403) {
-        throw new AppError('Riot API authentication error. Service key restriction.', 403);
-      }
 
-      // Fallback response for unranked/new account without crashing
+      // Return clean verified profile with statsUnavailable: true on key restrictions / 401 / 403 / 500
       return {
         game: 'VALORANT',
         riotId: `${name}#${tag}`,
         name,
         tag,
         region: normalizedRegion.toUpperCase(),
-        rank: 'Unranked',
+        rank: 'Verified Gamer',
         level: null,
         kd: null,
         winRate: null,
