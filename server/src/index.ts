@@ -369,6 +369,21 @@ setInterval(() => {
 httpServer.listen(config.port, () => {
   console.log(`GamerHub API running on port ${config.port}`);
   console.log(`Environment: ${config.nodeEnv}`);
+
+  // Self Keep-Alive ping to keep Render web service warm and eliminate cold starts
+  const BACKEND_URL = process.env.BACKEND_URL || 'https://gamerhub-c944.onrender.com';
+  setInterval(() => {
+    try {
+      const http = BACKEND_URL.startsWith('https') ? require('https') : require('http');
+      http.get(`${BACKEND_URL}/health`, (res: any) => {
+        console.log(`[Keep-Alive] Pinged ${BACKEND_URL}/health - Status: ${res.statusCode}`);
+      }).on('error', (err: any) => {
+        console.warn(`[Keep-Alive] Ping warn:`, err?.message);
+      });
+    } catch (e: any) {
+      console.warn(`[Keep-Alive] Exception:`, e?.message);
+    }
+  }, 5 * 60 * 1000);
 });
 
 export { app, httpServer, io };
