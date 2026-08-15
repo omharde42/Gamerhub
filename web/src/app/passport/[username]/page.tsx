@@ -30,6 +30,7 @@ import { motion } from 'framer-motion';
 import { GAMES_BY_PLATFORM } from '@/lib/constants';
 import { GamingTrustScore } from '@/components/profile/gaming-trust-score';
 import { GamingTimeline } from '@/components/profile/gaming-timeline';
+import { PassportCardExporter } from '@/components/passport/passport-card-exporter';
 
 const DEFAULT_BANNER = 'https://files.idyllic.app/files/static/2039559?width=1920&optimizer=image';
 
@@ -266,6 +267,7 @@ export default function GamerPassportPage() {
                 </div>
               </div>
               <div className="flex gap-2">
+                <PassportCardExporter passport={p} />
                 {isOwn && (
                   <Link href="/profile/settings">
                     <Button variant="outline" size="sm" className="gap-1.5 shadow-sm">
@@ -761,11 +763,16 @@ export default function GamerPassportPage() {
           {/* Export */}
           <motion.div variants={itemVariants}>
             <Card className="border-0 shadow-sm bg-gradient-to-br from-primary/[0.02] to-primary/[0.04]">
-              <CardHeader className="pb-2"><SectionHeader icon={Download} title="Export" /></CardHeader>
+              <CardHeader className="pb-2"><SectionHeader icon={Download} title="Export Passport" /></CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2.5 shadow-sm">
-                  <Download className="h-4 w-4" /> Download PDF Resume
-                </Button>
+                <PassportCardExporter
+                  passport={p}
+                  trigger={
+                    <Button variant="default" size="sm" className="w-full justify-start gap-2.5 font-bold shadow-md">
+                      <Download className="h-4 w-4" /> Download / Print Passport
+                    </Button>
+                  }
+                />
                 <Button variant="outline" size="sm" className="w-full justify-start gap-2.5 shadow-sm" onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied!'); }}>
                   <Share2 className="h-4 w-4" /> Copy Share Link
                 </Button>
