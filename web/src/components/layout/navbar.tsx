@@ -227,34 +227,6 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
             </button>
           </nav>
 
-          {/* Theme Switcher (Both Mobile & Desktop) */}
-          <div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button aria-label="Switch theme" variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground">
-                  {mounted && activeTheme === 'light' ? (
-                    <Sun className="h-4.5 w-4.5 text-orange-500" />
-                  ) : mounted && activeTheme === 'gray' ? (
-                    <Palette className="h-4.5 w-4.5 text-slate-400" />
-                  ) : (
-                    <Moon className="h-4.5 w-4.5 text-emerald-400" />
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36 glass-strong">
-                <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2 cursor-pointer text-xs font-semibold">
-                  <Sun className="h-4 w-4 text-orange-500" /> Light Mode
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2 cursor-pointer text-xs font-semibold">
-                  <Moon className="h-4 w-4 text-emerald-400" /> Dark Mode
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('gray')} className="gap-2 cursor-pointer text-xs font-semibold">
-                  <Palette className="h-4 w-4 text-slate-400" /> Gray Mode
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
           {/* Profile Dropdown (Both Mobile & Desktop) */}
           {user ? (
             <DropdownMenu>
@@ -298,6 +270,31 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
                 <Link href="/explore">
                   <DropdownMenuItem><Home className="h-4 w-4 mr-3" /> Explore</DropdownMenuItem>
                 </Link>
+                <DropdownMenuSeparator />
+                {/* Single Theme Selector inside Profile Dropdown */}
+                <div className="px-3 py-2 space-y-1.5">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Appearance Theme</p>
+                  <div className="grid grid-cols-3 gap-1">
+                    <button
+                      onClick={() => setTheme('dark')}
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'dark' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
+                    >
+                      <Moon className="h-3.5 w-3.5" /> Dark
+                    </button>
+                    <button
+                      onClick={() => setTheme('light')}
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'light' ? 'bg-orange-500/20 text-orange-400 border-orange-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
+                    >
+                      <Sun className="h-3.5 w-3.5" /> Light
+                    </button>
+                    <button
+                      onClick={() => setTheme('gray')}
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'gray' ? 'bg-slate-500/20 text-slate-300 border-slate-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
+                    >
+                      <Palette className="h-3.5 w-3.5" /> Gray
+                    </button>
+                  </div>
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive">
                   <LogOut className="h-4 w-4 mr-3" /> Sign Out
