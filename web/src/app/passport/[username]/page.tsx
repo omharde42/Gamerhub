@@ -118,6 +118,13 @@ export default function GamerPassportPage() {
     queryFn: () => api.get(`/passport/${username}`).then(r => r.data.data),
   });
 
+  // Fetch connected game accounts at top level unconditionally
+  const { data: userAccounts = [] } = useQuery({
+    queryKey: ['user-game-connections', username],
+    queryFn: () => api.get('/game/user-connections').then(r => r.data.data || []).catch(() => []),
+    enabled: Boolean(user),
+  });
+
   const [showAddGame, setShowAddGame] = useState(false);
   const [uploading, setUploading] = useState<'avatar' | 'banner' | null>(null);
   const [gameForm, setGameForm] = useState({ gameName: '', publisher: '', playerId: '', uid: '', server: '', level: '', rank: '', hoursPlayed: 0, winRate: 0, kdRatio: 0, preferredRole: '', preferredPosition: '', gameAchievements: '', dataSource: 'Manual' as string });
@@ -217,12 +224,6 @@ export default function GamerPassportPage() {
     { label: 'Competitive', value: p.competitiveScore || Math.min(100, Math.round((p.winRate || 0) * 0.5 + (p.totalMatches || 0) * 0.02)), color: 'from-purple-500 to-pink-500', icon: Trophy },
     { label: 'Teamwork', value: p.teamworkScore || Math.min(100, Math.round((p.accuracy || 0) * 2 + (p.communicationScore || 0) * 0.3)), color: 'from-green-500 to-emerald-500', icon: Users },
   ];
-
-  // Fetch connected game accounts
-  const { data: userAccounts = [] } = useQuery({
-    queryKey: ['user-game-connections'],
-    queryFn: () => api.get('/game/user-connections').then(r => r.data.data || []).catch(() => []),
-  });
 
   const allConnectedGames = [
     ...(p.connectedGames || []),
