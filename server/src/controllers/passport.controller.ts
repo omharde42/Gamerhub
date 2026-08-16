@@ -5,6 +5,7 @@ import cloudinary from '../config/cloudinary';
 import { NotFoundError, ForbiddenError, ConflictError, AppError } from '../utils/errors';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
+import { achievementService } from '../services/achievement.service';
 
 function calcGamerScore(profile: { winRate: number; kd: number; accuracy: number; totalMatches: number; skillScore: number; competitiveScore: number; teamworkScore: number; communicationScore: number; leadershipScore: number }) {
   const kdScore = Math.min(25, (profile.kd || 0) * 6);
@@ -12,7 +13,9 @@ function calcGamerScore(profile: { winRate: number; kd: number; accuracy: number
   const matchScore = Math.min(15, (profile.totalMatches || 0) * 0.015);
   const skillScore = Math.min(20, (profile.skillScore || 0) * 0.2);
   const compScore = Math.min(15, (profile.competitiveScore || 0) * 0.15);
-  return Math.min(100, Math.round(kdScore + winScore + matchScore + skillScore + compScore));
+  const total = Math.min(100, Math.round(kdScore + winScore + matchScore + skillScore + compScore));
+  const breakdown = { kdScore: Math.round(kdScore), winScore: Math.round(winScore), matchScore: Math.round(matchScore), skillScore: Math.round(skillScore), compScore: Math.round(compScore), total };
+  return { total, breakdown };
 }
 
 function calcProfileCompleteness(profile: Record<string, any>): { percent: number; filled: number; total: number } {
@@ -50,13 +53,14 @@ export class PassportController {
       },
     });
     if (!profile) throw new NotFoundError('Passport');
-    const gamerScore = calcGamerScore(profile);
+    const { total: gamerScore, breakdown: scoreBreakdown } = calcGamerScore(profile);
     const completeness = calcProfileCompleteness(profile);
     const aggregates = computeAggregates(profile.connectedGames);
     if (profile.gamerScore !== gamerScore) {
       await prisma.profile.update({ where: { id: profile.id }, data: { gamerScore } });
     }
-    sendSuccess(res, { ...profile, gamerScore, completeness, aggregates });
+    const scoreExplanation = 'GamerzHub Score is calculated from verified platform data only: K/D (up to 25), win rate (up to 25), matches played (up to 15), skill score (up to 20) and competitive score (up to 15), capped at 100. It reflects platform activity, not claimed skill.';
+    sendSuccess(res, { ...profile, gamerScore, scoreBreakdown, scoreExplanation, completeness, aggregates });
   });
 
   updatePassport = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -103,6 +107,7 @@ export class PassportController {
       },
     });
     await prisma.profile.update({ where: { id: profile.id }, data: { mainGames: { push: gameName } } });
+    achievementService.unlockByKey(req.user!.userId, 'GAME_CONNECTOR').catch(() => {});
     sendSuccess(res, game, undefined, 201);
   });
 
@@ -183,6 +188,8 @@ export class PassportController {
       data: { skill, message, profileId, endorserId: req.user!.userId },
       include: { endorser: { select: { id: true, profile: { select: { username: true, avatar: true } } } } },
     });
+    const endorsedProfile = await prisma.profile.findUnique({ where: { id: profileId }, select: { userId: true } });
+    if (endorsedProfile) achievementService.unlockByKey(endorsedProfile.userId, 'ENDORSED').catch(() => {});
     sendSuccess(res, endorsement, undefined, 201);
   });
 
@@ -298,6 +305,11 @@ export class PassportController {
     if (cert.profile.userId !== req.user!.userId) throw new ForbiddenError('Not your certification');
     await prisma.certification.delete({ where: { id } });
     sendSuccess(res, null, 'Certification removed');
+  });
+
+  getAchievementProgress = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const progress = await achievementService.getProgressForUser(req.user!.userId);
+    sendSuccess(res, progress);
   });
 
   getLeaderboard = asyncHandler(async (req: AuthRequest, res: Response) => {

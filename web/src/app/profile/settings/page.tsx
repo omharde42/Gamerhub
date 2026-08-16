@@ -18,9 +18,11 @@ import toast from 'react-hot-toast';
 import { GAMES, ROLES, PLAY_STYLES, COMMUNICATION_STYLES, LANGUAGES, API_URL } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { Shield, Bell, User, Gamepad2, X, Loader2, CheckCircle2, Circle, Sparkles, Trophy, Camera } from 'lucide-react';
+import { Shield, Bell, User, Gamepad2, X, Loader2, CheckCircle2, Circle, Sparkles, Trophy, Camera, Gauge, Scale } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { BackHeader } from '@/components/common/back-header';
+import { AdvancedSettingsTab } from '@/components/settings/advanced-settings';
+import { LegalSettingsTab } from '@/components/settings/legal-settings';
  
 export default function SettingsPage() {
   const router = useRouter();
@@ -168,7 +170,8 @@ export default function SettingsPage() {
       return;
     }
     if (provider === 'steam') {
-      window.location.href = `${API_URL}/auth/steam`;
+      // External OAuth redirect to the backend — full navigation is required.
+      window.location.href = API_URL + '/auth/steam';
       return;
     }
     try {
@@ -317,6 +320,8 @@ export default function SettingsPage() {
           <TabsTrigger value="social" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Sparkles className="h-4 w-4" />Social Links</TabsTrigger>
           <TabsTrigger value="accounts" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Shield className="h-4 w-4" />Connected Accounts</TabsTrigger>
           <TabsTrigger value="notifications" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Bell className="h-4 w-4" />Notifications</TabsTrigger>
+          <TabsTrigger value="advanced" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Gauge className="h-4 w-4" />Advanced</TabsTrigger>
+          <TabsTrigger value="legal" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Scale className="h-4 w-4" />License & Legal</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -778,6 +783,14 @@ export default function SettingsPage() {
               ))}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="advanced">
+          <AdvancedSettingsTab />
+        </TabsContent>
+
+        <TabsContent value="legal">
+          <LegalSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -17,6 +17,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { gamerLevel, levelTitle, levelColor } from '@/lib/gamer-level';
 import { LevelChip } from '@/components/hud/level-chip';
+import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
 import {
   Search, Bell, MessageSquare, Users,
   LogOut, User, Settings, Crown, Home, ChevronDown,
@@ -94,6 +95,8 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  useNotificationRealtime();
 
   const { data: notifData } = useQuery({
     queryKey: ['notifications-unread'],

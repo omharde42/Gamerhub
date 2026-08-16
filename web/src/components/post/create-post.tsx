@@ -90,13 +90,16 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
   const [videoMeta, setVideoMeta] = useState<Record<string, { duration: number; width: number; height: number }>>({});
   const blobUrlsRef = useRef<Set<string>>(new Set());
 
-  // Cleanup blob URLs on unmount to prevent memory leaks
+  // Cleanup blob URLs on unmount to prevent memory leaks. The Set instance is
+  // captured once so the cleanup always revokes every URL created during the
+  // component's lifetime (the ref never changes after mount).
   useEffect(() => {
+    const blobUrls = blobUrlsRef.current;
     return () => {
-      blobUrlsRef.current.forEach(url => {
+      blobUrls.forEach(url => {
         try { URL.revokeObjectURL(url); } catch {}
       });
-      blobUrlsRef.current.clear();
+      blobUrls.clear();
     };
   }, []);
 

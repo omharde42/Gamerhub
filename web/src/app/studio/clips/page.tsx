@@ -1,5 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ const MAX_SIZE = 2 * 1024 * 1024 * 1024;
 const MAX_DURATION = 20 * 60;
 
 export default function ClipsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -151,7 +153,7 @@ export default function ClipsPage() {
                         const res = await api.post(`/video/clips/${clip.id}/highlights`);
                         toast.dismiss();
                         toast.success('AI highlights draft created!');
-                        window.location.href = `/studio/projects/${res.data.data.project.id}`;
+                        router.push(`/studio/projects/${res.data.data.project.id}`);
                       } catch (err: any) {
                         toast.dismiss();
                         toast.error(err.response?.data?.message || 'AI analysis failed');

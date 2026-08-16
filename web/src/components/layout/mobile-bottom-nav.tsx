@@ -11,6 +11,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useOverlayStore, type PanelType } from '@/store/overlayStore';
 import { usePanelNav } from '@/hooks/usePanelNav';
+import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
 
 const mobileNavItems: {
   href: string;
@@ -30,6 +31,8 @@ export function MobileBottomNav({ hidden = false }: { hidden?: boolean }) {
   const { user } = useAuthStore();
   const panel = useOverlayStore((s) => s.panel);
   const openPanelFromNav = usePanelNav();
+
+  useNotificationRealtime();
 
   const { data: chatUnreadData } = useQuery({
     queryKey: ['chat-unread'],

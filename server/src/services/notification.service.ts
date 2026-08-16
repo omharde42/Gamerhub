@@ -1,8 +1,13 @@
 import prisma from '../config/database';
 import { NotificationType, Prisma } from '@prisma/client';
+import { emitToUser } from '../socket-emitter';
 export class NotificationService {
   async create(data: { userId: string; type: NotificationType; title: string; message?: string; link?: string; image?: string; metadata?: Prisma.InputJsonValue }) {
-    return prisma.notification.create({ data: { userId: data.userId, type: data.type, title: data.title, message: data.message, link: data.link, image: data.image, metadata: data.metadata } });
+    const notification = await prisma.notification.create({ data: { userId: data.userId, type: data.type, title: data.title, message: data.message, link: data.link, image: data.image, metadata: data.metadata } });
+    // Realtime: push the new notification to the recipient's connected clients
+    // so badges and the inbox update instantly instead of on the next poll.
+    emitToUser(data.userId, 'notification:new', { notification });
+    return notification;
   }
 
   /**
@@ -37,8 +42,16 @@ export class NotificationService {
     const [notifications, total, unreadCount] = await Promise.all([prisma.notification.findMany({ where: { userId }, skip: (page - 1) * limit, take: limit, orderBy: { createdAt: 'desc' } }), prisma.notification.count({ where: { userId } }), prisma.notification.count({ where: { userId, isRead: false } })]);
     return { data: notifications, meta: { page, limit, total, unreadCount, totalPages: Math.ceil(total / limit) } };
   }
-  async markAsRead(notificationId: string, userId: string) { return prisma.notification.updateMany({ where: { id: notificationId, userId }, data: { isRead: true } }); }
-  async markAllAsRead(userId: string) { return prisma.notification.updateMany({ where: { userId, isRead: false }, data: { isRead: true } }); }
+  async markAsRead(notificationId: string, userId: string) {
+    const result = await prisma.notification.updateMany({ where: { id: notificationId, userId }, data: { isRead: true } });
+    emitToUser(userId, 'notification:read', { notificationId });
+    return result;
+  }
+  async markAllAsRead(userId: string) {
+    const result = await prisma.notification.updateMany({ where: { userId, isRead: false }, data: { isRead: true } });
+    emitToUser(userId, 'notification:read-all', {});
+    return result;
+  }
   async getUnreadCount(userId: string) { return prisma.notification.count({ where: { userId, isRead: false } }); }
 }
 export const notificationService = new NotificationService();

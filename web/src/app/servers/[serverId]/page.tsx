@@ -19,7 +19,8 @@ import {
   Smile, MoreVertical, X, UserPlus, Calendar, Lock, Mic, MicOff,
   Video, VideoOff, Monitor, PhoneOff, ShieldAlert
 } from 'lucide-react';
-import { getInitials, formatRelativeTime } from '@/lib/utils';
+import { getInitials } from '@/lib/utils';
+import { RelativeTime } from '@/components/common/relative-time';
 import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = { 
@@ -77,7 +78,10 @@ export default function ServerPage() {
   const [micMuted, setMicMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
-  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  // Stream is kept in a ref (not state) so the camera effect can start/stop it
+  // without re-running on every stream change (which would restart the camera
+  // in an infinite loop) and so the unmount cleanup always sees the live stream.
+  const videoStreamRef = useRef<MediaStream | null>(null);
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>('mock-1');
 
   // Query Server Info
@@ -182,7 +186,7 @@ export default function ServerPage() {
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        setVideoStream(stream);
+        videoStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
@@ -193,9 +197,10 @@ export default function ServerPage() {
     };
 
     const stopCamera = () => {
-      if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-        setVideoStream(null);
+      const stream = videoStreamRef.current;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        videoStreamRef.current = null;
       }
     };
 
@@ -725,7 +730,7 @@ export default function ServerPage() {
                               {showHeader && (
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <span className="text-sm font-semibold hover:underline cursor-pointer text-foreground">{msg.sender?.profile?.username}</span>
-                                  <span className="text-[10px] text-muted-foreground">{formatRelativeTime(msg.createdAt)}</span>
+                                  <span className="text-[10px] text-muted-foreground"><RelativeTime date={msg.createdAt} /></span>
                                   {msg.isPinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
                                 </div>
                               )}

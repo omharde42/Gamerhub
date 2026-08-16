@@ -49,6 +49,10 @@ function createDeps(overrides: any = {}) {
     chatService: {
       sendMessage: jest.fn(),
       markAsRead: jest.fn().mockResolvedValue({ messageIds: ['m1'] }),
+      editMessage: jest.fn(),
+      deleteMessage: jest.fn(),
+      toggleReaction: jest.fn(),
+      setPinned: jest.fn(),
       ...(overrides.chatService || {}),
     },
   };
@@ -158,6 +162,63 @@ describe('socket chat authorization', () => {
 
       expect(toEmitted).toEqual([
         expect.objectContaining({ event: 'message:new', args: [expect.objectContaining({ id: 'm1' })] }),
+      ]);
+    });
+
+    it('broadcasts message:edited to the room when the edit succeeds', async () => {
+      const deps = createDeps();
+      (deps.chatService.editMessage as jest.Mock).mockResolvedValue({ id: 'm1', content: 'edited', isEdited: true });
+      const { io, toEmitted } = createMockIo();
+      const h = createChatEventHandlers(io as any, deps);
+      const { socket } = createMockSocket('user-a');
+
+      await h.handleMessageEdit(socket as any, { chatId: 'chat-1', messageId: 'm1', content: 'edited' });
+
+      expect(toEmitted).toEqual([
+        expect.objectContaining({ event: 'message:edited', args: [expect.objectContaining({ message: expect.objectContaining({ id: 'm1' }) })] }),
+      ]);
+    });
+
+    it('does not broadcast message:deleted when deletion fails', async () => {
+      const deps = createDeps();
+      (deps.chatService.deleteMessage as jest.Mock).mockRejectedValue(new Error('Not a participant in this chat'));
+      const { io, toEmitted } = createMockIo();
+      const h = createChatEventHandlers(io as any, deps);
+      const { socket, emitted } = createMockSocket('user-x');
+
+      await h.handleMessageDelete(socket as any, { chatId: 'chat-1', messageId: 'm1' });
+
+      expect(toEmitted).toHaveLength(0);
+      expect(emitted[0]).toEqual(
+        expect.objectContaining({ event: 'error', args: [expect.objectContaining({ message: 'Not a participant in this chat' })] })
+      );
+    });
+
+    it('emits reaction-added after a successful toggle', async () => {
+      const deps = createDeps();
+      (deps.chatService.toggleReaction as jest.Mock).mockResolvedValue({ reacted: true, messageId: 'm1', emoji: '🔥' });
+      const { io, toEmitted } = createMockIo();
+      const h = createChatEventHandlers(io as any, deps);
+      const { socket } = createMockSocket('user-a');
+
+      await h.handleMessageReact(socket as any, { chatId: 'chat-1', messageId: 'm1', emoji: '🔥' });
+
+      expect(toEmitted).toEqual([
+        expect.objectContaining({ event: 'message:reaction-added', args: [expect.objectContaining({ emoji: '🔥' })] }),
+      ]);
+    });
+
+    it('emits pin-changed after a successful pin toggle', async () => {
+      const deps = createDeps();
+      (deps.chatService.setPinned as jest.Mock).mockResolvedValue({ id: 'm1', isPinned: true });
+      const { io, toEmitted } = createMockIo();
+      const h = createChatEventHandlers(io as any, deps);
+      const { socket } = createMockSocket('user-a');
+
+      await h.handleMessagePin(socket as any, { chatId: 'chat-1', messageId: 'm1', isPinned: true });
+
+      expect(toEmitted).toEqual([
+        expect.objectContaining({ event: 'message:pin-changed', args: [expect.objectContaining({ isPinned: true })] }),
       ]);
     });
   });

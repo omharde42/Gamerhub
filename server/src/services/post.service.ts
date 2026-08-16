@@ -1,6 +1,8 @@
 import prisma from '../config/database';
 import { PostType } from '@prisma/client';
 import { NotFoundError, ForbiddenError } from '../utils/errors';
+import { VIEW_WINDOW_MS } from '../utils/views';
+import { achievementService } from './achievement.service';
 
 export class PostService {
   async create(
@@ -73,6 +75,7 @@ export class PostService {
         }
       }
     }
+    achievementService.unlockByKey(userId, 'FIRST_POST').catch(() => {});
     return post;
   }
 
@@ -116,7 +119,7 @@ export class PostService {
     };
   }
 
-  async getById(id: string) {
+  async getById(id: string, viewerIdParam?: string, ipHash?: string) {
     const post = await prisma.post.findUnique({
       where: { id },
       include: {
@@ -143,7 +146,33 @@ export class PostService {
       }
     });
 
-    if (post) await prisma.post.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+    if (post) {
+      // Deduped view tracking: one view per viewer (or IP for anonymous) per
+      // 24h window, and the author's own views are not counted.
+      const viewerId = viewerIdParam;
+      if (viewerId !== post.userId) {
+        const viewerIp = viewerId ? undefined : ipHash;
+        const since = new Date(Date.now() - VIEW_WINDOW_MS);
+        const existing = await prisma.postView.findFirst({
+          where: viewerId
+            ? { postId: post.id, viewerId, createdAt: { gte: since } }
+            : viewerIp
+              ? { postId: post.id, viewerIp, createdAt: { gte: since } }
+              : { postId: post.id },
+          select: { id: true },
+        });
+        if (!existing) {
+          await prisma.postView.create({
+            data: viewerId
+              ? { postId: post.id, viewerId }
+              : viewerIp
+                ? { postId: post.id, viewerIp }
+                : { postId: post.id },
+          });
+          await prisma.post.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+        }
+      }
+    }
     return post;
   }
 

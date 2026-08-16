@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Phone, PhoneOff, PhoneCall, Video, VideoOff, Mic, MicOff,
@@ -52,7 +52,21 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
 
   const ringtoneIntervalRef = useRef<any>(null);
 
-  const startRingtone = () => {
+  // ── Stable helpers (useCallback) ───────────────────────────────────────
+  // Everything the effects below depend on is memoized so the effect dependency
+  // arrays are stable: the ringtone/timer/peer-connection effects re-run only
+  // when callState actually changes (start / accept / reject / end), never on
+  // parent re-renders. This prevents duplicate ringtones, timer resets, or
+  // repeated peer-connection setup.
+
+  const stopRingtone = useCallback(() => {
+    if (ringtoneIntervalRef.current) {
+      clearInterval(ringtoneIntervalRef.current);
+      ringtoneIntervalRef.current = null;
+    }
+  }, []);
+
+  const startRingtone = useCallback(() => {
     stopRingtone();
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -76,14 +90,81 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
       playBeep();
       ringtoneIntervalRef.current = setInterval(playBeep, 2400);
     } catch {}
-  };
+  }, [stopRingtone]);
 
-  const stopRingtone = () => {
-    if (ringtoneIntervalRef.current) {
-      clearInterval(ringtoneIntervalRef.current);
-      ringtoneIntervalRef.current = null;
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
-  };
+  }, []);
+
+  const startTimer = useCallback(() => {
+    stopTimer();
+    setCallDuration(0);
+    timerRef.current = setInterval(() => {
+      setCallDuration((prev) => prev + 1);
+    }, 1000);
+  }, [stopTimer]);
+
+  const cleanUpCall = useCallback(() => {
+    stopTimer();
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+  }, [stopTimer]);
+
+  const createPeerConnection = useCallback(async (targetUserId: string) => {
+    const pc = new RTCPeerConnection(ICE_SERVERS);
+    peerConnectionRef.current = pc;
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => {
+        pc.addTrack(track, localStreamRef.current!);
+      });
+    }
+
+    pc.ontrack = (event) => {
+      if (remoteVideoRef.current && event.streams[0]) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('call:ice-candidate', {
+          toUserId: targetUserId,
+          chatId: callState?.chatId,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    pc.oniceconnectionstatechange = async () => {
+      setConnectionStatus(pc.iceConnectionState);
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+        setConnectionStatus('Reconnecting...');
+        try {
+          const offer = await pc.createOffer({ iceRestart: true });
+          await pc.setLocalDescription(offer);
+          socket.emit('call:ice-restart', { toUserId: targetUserId, chatId: callState?.chatId, sdp: offer });
+        } catch (err) {
+          console.warn('ICE restart attempt failed:', err);
+        }
+      }
+    };
+
+    // Optional chaining on `callState` reads the object itself, so the compiler
+    // infers a dependency on the whole `callState` — match it exactly.
+    return pc;
+  }, [socket, callState]);
 
   // Initialize WebRTC Media, Ringtone & Socket Listeners
   useEffect(() => {
@@ -104,22 +185,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
       stopRingtone();
       stopTimer();
     };
-  }, [callState?.active, callState?.mode]);
-
-  const startTimer = () => {
-    stopTimer();
-    setCallDuration(0);
-    timerRef.current = setInterval(() => {
-      setCallDuration((prev) => prev + 1);
-    }, 1000);
-  };
-
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
+  }, [callState, cleanUpCall, startRingtone, startTimer, stopRingtone, stopTimer]);
 
   // Socket signaling events listener
   useEffect(() => {
@@ -191,7 +257,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
       socket.off('call:ice-candidate', handleIceCandidate);
       socket.off('call:ice-restart', handleIceRestart);
     };
-  }, [socket, callState, targetUser]);
+  }, [socket, callState, targetUser, createPeerConnection]);
 
   const getMediaStream = async (type: 'audio' | 'video', facing: 'user' | 'environment' = 'user') => {
     try {
@@ -212,48 +278,6 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
     }
   };
 
-  const createPeerConnection = async (targetUserId: string) => {
-    const pc = new RTCPeerConnection(ICE_SERVERS);
-    peerConnectionRef.current = pc;
-
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => {
-        pc.addTrack(track, localStreamRef.current!);
-      });
-    }
-
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current && event.streams[0]) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit('call:ice-candidate', {
-          toUserId: targetUserId,
-          chatId: callState?.chatId,
-          candidate: event.candidate,
-        });
-      }
-    };
-
-    pc.oniceconnectionstatechange = async () => {
-      setConnectionStatus(pc.iceConnectionState);
-      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-        setConnectionStatus('Reconnecting...');
-        try {
-          const offer = await pc.createOffer({ iceRestart: true });
-          await pc.setLocalDescription(offer);
-          socket.emit('call:ice-restart', { toUserId: targetUserId, chatId: callState?.chatId, sdp: offer });
-        } catch (err) {
-          console.warn('ICE restart attempt failed:', err);
-        }
-      }
-    };
-
-    return pc;
-  };
 
   const handleAcceptCall = async () => {
     if (!callState || !targetUser) return;
@@ -296,19 +320,6 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
     onEndCall();
   };
 
-  const cleanUpCall = () => {
-    stopTimer();
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
-      localStreamRef.current = null;
-    }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
-    if (localVideoRef.current) localVideoRef.current.srcObject = null;
-    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
-  };
 
   const toggleMute = () => {
     if (localStreamRef.current) {

@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, Trash2, Sparkles, BarChart3, CheckCircle2 } from 'lucide-react';
-import { formatRelativeTime, formatNumber, getInitials, getMediaUrl, getOptimizedMediaUrl, cn } from '@/lib/utils';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, Trash2, Sparkles, BarChart3, CheckCircle2, Eye } from 'lucide-react';
+import { formatNumber, formatViewCount, getInitials, getMediaUrl, getOptimizedMediaUrl, cn } from '@/lib/utils';
+import { RelativeTime } from '@/components/common/relative-time';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -201,7 +202,9 @@ export function PostCard({ post, onDelete, priority }: PostCardProps) {
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-[#94A3B8] mt-0.5 font-mono">{formatRelativeTime(post.createdAt)}</p>
+              <p className="text-xs text-[#94A3B8] mt-0.5 font-mono">
+                <RelativeTime date={post.createdAt} />
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
@@ -290,6 +293,10 @@ export function PostCard({ post, onDelete, priority }: PostCardProps) {
               }}>
               <Share2 className="h-4 w-4" />
             </Button>
+            <span title="Views" aria-label={`${post.viewCount || 0} views`} className="flex items-center gap-1.5 h-8 px-2.5 text-xs text-[#94A3B8] cursor-default">
+              <Eye className="h-4 w-4" />
+              <span className="font-mono">{formatViewCount(post.viewCount)}</span>
+            </span>
           </div>
           <Button variant="ghost" size="sm" aria-label={saved ? "Unsave post" : "Save post"} title={saved ? "Unsave" : "Save"}
             className={`gap-1.5 h-8 text-xs transition-all duration-200 rounded-xl ${saved ? 'text-[#7C3AED] hover:text-[#7C3AED]' : 'text-[#94A3B8] hover:text-white'}`}
@@ -338,7 +345,7 @@ export function PostCard({ post, onDelete, priority }: PostCardProps) {
                       <Link href={`/profile/${comment.user?.profile?.username}`} className="text-xs font-bold text-white hover:text-[#7C3AED]">
                         {comment.user?.profile?.username}
                       </Link>
-                      <span className="text-[10px] text-[#94A3B8] font-mono">{formatRelativeTime(comment.createdAt)}</span>
+                      <span className="text-[10px] text-[#94A3B8] font-mono"><RelativeTime date={comment.createdAt} /></span>
                     </div>
                     <p className="text-xs text-white/90 mt-1 font-inter">{comment.content}</p>
                   </div>

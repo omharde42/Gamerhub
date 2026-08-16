@@ -19,6 +19,16 @@ export class AnalyticsController {
     const data = await analyticsService.getWeeklyProgress(req.user!.userId);
     sendSuccess(res, data);
   });
+
+  logMatch = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const match = await analyticsService.logMatch(req.user!.userId, req.body);
+    sendSuccess(res, match, 'Match logged successfully', 201);
+  });
+
+  deleteMatch = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await analyticsService.deleteMatch(req.user!.userId, req.params.id);
+    sendSuccess(res, result, 'Match deleted');
+  });
 }
 
 export const analyticsController = new AnalyticsController();

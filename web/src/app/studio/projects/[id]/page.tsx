@@ -40,9 +40,18 @@ export default function MontageEditorPage() {
     queryFn: () => api.get('/video/clips').then(r => r.data.data),
   });
 
+  // Sync the server's EDL into local editor state only when it actually
+  // changed (segment count or status). The guard keeps the effect from
+  // clobbering in-progress local edits on unrelated refetches/polls, which
+  // recreate the project object on every response.
+  const lastSyncedEdlKeyRef = useRef('');
   useEffect(() => {
-    if (project?.edl) setEdl(project.edl);
-  }, [project?.edl?.segments?.length, project?.status]);
+    const syncKey = `${project?.status || ''}:${project?.edl?.segments?.length ?? ''}`;
+    if (project?.edl && syncKey !== lastSyncedEdlKeyRef.current) {
+      lastSyncedEdlKeyRef.current = syncKey;
+      setEdl(project.edl);
+    }
+  }, [project]);
 
   const saveEdl = (next: any) => {
     setEdl(next);

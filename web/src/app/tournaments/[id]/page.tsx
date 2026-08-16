@@ -8,24 +8,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { Trophy, Gamepad2, Users, DollarSign, Calendar, Swords, Shield, Star, Clock, CheckCircle2, ChevronRight, Share2 } from 'lucide-react';
+import { Trophy, Gamepad2, Users, DollarSign, Calendar, Swords, Shield, Star, Clock, CheckCircle2, ChevronRight, Share2, Flag, GitBranch } from 'lucide-react';
 import { formatDate, formatNumber, getInitials } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { BackHeader } from '@/components/common/back-header';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-const DEFAULT_MATCHES = [
-  { id: 'm1', round: 1, roundName: 'Quarterfinals', team1: { name: 'Sentinels Esports', score: 2 }, team2: { name: 'Paper Rex', score: 1 }, winner: 'Sentinels Esports', status: 'COMPLETED' },
-  { id: 'm2', round: 1, roundName: 'Quarterfinals', team1: { name: 'Fnatic Gaming', score: 2 }, team2: { name: 'DRX Korea', score: 0 }, winner: 'Fnatic Gaming', status: 'COMPLETED' },
-  { id: 'm3', round: 1, roundName: 'Quarterfinals', team1: { name: 'Team Liquid', score: 1 }, team2: { name: 'Optic Gaming', score: 2 }, winner: 'Optic Gaming', status: 'COMPLETED' },
-  { id: 'm4', round: 1, roundName: 'Quarterfinals', team1: { name: 'LOUD Brazil', score: 2 }, team2: { name: 'Natus Vincere', score: 1 }, winner: 'LOUD Brazil', status: 'COMPLETED' },
-  { id: 'm5', round: 2, roundName: 'Semifinals', team1: { name: 'Sentinels Esports', score: 2 }, team2: { name: 'Fnatic Gaming', score: 1 }, winner: 'Sentinels Esports', status: 'COMPLETED' },
-  { id: 'm6', round: 2, roundName: 'Semifinals', team1: { name: 'Optic Gaming', score: 0 }, team2: { name: 'LOUD Brazil', score: 2 }, winner: 'LOUD Brazil', status: 'COMPLETED' },
-  { id: 'm7', round: 3, roundName: 'Grand Finals 🏆', team1: { name: 'Sentinels Esports', score: 3 }, team2: { name: 'LOUD Brazil', score: 2 }, winner: 'Sentinels Esports', status: 'LIVE CHAMPION' },
-];
+const ROUND_LABELS = ['Quarterfinals', 'Semifinals', 'Grand Finals 🏆'];
 
 export default function TournamentDetailPage() {
   const { id } = useParams();
@@ -33,6 +27,13 @@ export default function TournamentDetailPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [showRegModal, setShowRegModal] = useState(false);
+  const [resultMatch, setResultMatch] = useState<any>(null);
+  const [disputeMatch, setDisputeMatch] = useState<any>(null);
+  const [score1, setScore1] = useState('');
+  const [score2, setScore2] = useState('');
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeDesc, setDisputeDesc] = useState('');
+  const [showStandings, setShowStandings] = useState(false);
 
   const { data: tournament, isLoading } = useQuery({
     queryKey: ['tournament', id],
@@ -51,6 +52,46 @@ export default function TournamentDetailPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Registration failed'),
   });
 
+  const bracketsMut = useMutation({
+    mutationFn: () => api.post(`/tournaments/${id}/brackets`),
+    onSuccess: () => {
+      toast.success('Bracket generated!');
+      queryClient.invalidateQueries({ queryKey: ['tournament', id] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to generate brackets'),
+  });
+
+  const resultMut = useMutation({
+    mutationFn: (vars: { matchId: string; scoreTeam1: number; scoreTeam2: number }) =>
+      api.post(`/tournaments/${id}/matches/${vars.matchId}/result`, { scoreTeam1: vars.scoreTeam1, scoreTeam2: vars.scoreTeam2 }),
+    onSuccess: () => {
+      setResultMatch(null);
+      setScore1('');
+      setScore2('');
+      toast.success('Match result recorded — winner advanced');
+      queryClient.invalidateQueries({ queryKey: ['tournament', id] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to record result'),
+  });
+
+  const disputeMut = useMutation({
+    mutationFn: () => api.post(`/tournaments/${id}/matches/${disputeMatch?.id}/disputes`, { reason: disputeReason, description: disputeDesc }),
+    onSuccess: () => {
+      setDisputeMatch(null);
+      setDisputeReason('');
+      setDisputeDesc('');
+      toast.success('Dispute filed — an organizer will review it');
+      queryClient.invalidateQueries({ queryKey: ['tournament', id] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to file dispute'),
+  });
+
+  const { data: standings } = useQuery({
+    queryKey: ['tournament-standings', id],
+    queryFn: () => api.get(`/tournaments/${id}/standings`).then((r) => r.data.data),
+    enabled: Boolean(showStandings),
+  });
+
   if (isLoading) {
     return (
       <div className="max-w-5xl mx-auto space-y-6">
@@ -60,36 +101,25 @@ export default function TournamentDetailPage() {
     );
   }
 
-  const tourney = tournament || {
-    id: id as string,
-    title: 'Wox Sorning Team Masters 2026',
-    game: 'Valorant',
-    status: 'REGISTRATION_OPEN',
-    type: 'SINGLE_ELIMINATION',
-    prizePool: 50000,
-    maxTeams: 16,
-    teams: [
-      { team: { name: 'Sentinels Esports', avatar: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150&auto=format&fit=crop&q=80' }, membersCount: 5 },
-      { team: { name: 'Fnatic Gaming', avatar: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=150&auto=format&fit=crop&q=80' }, membersCount: 6 },
-      { team: { name: 'Team Liquid', avatar: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=150&auto=format&fit=crop&q=80' }, membersCount: 5 },
-      { team: { name: 'Paper Rex', avatar: 'https://images.unsplash.com/photo-1560253023-3ec5d502959f?w=150&auto=format&fit=crop&q=80' }, membersCount: 5 },
-    ],
-    startDate: new Date(Date.now() + 86400000 * 3).toISOString(),
-    matches: DEFAULT_MATCHES,
-  };
+  const tourney = tournament;
+  if (!tourney) return null;
 
-  const matchesList = tourney.matches && tourney.matches.length > 0 ? tourney.matches : DEFAULT_MATCHES;
-
+  const isOrganizer = Boolean(tourney.isOrganizer);
+  const matchesList = tourney.matches || [];
   const teamCount = tourney.teams?.length || 0;
   const participantCount = tourney.participants?.length || 0;
   const filledSpots = teamCount + participantCount;
   const isFull = filledSpots >= (tourney.maxTeams || 16);
   const isRegistered = !!user && (tourney.participants || []).some((p: any) => p.user?.id === user.id);
   const registrationOpen = tourney.status === 'REGISTRATION_OPEN' || tourney.status === 'DRAFT' || !tourney.status;
+  const hasBracket = matchesList.length > 0;
+  const maxRound = matchesList.reduce((m: number, x: any) => Math.max(m, x.round || 1), 1);
+  const rounds = Array.from({ length: maxRound }, (_, i) => i + 1);
+
+  const teamName = (tt: any) => tt?.team?.name || tt?.name || 'TBD';
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 overflow-x-hidden">
-      {/* Dynamic Back Header */}
       <BackHeader title="Tournament Arena" />
 
       {/* Hero Banner */}
@@ -99,7 +129,7 @@ export default function TournamentDetailPage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.25),transparent_70%)]" />
           <div className="absolute top-4 right-4 flex items-center gap-2">
             <Badge className="bg-emerald-500 text-black font-extrabold text-xs px-3 py-1 rounded-full shadow-[0_0_18px_rgba(16,185,129,0.7)] border border-emerald-300/50 animate-pulse">
-              💰 ${formatNumber(tourney.prizePool || 50000)} PRIZE POOL
+              💰 ${formatNumber(tourney.prizePool || 0)} PRIZE POOL
             </Badge>
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full bg-black/40 text-white backdrop-blur-md hover:bg-black/60" onClick={() => {
               navigator.clipboard.writeText(window.location.href);
@@ -127,21 +157,51 @@ export default function TournamentDetailPage() {
                   <Badge variant="secondary" className="text-[10px] font-mono bg-card text-slate-300 border border-white/10 px-2.5 py-0.5">
                     {tourney.type?.replace('_', ' ') || 'SINGLE ELIMINATION'}
                   </Badge>
+                  {isOrganizer && (
+                    <Badge className="text-[10px] font-mono bg-amber-500/15 text-amber-400 border-amber-500/40 px-2.5 py-0.5">
+                      ⚙️ ORGANIZER
+                    </Badge>
+                  )}
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground truncate">{tourney.title}</h1>
               </div>
             </div>
 
-            <Button
-              variant="gradient"
-              size="lg"
-              className="font-extrabold rounded-2xl gap-2 shadow-lg shadow-emerald-500/30 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shrink-0"
-              onClick={() => setShowRegModal(true)}
-              disabled={isFull || isRegistered || !registrationOpen}
-            >
-              {isRegistered ? <CheckCircle2 className="h-5 w-5" /> : <Swords className="h-5 w-5" />}
-              {isRegistered ? 'Registered' : isFull ? 'Tournament Full' : !registrationOpen ? 'Registration Closed' : 'Register Now'}
-            </Button>
+            {isOrganizer ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                {!hasBracket && tourney.teams?.length >= 2 && (
+                  <Button
+                    variant="gradient"
+                    size="lg"
+                    className="font-extrabold rounded-2xl gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white shrink-0 shadow-lg shadow-amber-500/30"
+                    onClick={() => bracketsMut.mutate()}
+                    disabled={bracketsMut.isPending}
+                  >
+                    <GitBranch className="h-5 w-5" />
+                    {bracketsMut.isPending ? 'Generating...' : 'Generate Brackets'}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="font-extrabold rounded-2xl gap-2 shrink-0"
+                  onClick={() => setShowStandings((v) => !v)}
+                >
+                  <Star className="h-5 w-5" /> Standings
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="gradient"
+                size="lg"
+                className="font-extrabold rounded-2xl gap-2 shadow-lg shadow-emerald-500/30 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shrink-0"
+                onClick={() => setShowRegModal(true)}
+                disabled={isFull || isRegistered || !registrationOpen}
+              >
+                {isRegistered ? <CheckCircle2 className="h-5 w-5" /> : <Swords className="h-5 w-5" />}
+                {isRegistered ? 'Registered' : isFull ? 'Tournament Full' : !registrationOpen ? 'Registration Closed' : 'Register Now'}
+              </Button>
+            )}
           </div>
 
           <div className="clip-hud grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-card/60 border border-white/10 text-xs relative">
@@ -178,58 +238,175 @@ export default function TournamentDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Interactive Bracket Visualizer */}
+      {/* Standings */}
+      {showStandings && (
+        <Card variant="glass" className="rounded-[32px]">
+          <CardHeader className="pb-3 border-b border-white/10">
+            <CardTitle className="text-base font-extrabold flex items-center gap-2">
+              <Star className="h-5 w-5 text-amber-400" /> Tournament Standings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            {!standings || standings.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Standings appear once matches are played.</p>
+            ) : (
+              <div className="space-y-2">
+                {(standings as any[]).map((s, i) => (
+                  <div key={s.id} className="flex items-center justify-between p-3 rounded-2xl bg-card/60 border border-white/10">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 ${i === 0 ? 'bg-amber-500 text-black' : i === 1 ? 'bg-slate-400 text-black' : i === 2 ? 'bg-orange-700 text-white' : 'bg-card border border-white/10 text-muted-foreground'}`}>
+                        {i + 1}
+                      </span>
+                      <span className="font-bold text-sm text-foreground truncate">{s.team?.name || 'Team'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs font-mono shrink-0">
+                      <span className="text-emerald-400 font-bold">{s.wins || 0}W</span>
+                      <span className="text-red-400 font-bold">{s.losses || 0}L</span>
+                      <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">{s.placement ? `#${s.placement}` : '—'}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Bracket */}
       <Card variant="glass" className="rounded-[32px]">
         <CardHeader className="pb-3 border-b border-white/10 flex flex-row items-center justify-between">
           <CardTitle className="text-base font-extrabold flex items-center gap-2">
-            <Swords className="h-5 w-5 text-emerald-400" /> Live Tournament Brackets Tree
+            <Swords className="h-5 w-5 text-emerald-400" /> Tournament Brackets
           </CardTitle>
           <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-xs font-mono">
-            4-ROUND BRACKET
+            {maxRound}-ROUND BRACKET
           </Badge>
         </CardHeader>
 
         <CardContent className="p-6">
-          <div className="space-y-6">
-            {['Quarterfinals', 'Semifinals', 'Grand Finals 🏆'].map((roundLabel, rIdx) => {
-              const roundMatches = matchesList.filter((m: any) => m.roundName?.includes(roundLabel) || m.round === (rIdx + 1));
-              return (
-                <div key={rIdx} className="space-y-3">
-                  <h4 className="text-xs font-extrabold font-mono text-emerald-400 uppercase tracking-widest flex items-center gap-2">
-                    <Trophy className="h-3.5 w-3.5" /> {roundLabel}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {roundMatches.map((match: any) => (
-                      <div key={match.id} className="p-3.5 rounded-2xl bg-card/70 border border-white/10 hover:border-emerald-500/40 transition-all space-y-2">
-                        <div className="flex items-center justify-between text-xs font-bold p-1.5 rounded-xl bg-card/60">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                            <span className="truncate text-foreground">{match.team1?.name || match.team1?.team?.name || 'TBD'}</span>
+          {!hasBracket ? (
+            <p className="text-xs text-muted-foreground">
+              {isOrganizer
+                ? 'Brackets have not been generated yet. Click "Generate Brackets" once at least 2 teams are registered.'
+                : 'Brackets will appear once the organizer generates them.'}
+            </p>
+          ) : (
+            <div className="space-y-6 overflow-x-auto">
+              {rounds.map((round) => {
+                const roundMatches = matchesList.filter((m: any) => m.round === round);
+                const label = ROUND_LABELS[round - 1] || `Round ${round}`;
+                return (
+                  <div key={round} className="space-y-3 min-w-[420px]">
+                    <h4 className="text-xs font-extrabold font-mono text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                      <Trophy className="h-3.5 w-3.5" /> {label}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {roundMatches.map((match: any) => {
+                        const completed = match.status === 'COMPLETED';
+                        const winnerId = match.winnerId;
+                        return (
+                          <div key={match.id} className="p-3.5 rounded-2xl bg-card/70 border border-white/10 hover:border-emerald-500/40 transition-all space-y-2">
+                            <div className={`flex items-center justify-between text-xs font-bold p-1.5 rounded-xl bg-card/60 ${completed && winnerId === match.team1Id ? 'border border-emerald-500/50' : ''}`}>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className={`w-2 h-2 rounded-full ${completed && winnerId === match.team1Id ? 'bg-amber-400' : 'bg-emerald-500'}`} />
+                                <span className="truncate text-foreground">{teamName(match.team1)}</span>
+                                {completed && winnerId === match.team1Id && <Trophy className="h-3 w-3 text-amber-400 shrink-0" />}
+                              </div>
+                              <span className="font-mono text-emerald-400 font-extrabold text-sm ml-2">{match.scoreTeam1 ?? 0}</span>
+                            </div>
+                            <div className={`flex items-center justify-between text-xs font-bold p-1.5 rounded-xl bg-card/60 ${completed && winnerId === match.team2Id ? 'border border-emerald-500/50' : ''}`}>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className={`w-2 h-2 rounded-full ${completed && winnerId === match.team2Id ? 'bg-amber-400' : 'bg-teal-500'}`} />
+                                <span className="truncate text-foreground">{teamName(match.team2)}</span>
+                                {completed && winnerId === match.team2Id && <Trophy className="h-3 w-3 text-amber-400 shrink-0" />}
+                              </div>
+                              <span className="font-mono text-emerald-400 font-extrabold text-sm ml-2">{match.scoreTeam2 ?? 0}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1">
+                              <span className="font-mono text-emerald-400/90 font-semibold">
+                                {completed ? `Winner: ${teamName(winnerId === match.team1Id ? match.team1 : match.team2)}` : 'Scheduled'}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                {completed && (
+                                  <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] gap-1" onClick={() => setDisputeMatch(match)}>
+                                    <Flag className="h-3 w-3" /> Dispute
+                                  </Button>
+                                )}
+                                {isOrganizer && !completed && match.team1Id && match.team2Id && (
+                                  <Button variant="outline" size="sm" className="h-6 px-2 text-[10px] gap-1 border-emerald-500/40 text-emerald-400" onClick={() => { setResultMatch(match); setScore1(''); setScore2(''); }}>
+                                    Record Result
+                                  </Button>
+                                )}
+                                <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">{match.status}</Badge>
+                              </div>
+                            </div>
                           </div>
-                          <span className="font-mono text-emerald-400 font-extrabold text-sm ml-2">{match.team1?.score ?? 0}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs font-bold p-1.5 rounded-xl bg-card/60">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-2 h-2 rounded-full bg-teal-500" />
-                            <span className="truncate text-foreground">{match.team2?.name || match.team2?.team?.name || 'TBD'}</span>
-                          </div>
-                          <span className="font-mono text-emerald-400 font-extrabold text-sm ml-2">{match.team2?.score ?? 0}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1">
-                          <span className="font-mono text-emerald-400/90 font-semibold">Winner: {match.winner}</span>
-                          <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-                            {match.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Disputes list (organizer) */}
+      {isOrganizer && tourney.disputes?.length > 0 && (
+        <Card variant="glass" className="rounded-[32px] border-amber-500/30">
+          <CardHeader className="pb-3 border-b border-white/10">
+            <CardTitle className="text-base font-extrabold flex items-center gap-2">
+              <Flag className="h-5 w-5 text-amber-400" /> Open Disputes ({tourney.disputes.filter((d: any) => d.status === 'OPEN').length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-3">
+            {tourney.disputes.filter((d: any) => d.status === 'OPEN').map((d: any) => (
+              <div key={d.id} className="p-3.5 rounded-2xl bg-card/60 border border-amber-500/20 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-foreground">{d.reason}</p>
+                  <Badge className="text-[9px] bg-amber-500/15 text-amber-400 border-amber-500/40">OPEN</Badge>
+                </div>
+                {d.description && <p className="text-[11px] text-muted-foreground">{d.description}</p>}
+                <p className="text-[10px] font-mono text-muted-foreground">by @{d.reporter?.profile?.username || 'unknown'}</p>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm" variant="outline" className="h-7 text-[10px] border-red-500/40 text-red-400"
+                    onClick={async () => {
+                      try {
+                        await api.patch(`/tournaments/${id}/disputes/${d.id}`, { status: 'DISMISSED', resolution: 'Dispute dismissed by organizer' });
+                        toast.success('Dispute dismissed');
+                        queryClient.invalidateQueries({ queryKey: ['tournament', id] });
+                      } catch (e: any) {
+                        toast.error(e.response?.data?.message || 'Failed');
+                      }
+                    }}
+                  >
+                    Dismiss
+                  </Button>
+                  <Button
+                    size="sm" variant="outline" className="h-7 text-[10px] border-emerald-500/40 text-emerald-400"
+                    onClick={async () => {
+                      try {
+                        await api.patch(`/tournaments/${id}/disputes/${d.id}`, { status: 'RESOLVED', resolution: 'Result verified by organizer' });
+                        toast.success('Dispute resolved — result stands');
+                        queryClient.invalidateQueries({ queryKey: ['tournament', id] });
+                      } catch (e: any) {
+                        toast.error(e.response?.data?.message || 'Failed');
+                      }
+                    }}
+                  >
+                    Resolve (keep result)
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {tourney.disputes.filter((d: any) => d.status === 'OPEN').length === 0 && (
+              <p className="text-xs text-muted-foreground">No open disputes.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Registered Teams Grid */}
       <Card variant="glass" className="rounded-[32px]">
@@ -241,7 +418,7 @@ export default function TournamentDetailPage() {
         <CardContent className="p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
             {(tourney.teams || []).map((tItem: any, i: number) => (
-              <div key={i} className="flex items-center gap-3 p-3.5 rounded-2xl bg-card/60 border border-white/10 hover:border-emerald-500/40 transition-all">
+              <div key={tItem.id || i} className="flex items-center gap-3 p-3.5 rounded-2xl bg-card/60 border border-white/10 hover:border-emerald-500/40 transition-all">
                 <Avatar className="h-12 w-12 border border-emerald-500/30 shadow-md">
                   <AvatarImage src={tItem.team?.avatar || ''} />
                   <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold">
@@ -250,10 +427,10 @@ export default function TournamentDetailPage() {
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-sm text-foreground truncate">{tItem.team?.name || 'Pro Team'}</p>
-                  <p className="text-xs text-emerald-400 font-mono font-semibold">{tItem.membersCount || 5} Verified Roster Players</p>
+                  <p className="text-xs text-emerald-400 font-mono font-semibold">{tItem.members?.length || 0} Roster Players</p>
                 </div>
                 <Badge variant="outline" className="text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-                  SEED #{i + 1}
+                  SEED #{tItem.seed || i + 1}
                 </Badge>
               </div>
             ))}
@@ -284,7 +461,7 @@ export default function TournamentDetailPage() {
         <DialogContent className="glass-popup border-emerald-500/40">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-foreground flex items-center gap-2">
-              <Trophy className="h-6 w-6 text-emerald-400" /> Confirm Squad Tournament Registration
+              <Trophy className="h-6 w-6 text-emerald-400" /> Confirm Tournament Registration
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
@@ -318,6 +495,77 @@ export default function TournamentDetailPage() {
               {registerMut.isPending ? 'Registering...' : 'Confirm Registration'}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Result Dialog (organizer) */}
+      <Dialog open={Boolean(resultMatch)} onOpenChange={(v) => { if (!v) setResultMatch(null); }}>
+        <DialogContent className="glass-popup border-emerald-500/40">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-foreground flex items-center gap-2">
+              <Swords className="h-6 w-6 text-emerald-400" /> Record Match Result
+            </DialogTitle>
+          </DialogHeader>
+          {resultMatch && (
+            <div className="space-y-4 pt-2">
+              <p className="text-xs text-muted-foreground">
+                <strong className="text-emerald-400">{teamName(resultMatch.team1)}</strong> vs <strong className="text-emerald-400">{teamName(resultMatch.team2)}</strong>
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[11px]">{teamName(resultMatch.team1)}</Label>
+                  <Input type="number" min={0} value={score1} onChange={(e) => setScore1(e.target.value)} placeholder="Score" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[11px]">{teamName(resultMatch.team2)}</Label>
+                  <Input type="number" min={0} value={score2} onChange={(e) => setScore2(e.target.value)} placeholder="Score" />
+                </div>
+              </div>
+              <Button
+                variant="gradient"
+                className="w-full rounded-2xl font-extrabold h-11 bg-gradient-to-r from-emerald-500 to-teal-600 text-white"
+                disabled={resultMut.isPending || score1 === '' || score2 === ''}
+                onClick={() => resultMut.mutate({ matchId: resultMatch.id, scoreTeam1: parseInt(score1), scoreTeam2: parseInt(score2) })}
+              >
+                {resultMut.isPending ? 'Recording...' : 'Record Result & Advance Winner'}
+              </Button>
+              <p className="text-[10px] text-muted-foreground text-center">The winner automatically advances to the next round.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dispute Dialog */}
+      <Dialog open={Boolean(disputeMatch)} onOpenChange={(v) => { if (!v) setDisputeMatch(null); }}>
+        <DialogContent className="glass-popup border-amber-500/40">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-foreground flex items-center gap-2">
+              <Flag className="h-6 w-6 text-amber-400" /> Dispute Match Result
+            </DialogTitle>
+          </DialogHeader>
+          {disputeMatch && (
+            <div className="space-y-4 pt-2">
+              <p className="text-xs text-muted-foreground">
+                Report an incorrect result for <strong className="text-amber-400">{teamName(disputeMatch.team1)}</strong> vs <strong className="text-amber-400">{teamName(disputeMatch.team2)}</strong>.
+              </p>
+              <div className="space-y-2">
+                <Label className="text-[11px]">Reason</Label>
+                <Input value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} placeholder="e.g. Wrong score recorded" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[11px]">Details (optional)</Label>
+                <Textarea value={disputeDesc} onChange={(e) => setDisputeDesc(e.target.value)} placeholder="Explain what went wrong..." rows={3} />
+              </div>
+              <Button
+                variant="outline"
+                className="w-full rounded-2xl font-extrabold h-11 border-amber-500/50 text-amber-400"
+                disabled={disputeMut.isPending || disputeReason.trim().length < 3}
+                onClick={() => disputeMut.mutate()}
+              >
+                {disputeMut.isPending ? 'Filing...' : 'File Dispute'}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

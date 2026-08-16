@@ -63,16 +63,18 @@ export default function RegisterPage() {
   const handleSocialLogin = async (provider: string) => {
     setSocialLoading(true);
     try {
+      // These are OAuth redirects to the external backend, not internal Next.js
+      // navigation — the browser must leave the app, so full navigation is required.
       if (provider === 'discord') {
-        window.location.href = `${API_URL}/auth/discord?action=login`;
+        window.location.href = API_URL + '/auth/discord?action=login';
         return;
       }
       if (provider === 'google') {
-        window.location.href = `${API_URL}/auth/google`;
+        window.location.href = API_URL + '/auth/google';
         return;
       }
       if (provider === 'steam') {
-        window.location.href = `${API_URL}/auth/steam`;
+        window.location.href = API_URL + '/auth/steam';
         return;
       }
 

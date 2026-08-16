@@ -78,7 +78,9 @@ export function GameConnectForm({ gameKey, placeholder, fieldName = 'uid', gameL
           <Button
             type="button"
             onClick={() => {
-              window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/riot`;
+              // External OAuth redirect to the backend's Riot Sign-On endpoint —
+              // full navigation is required (the browser must leave the app).
+              window.location.href = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000') + '/api/auth/riot';
             }}
             className="w-full bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-extrabold rounded-xl h-11 gap-2 shadow-lg"
           >

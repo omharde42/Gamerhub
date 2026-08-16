@@ -324,6 +324,37 @@ export default function GamerPassportPage() {
                   ))}
                 </div>
               </div>
+              {(p.scoreBreakdown || p.scoreExplanation) && (
+                <details className="w-full text-left mt-1">
+                  <summary className="text-[10px] font-mono text-muted-foreground/60 cursor-pointer hover:text-primary transition-colors">
+                    How is this calculated? ⓘ
+                  </summary>
+                  <div className="pt-1.5 space-y-1">
+                    {p.scoreBreakdown && (
+                      <div className="space-y-0.5">
+                        {[
+                          ['K/D Ratio', p.scoreBreakdown.kdScore, 25],
+                          ['Win Rate', p.scoreBreakdown.winScore, 25],
+                          ['Matches Played', p.scoreBreakdown.matchScore, 15],
+                          ['Skill Score', p.scoreBreakdown.skillScore, 20],
+                          ['Competitive Score', p.scoreBreakdown.compScore, 15],
+                        ].map(([label, value, max]: any) => (
+                          <div key={label} className="flex items-center gap-2">
+                            <span className="text-[10px] text-muted-foreground/70 w-24 shrink-0">{label}</span>
+                            <div className="flex-1 h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                              <div className="h-full bg-primary/80 rounded-full" style={{ width: `${Math.min(100, (value / max) * 100)}%` }} />
+                            </div>
+                            <span className="text-[10px] font-mono text-muted-foreground/70 w-12 text-right">{value}/{max}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {p.scoreExplanation && (
+                      <p className="text-[9px] leading-relaxed text-muted-foreground/50">{p.scoreExplanation}</p>
+                    )}
+                  </div>
+                </details>
+              )}
             </CardContent>
           </Card>
           {statCards.map((stat, i) => (
@@ -767,19 +798,30 @@ export default function GamerPassportPage() {
           {p.achievements?.length > 0 && (
             <motion.div variants={itemVariants}>
               <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2"><SectionHeader icon={Award} title="Achievements" /></CardHeader>
+                <CardHeader className="pb-2">
+                  <SectionHeader icon={Award} title={`Achievements (${p.achievements.length})`} />
+                </CardHeader>
                 <CardContent className="space-y-1.5">
-                  {p.achievements.slice(0, 5).map((a: any) => (
-                    <div key={a.id} className="flex items-center gap-2.5 text-xs p-2.5 rounded-lg bg-gradient-to-r from-yellow-500/[0.04] to-transparent border border-yellow-500/10">
-                      <div className="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                        <Medal className="h-3.5 w-3.5 text-yellow-600" />
+                  {p.achievements.map((a: any) => {
+                    const rarityColors: Record<string, string> = {
+                      LEGENDARY: 'from-amber-500/[0.12] to-transparent border-amber-500/30 text-amber-500',
+                      EPIC: 'from-purple-500/[0.12] to-transparent border-purple-500/30 text-purple-500',
+                      RARE: 'from-sky-500/[0.12] to-transparent border-sky-500/30 text-sky-500',
+                    };
+                    const cls = rarityColors[a.rarity] || 'from-yellow-500/[0.04] to-transparent border-yellow-500/10 text-yellow-600';
+                    return (
+                      <div key={a.id} className={`flex items-center gap-2.5 text-xs p-2.5 rounded-lg bg-gradient-to-r ${cls} border`}>
+                        <div className="w-7 h-7 rounded-lg bg-background/60 flex items-center justify-center">
+                          <span className="text-sm">{a.icon || '🏅'}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-[12px]">{a.title}</p>
+                          {a.description && <p className="text-[10px] text-muted-foreground/60">{a.description}</p>}
+                        </div>
+                        {a.rarity && <Medal className="h-3.5 w-3.5 shrink-0 opacity-80" />}
                       </div>
-                      <div>
-                        <p className="font-medium text-[12px]">{a.title}</p>
-                        {a.description && <p className="text-[10px] text-muted-foreground/60">{a.description}</p>}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
             </motion.div>

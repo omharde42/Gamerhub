@@ -19,6 +19,13 @@ export function ImagePreview({ images = [], initialIndex = 0, isOpen, onClose }:
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const touchStartRef = useRef<{ dist: number; zoom: number } | null>(null);
+  // Parents pass inline `onClose` closures (unstable across renders); route the
+  // keydown handler through a ref so the listener effect never re-subscribes on
+  // parent re-renders while still always calling the latest callback.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -42,7 +49,7 @@ export function ImagePreview({ images = [], initialIndex = 0, isOpen, onClose }:
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
       if (e.key === 'ArrowRight' && images.length > 1) {
         setZoom(1);
         setRotation(0);

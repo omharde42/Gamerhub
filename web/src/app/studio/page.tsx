@@ -459,7 +459,9 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
       if (err.name === 'NotAllowedError') toast.error('Screen capture permission denied');
       else toast.error('Failed to start recording');
     }
-  }, [audioEnabled, showCamera, qualityPreset, clips.length, setClips, setSelectedClipId]);
+    // `qualityPreset` is only used for the on-screen badge, not by the recorder,
+    // so it must not be a dependency (changes would restart the recording).
+  }, [audioEnabled, showCamera, clips.length, setClips, setSelectedClipId]);
 
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
@@ -683,9 +685,14 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
+  // Guard so the reset effect only fires when a *different* clip is selected:
+  // renaming a clip replaces the clip object (new reference, same id) and must
+  // not wipe the current editing session.
+  const lastResetClipIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    if (clip) {
+    if (clip?.id && lastResetClipIdRef.current !== clip.id) {
+      lastResetClipIdRef.current = clip.id;
       setTrimStart(0);
       setTrimEnd(clip.duration);
       setCurrentTime(0);
@@ -694,7 +701,7 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
       setPlaybackRate(1);
       setClipName(clip.name);
     }
-  }, [clip?.id]);
+  }, [clip]);
 
   useEffect(() => {
     if (!videoRef.current || !clip) return;

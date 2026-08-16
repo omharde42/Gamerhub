@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,7 +26,10 @@ export default function ComparePage() {
     },
   });
 
-  const games = commonData?.commonGames || [];
+  // useMemo so the effect dependency stays referentially stable — a plain
+  // `commonData?.commonGames || []` creates a fresh array on every render while
+  // commonData is still loading.
+  const games = useMemo(() => commonData?.commonGames || [], [commonData]);
   const userHasConnectedGames = commonData?.userHasConnectedGames || false;
   const userConnectedGames = commonData?.userConnectedGames || [];
 

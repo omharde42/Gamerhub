@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [open, setOpen] = useState(false);
@@ -42,7 +44,7 @@ export default function ProjectsPage() {
       toast.success('Montage project created');
       setOpen(false);
       setTitle('');
-      window.location.href = `/studio/projects/${res.data.data.project.id}`;
+      router.push(`/studio/projects/${res.data.data.project.id}`);
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to create project'),
   });
