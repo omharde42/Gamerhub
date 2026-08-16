@@ -9,6 +9,7 @@ import { aiService } from '../services/ai.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 import { NotFoundError, ValidationError } from '../utils/errors';
+import { VIEW_WINDOW_MS, hashIp } from '../utils/views';
 import { mediaStorageService } from '../utils/storage';
 import { sanitizeProfileUpdate } from '../utils/profile-allowlist';
 
@@ -21,6 +22,7 @@ export class ProfileController {
         achievements: true,
         certifications: true,
         tournamentHistory: true,
+        _count: { select: { views: true } },
         user: {
           select: {
             id: true,
@@ -43,7 +45,31 @@ export class ProfileController {
       prisma.friendRequest.count({ where: { receiverId: profile.userId, status: 'ACCEPTED' } }),
     ]);
     const connectionsCount = sentCount + receivedCount;
-    const profileViews = Math.floor((profile.kd || 0.0) * 142 + (profile.totalMatches || 0) * 3.5 + 57);
+
+    // Real view tracking: record one deduped view per viewer (or IP for
+    // anonymous visitors) per 24h window. Own profile views are not counted.
+    const viewerId = req.user?.userId ?? undefined;
+    if (viewerId !== profile.userId) {
+      const viewerIp = viewerId ? undefined : hashIp(req.ip || req.socket?.remoteAddress || '');
+      const since = new Date(Date.now() - VIEW_WINDOW_MS);
+      const existing = await prisma.profileView.findFirst({
+        where: viewerId
+          ? { profileId: profile.id, viewerId, createdAt: { gte: since } }
+          : viewerIp
+            ? { profileId: profile.id, viewerIp, createdAt: { gte: since } }
+            : { profileId: profile.id },
+        select: { id: true },
+      });
+      if (!existing) {
+        await prisma.profileView.create({
+          data: viewerId
+            ? { profileId: profile.id, viewerId }
+            : viewerIp
+              ? { profileId: profile.id, viewerIp }
+              : { profileId: profile.id },
+        });
+      }
+    }
 
     let friendshipStatus: 'friends' | 'pending' | null = null;
     if (req.user) {
@@ -68,7 +94,7 @@ export class ProfileController {
     sendSuccess(res, {
       ...profile,
       connectionsCount,
-      profileViews,
+      profileViews: profile._count.views,
       friendshipStatus,
     });
   });

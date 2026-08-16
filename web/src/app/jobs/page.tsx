@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Briefcase, Search, MapPin, Building2, Clock, DollarSign, Bookmark, Send, Sparkles, Shield } from 'lucide-react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { Briefcase, Search, MapPin, Building2, Clock, DollarSign, Bookmark, Send, Sparkles, Shield, Pencil, Trash2, CalendarClock, XCircle, RotateCcw, FolderOpen } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatRelativeTime } from '@/lib/utils';
+import { RelativeTime } from '@/components/common/relative-time';
+import { useAuthStore } from '@/store/authStore';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -53,15 +54,45 @@ export default function JobsPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [gameFilter, setGameFilter] = useState('');
+  const [view, setView] = useState<'browse' | 'mine'>('browse');
   
   const { data: jobsData } = useQuery({ 
     queryKey: ['jobs', search, typeFilter, gameFilter], 
     queryFn: () => api.get(`/jobs?search=${search}&type=${typeFilter}&game=${gameFilter}`).then(r => r.data) 
   });
   
+  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+
+  const { data: mineData } = useQuery({
+    queryKey: ['jobs-mine'],
+    queryFn: () => api.get('/jobs/mine').then(r => r.data.data || []),
+    enabled: !!user?.id,
+  });
+
   const saveMut = useMutation({ 
     mutationFn: (jobId: string) => api.post(`/jobs/${jobId}/save`), 
     onSuccess: () => toast.success('Job saved to your Passport!') 
+  });
+
+  const statusMut = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => api.put(`/jobs/${id}`, { status }),
+    onSuccess: () => {
+      toast.success('Job status updated');
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs-mine'] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to update job'),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (jobId: string) => api.delete(`/jobs/${jobId}`),
+    onSuccess: () => {
+      toast.success('Job deleted');
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs-mine'] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to delete job'),
   });
 
   const displayJobs = (jobsData?.data && jobsData.data.length > 0) ? jobsData.data : FEATURED_JOBS;
@@ -85,7 +116,24 @@ export default function JobsPage() {
         </Link>
       </div>
 
-      {/* Filters */}
+      {/* View toggle */}
+      <div className="flex gap-1.5 bg-card/60 border border-white/10 p-1 rounded-2xl w-fit">
+        <button
+          onClick={() => setView('browse')}
+          className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 ${view === 'browse' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          Browse Jobs
+        </button>
+        <button
+          onClick={() => setView('mine')}
+          className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 ${view === 'mine' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          My Postings
+        </button>
+      </div>
+
+      {/* Filters (browse view only) */}
+      {view === 'browse' && (
       <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -102,10 +150,13 @@ export default function JobsPage() {
           </SelectTrigger>
           <SelectContent className="glass-popup border-emerald-500/30">
             <SelectItem value="">All Types</SelectItem>
+            <SelectItem value="PLAYER">Player</SelectItem>
             <SelectItem value="COACH">Coach</SelectItem>
-            <SelectItem value="PRODUCER">Producer</SelectItem>
-            <SelectItem value="ARTIST">Artist</SelectItem>
             <SelectItem value="MANAGER">Manager</SelectItem>
+            <SelectItem value="CASTER">Caster</SelectItem>
+            <SelectItem value="ANALYST">Analyst</SelectItem>
+            <SelectItem value="CONTENT_CREATOR">Content Creator</SelectItem>
+            <SelectItem value="OTHER">Other</SelectItem>
           </SelectContent>
         </Select>
         <Select value={gameFilter} onValueChange={setGameFilter}>
@@ -120,8 +171,80 @@ export default function JobsPage() {
           </SelectContent>
         </Select>
       </div>
+      )}
 
-      {/* Job Cards */}
+      {/* My Postings */}
+      {view === 'mine' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <FolderOpen className="h-4 w-4 text-emerald-400" />
+            <h2 className="text-sm font-bold text-foreground">Your Job Postings</h2>
+            <span className="text-xs text-muted-foreground">({mineData?.length || 0})</span>
+          </div>
+          {!mineData?.length ? (
+            <Card variant="glass" className="rounded-[28px]">
+              <CardContent className="p-10 text-center space-y-3">
+                <Briefcase className="h-10 w-10 text-muted-foreground/50 mx-auto" />
+                <p className="text-sm font-semibold text-foreground">No job postings yet</p>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">Post a job under your organization to start recruiting players, coaches, and talent.</p>
+                <Link href="/jobs/post">
+                  <Button variant="gradient" size="sm" className="gap-2 mt-1 bg-gradient-to-r from-emerald-500 to-teal-600">
+                    <Briefcase className="h-4 w-4" /> Post your first job
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ) : (
+            mineData.map((job: any, i: number) => (
+              <motion.div key={job.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                <Card variant="glass" className="hover:border-emerald-500/50 transition-all rounded-[28px] group">
+                  <CardContent className="p-5 space-y-3">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0 space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-extrabold text-foreground truncate group-hover:text-emerald-400 transition-colors">{job.title}</h3>
+                          {job.status === 'OPEN' ? (
+                            <Badge variant="outline" className="text-[9px] font-mono bg-emerald-500/15 text-emerald-400 border-emerald-500/30 px-2 py-0.5">OPEN</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[9px] font-mono bg-slate-500/10 text-slate-400 border-slate-500/30 px-2 py-0.5">{job.status.replace(/_/g, ' ')}</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{job.organization?.name || 'Your organization'} · {job.type}{job.game ? ` · ${job.game}` : ''}</p>
+                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-mono flex-wrap">
+                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Posted <RelativeTime date={job.createdAt} /></span>
+                          {job.expiresAt && (
+                            <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3 text-amber-400" /> Deadline {new Date(job.expiresAt).toLocaleDateString()}</span>
+                          )}
+                          <span>{job._count?.applications || 0} application{job._count?.applications === 1 ? '' : 's'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Link href={`/jobs/post?edit=${job.id}`}>
+                          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-xl" title="Edit job">
+                            <Pencil className="h-3.5 w-3.5" /> Edit
+                          </Button>
+                        </Link>
+                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-xl" title={job.status === 'OPEN' ? 'Close this posting' : 'Reopen this posting'}
+                          onClick={() => statusMut.mutate({ id: job.id, status: job.status === 'OPEN' ? 'CLOSED' : 'OPEN' })} disabled={statusMut.isPending}>
+                          {job.status === 'OPEN' ? <XCircle className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                          {job.status === 'OPEN' ? 'Close' : 'Reopen'}
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-xl hover:bg-red-500/10 hover:text-red-400" title="Delete job"
+                          onClick={() => { if (window.confirm(`Delete the job "${job.title}"? This cannot be undone.`)) deleteMut.mutate(job.id); }}>
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Job Cards (browse view) */}
+      {view === 'browse' && (
       <div className="space-y-4">
         {displayJobs.map((job: any, i: number) => (
           <motion.div key={job.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
@@ -172,12 +295,35 @@ export default function JobsPage() {
                         <DollarSign className="h-3.5 w-3.5 text-emerald-400" /> {job.salary}
                       </span>
                     )}
+                    {job.expiresAt && new Date(job.expiresAt).getTime() > Date.now() && (
+                      <span className="flex items-center gap-1 font-semibold text-slate-400" title={`Deadline: ${new Date(job.expiresAt).toLocaleDateString()}`}>
+                        <CalendarClock className="h-3.5 w-3.5 text-amber-400" /> Closes {new Date(job.expiresAt).toLocaleDateString()}
+                      </span>
+                    )}
+                    {job.status && job.status !== 'OPEN' && (
+                      <Badge variant="outline" className="text-[10px] font-mono bg-slate-500/10 text-slate-400 border-slate-500/30 px-2.5 py-1 font-bold">
+                        {job.status.replace(/_/g, ' ')}
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                     <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono mr-2">
-                      <Clock className="h-3 w-3" /> {formatRelativeTime(job.createdAt)}
+                      <Clock className="h-3 w-3" /> <RelativeTime date={job.createdAt} />
                     </span>
+                    {job.organization?.ownerId === user?.id && (
+                      <>
+                        <Link href={`/jobs/post?edit=${job.id}`}>
+                          <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs rounded-xl" title="Edit job">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
+                        <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs rounded-xl hover:bg-red-500/10 hover:text-red-400" title="Delete job"
+                          onClick={() => { if (window.confirm(`Delete the job "${job.title}"?`)) deleteMut.mutate(job.id); }}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
                     <Link href={`/jobs/${job.id}/apply`}>
                       <Button variant="gradient" size="sm" className="h-8 px-3 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md">
                         <Send className="h-3.5 w-3.5 mr-1" /> Quick Apply
@@ -190,6 +336,7 @@ export default function JobsPage() {
           </motion.div>
         ))}
       </div>
+      )}
     </div>
   );
 }

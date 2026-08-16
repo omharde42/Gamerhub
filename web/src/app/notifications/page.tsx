@@ -10,7 +10,9 @@ import { Bell, Heart, MessageCircle, UserPlus, Trophy, Calendar, Briefcase, Flag
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { formatRelativeTime, getInitials } from '@/lib/utils';
+import { getInitials } from '@/lib/utils';
+import { RelativeTime } from '@/components/common/relative-time';
+import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { BackHeader } from '@/components/common/back-header';
@@ -39,6 +41,8 @@ export default function NotificationsPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState('all');
+
+  useNotificationRealtime();
 
   const { data: notifications, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['notifications'],
@@ -193,7 +197,7 @@ export default function NotificationsPage() {
                               </Link>
                             </div>
                           )}
-                          <p className="text-[10px] text-muted-foreground mt-1">{formatRelativeTime(notif.createdAt)}</p>
+                          <p className="text-[10px] text-muted-foreground mt-1"><RelativeTime date={notif.createdAt} /></p>
                         </div>
                         {!notif.isRead && (
                           <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />

@@ -365,13 +365,13 @@ export class AuthController {
     await authService.unlinkSocialAccount(req.user!.userId, provider);
     sendSuccess(res, null, `${provider} account unlinked successfully!`);
   });
-<<<<<<< HEAD
-
   deleteAccount = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { password } = req.body || {};
     await authService.deleteAccount(req.user!.userId, password);
     sendSuccess(res, null, 'Account deleted successfully');
-=======
+  });
+
+
   riotAuth = asyncHandler(async (req: Request, res: Response) => {
     const action = req.query.action === 'login' ? 'login' : 'link';
     const userId = (req as AuthRequest).user?.userId;
@@ -420,7 +420,6 @@ export class AuthController {
 
     // Production RSO Token Exchange (Pending Approval Guard)
     return res.redirect(`${clientUrl}/connections?error=${encodeURIComponent('VALORANT Riot RSO connection is currently unavailable while production access is pending review (Riot App ID: 871157).')}`);
->>>>>>> 38259c011ce26ec1a271900c0b4afeed5b7c43f6
   });
 }
 

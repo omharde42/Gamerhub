@@ -19,7 +19,8 @@ import {
   Smile, MoreVertical, X, UserPlus, Calendar, Lock, Mic, MicOff,
   Video, VideoOff, Monitor, PhoneOff, ShieldAlert
 } from 'lucide-react';
-import { getInitials, formatRelativeTime } from '@/lib/utils';
+import { getInitials } from '@/lib/utils';
+import { RelativeTime } from '@/components/common/relative-time';
 import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = { 
@@ -725,7 +726,7 @@ export default function ServerPage() {
                               {showHeader && (
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <span className="text-sm font-semibold hover:underline cursor-pointer text-foreground">{msg.sender?.profile?.username}</span>
-                                  <span className="text-[10px] text-muted-foreground">{formatRelativeTime(msg.createdAt)}</span>
+                                  <span className="text-[10px] text-muted-foreground"><RelativeTime date={msg.createdAt} /></span>
                                   {msg.isPinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
                                 </div>
                               )}

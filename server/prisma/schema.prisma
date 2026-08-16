@@ -78,6 +78,9 @@ model User {
   createdEvents       ServerEvent[]
   gameRequests        GameRequest[]
   gameAccounts        GameAccount[]
+  clashTagChangeCount Int        @default(0)
+  clashTagHistory     Json?
+  partnershipApplications PartnershipApplication[]
   challengesSent      Challenge[] @relation("ChallengesSent")
   challengesReceived  Challenge[] @relation("ChallengesReceived")
   challengeTeams      ChallengeTeam[]
@@ -87,6 +90,8 @@ model User {
   blockedBy           UserBlock[]  @relation("BlockedBy")
   videoClips          VideoClip[]
   montageProjects     MontageProject[]
+  profileViews        ProfileView[]
+  postViews           PostView[]
   @@index([email])
   @@index([role])
 }
@@ -240,6 +245,7 @@ model Profile {
   connectedGames    ConnectedGame[]
   skills            GamerSkill[]
   endorsements      Endorsement[]
+  views             ProfileView[]
   @@index([username])
   @@index([rank])
   @@index([country])
@@ -359,8 +365,33 @@ model Post {
   likes       Like[]
   hashtags    PostHashtag[]
   poll        Poll?
+  views       PostView[]
   @@index([userId])
   @@index([createdAt])
+}
+
+model ProfileView {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  viewerId  String?
+  viewer    User?    @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+  viewerIp  String?
+  createdAt DateTime @default(now())
+  @@index([profileId, createdAt])
+  @@index([viewerId])
+}
+
+model PostView {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  viewerId  String?
+  viewer    User?    @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+  viewerIp  String?
+  createdAt DateTime @default(now())
+  @@index([postId, createdAt])
+  @@index([viewerId])
 }
 
 model Poll {
@@ -766,6 +797,25 @@ model SavedJob {
   @@unique([userId, jobId])
 }
 
+model PartnershipApplication {
+  id               String   @id @default(uuid())
+  type             String
+  organizationName String
+  contactName      String
+  contactEmail     String
+  website          String?
+  description      String
+  audience         String?
+  status           String   @default("PENDING")
+  adminNote        String?
+  reviewedAt       DateTime?
+  createdAt        DateTime @default(now())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([status])
+}
+
 model Notification {
   id              String           @id @default(uuid())
   type            NotificationType
@@ -1091,6 +1141,7 @@ enum NotificationType {
   CHALLENGE_EXPIRED
   CHALLENGE_COMPLETED
   VIDEO_RENDER
+  PARTNERSHIP_UPDATED
 }
 
 enum ReportReason {

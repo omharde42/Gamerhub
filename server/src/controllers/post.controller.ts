@@ -6,6 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 import { NotFoundError } from '../utils/errors';
 import { mediaStorageService } from '../utils/storage';
+import { hashIp } from '../utils/views';
 
 export class PostController {
   uploadMedia = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -51,7 +52,9 @@ export class PostController {
   });
 
   getById = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const post = await postService.getById(req.params.id);
+    const viewerId = req.user?.userId;
+    const ipHash = viewerId ? undefined : hashIp(req.ip || req.socket?.remoteAddress || '');
+    const post = await postService.getById(req.params.id, viewerId, ipHash);
     if (!post) throw new NotFoundError('Post');
     sendSuccess(res, post);
   });

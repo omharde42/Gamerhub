@@ -26,58 +26,16 @@ export class BgmiConnector implements IGameConnector {
     throw new AppError(UNAVAILABLE_MESSAGE, 400);
   }
 
-  async connect(userId: string, payload: Record<string, any>): Promise<any> {
+  async connect(_userId: string, payload: Record<string, any>): Promise<any> {
+    // validate() always throws for BGMI — BGMI is never connectable.
     await this.validate(payload);
-    const uid = payload.uid;
-    const profile = await this.fetchProfile(uid);
-
-    const gameAccount = await prisma.gameAccount.upsert({
-      where: { userId_game: { userId, game: 'BGMI' } },
-      update: {
-        inGameUid: uid,
-        inGameName: profile.inGameName,
-        rank: profile.rankTier,
-        level: profile.level,
-        verified: true,
-        syncStatus: 'SUCCESS',
-        lastSyncedAt: new Date(),
-      },
-      create: {
-        userId,
-        game: 'BGMI',
-        inGameUid: uid,
-        inGameName: profile.inGameName,
-        rank: profile.rankTier,
-        level: profile.level,
-        verified: true,
-        syncStatus: 'SUCCESS',
-        lastSyncedAt: new Date(),
-      },
-    });
-
-    await prisma.profile.updateMany({
-      where: { userId },
-      data: {
-        winRate: Math.round(profile.winRate),
-        kd: profile.kd,
-        accuracy: Math.round(profile.headshotRate),
-        totalMatches: profile.seasonMatches,
-        rank: profile.rankTier,
-      },
-    });
-
-    return { gameAccount, profile };
+    return { connected: false };
   }
 
   async disconnect(userId: string): Promise<boolean> {
     await prisma.gameAccount.deleteMany({
       where: { userId, game: 'BGMI' },
     });
-    if (legacy && /^\d+$/.test(legacy.inGameUid)) {
-      await prisma.gameAccount.deleteMany({
-        where: { userId, game: 'PUBG' },
-      });
-    }
     return true;
   }
 }

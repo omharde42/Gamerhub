@@ -18,7 +18,8 @@ import dynamic from 'next/dynamic';
 import { useKeyboard, scrollInputIntoView } from '@/hooks/useKeyboard';
 const CallModal = dynamic(() => import('@/components/chat/call-modal').then(m => m.CallModal), { ssr: false });
 const ImagePreview = dynamic(() => import('@/components/ui/image-preview').then(m => m.ImagePreview), { ssr: false });
-import { getInitials, formatRelativeTime, formatLastSeen, cn, getMediaUrl } from '@/lib/utils';
+import { getInitials, formatLastSeen, cn, getMediaUrl } from '@/lib/utils';
+import { RelativeTime } from '@/components/common/relative-time';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -799,7 +800,7 @@ function DiscordMessagesPage() {
                             </span>
                           )}
                           {!typingUsers[chat.id]?.length && chat.messages?.[0] && (
-                            <span className="text-[9px] text-muted-foreground">{formatRelativeTime(chat.messages[0].createdAt)}</span>
+                            <span className="text-[9px] text-muted-foreground"><RelativeTime date={chat.messages[0].createdAt} /></span>
                           )}
                         </div>
                       </div>
@@ -1027,7 +1028,7 @@ function DiscordMessagesPage() {
                           {showHeader && (
                             <div className={cn("flex items-center gap-2 mb-1", isOwn ? 'flex-row-reverse' : '')}>
                               <span className="text-xs font-bold hover:text-primary cursor-pointer transition-colors text-foreground">{msg.sender?.profile?.username}</span>
-                              <span className="text-[9px] text-muted-foreground">{formatRelativeTime(msg.createdAt)}</span>
+                              <span className="text-[9px] text-muted-foreground"><RelativeTime date={msg.createdAt} /></span>
                             </div>
                           )}
                           {msg.media?.length > 0 && (

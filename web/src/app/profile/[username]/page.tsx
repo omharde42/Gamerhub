@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { MapPin, Trophy, Target, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Award, Swords, X, Loader2, Heart, UserCheck, UserPlus, Sparkles, Settings, Camera, MessageSquare, Search, ImagePlus } from 'lucide-react';
-import { formatDate, getInitials, getRankColor } from '@/lib/utils';
+import { formatDate, formatViewCount, getInitials, getRankColor } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useOverlayStore } from '@/store/overlayStore';
 import { useSocket } from '@/hooks/useSocket';
@@ -454,7 +454,7 @@ export default function ProfilePage() {
             </button>
             <div className="flex items-center gap-1.5 cursor-default group">
               <Sparkles className="h-4 w-4 text-yellow-500 group-hover:rotate-12 transition-transform" />
-              <span className="font-bold">{profile.profileViews || 0}</span>
+              <span className="font-bold">{formatViewCount(profile.profileViews)}</span>
               <span className="text-muted-foreground text-xs">Views</span>
             </div>
             <div className="flex items-center gap-1.5 cursor-default group">

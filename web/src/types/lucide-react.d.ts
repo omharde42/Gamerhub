@@ -197,4 +197,6 @@ declare module 'lucide-react' {
   export const Scale: Icon;
   export const LineChart: Icon;
   export const Lightbulb: Icon;
+  export const CalendarClock: Icon;
+  export const Pencil: Icon;
 }
