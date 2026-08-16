@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -13,6 +13,13 @@ function AuthCallbackContent() {
   const { login } = useAuthStore();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState('');
+  // Mirror `status` in a ref so the 3.5s fallback timer can read the latest
+  // value. Adding `status` itself to the auth effect's deps would restart
+  // OAuth/session processing every time it changes.
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -134,7 +141,7 @@ function AuthCallbackContent() {
 
         // 5. Fallback timer if no credentials found
         const timer = setTimeout(() => {
-          if (isSubscribed && status === 'loading') {
+          if (isSubscribed && statusRef.current === 'loading') {
             setStatus('error');
             setError('Authentication cancelled or session expired. Please try signing in again.');
           }

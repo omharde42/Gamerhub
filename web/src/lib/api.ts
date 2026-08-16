@@ -118,8 +118,14 @@ api.interceptors.response.use(
         // authStore may not be available during SSR
       }
 
-      // Only redirect in the browser if not already on an auth page
+      // Only redirect in the browser if not already on an auth page.
+      // Full-page navigation is intentional and required here: this runs inside
+      // the axios response interceptor (a plain module, not a React component),
+      // so `useRouter()`/`redirect()` are unavailable, and a hard reload after a
+      // failed token refresh resets all in-memory state (auth store, refresh
+      // queue) before showing the login page.
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full-page navigation is required: this runs in the axios interceptor (not a React component) and a hard reload resets all in-memory state after a failed token refresh
         window.location.href = '/auth/login';
       }
 

@@ -61,7 +61,7 @@ export default function AnalyticsPage() {
   // Map connected games list
   const connectedGamesList = userAccounts.map((acc: any) => {
     const rawGame = (acc.game || '').toLowerCase();
-    let catalogItem = GAMES_CATALOG.find(g => g.id.toLowerCase().includes(rawGame) || rawGame.includes(g.id.toLowerCase()));
+    const catalogItem = GAMES_CATALOG.find(g => g.id.toLowerCase().includes(rawGame) || rawGame.includes(g.id.toLowerCase()));
     return {
       key: acc.game,
       name: acc.inGameName || catalogItem?.name || acc.game,

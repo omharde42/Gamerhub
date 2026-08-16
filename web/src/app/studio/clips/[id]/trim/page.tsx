@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 
 export default function TrimPage() {
   const { id } = useParams();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const scrubRef = useRef<HTMLDivElement>(null);
@@ -35,7 +36,7 @@ export default function TrimPage() {
   const duration = clip?.durationSec || 0;
 
   useEffect(() => {
-    if (clip && duration > 0) {
+    if (clip?.id && duration > 0) {
       setInPoint(0);
       setOutPoint(Math.min(duration, Math.max(10, duration * 0.25)));
     }
@@ -228,7 +229,7 @@ export default function TrimPage() {
                   const res = await api.post(`/video/clips/${id}/highlights`);
                   toast.dismiss();
                   toast.success('AI highlight draft created!');
-                  window.location.href = `/studio/projects/${res.data.data.project.id}`;
+                  router.push(`/studio/projects/${res.data.data.project.id}`);
                 } catch (err: any) {
                   toast.dismiss();
                   toast.error(err.response?.data?.message || 'AI analysis failed');

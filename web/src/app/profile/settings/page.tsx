@@ -170,7 +170,8 @@ export default function SettingsPage() {
       return;
     }
     if (provider === 'steam') {
-      window.location.href = `${API_URL}/auth/steam`;
+      // External OAuth redirect to the backend — full navigation is required.
+      window.location.href = API_URL + '/auth/steam';
       return;
     }
     try {

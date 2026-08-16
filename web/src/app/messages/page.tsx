@@ -235,11 +235,19 @@ function DiscordMessagesPage() {
     onError: () => toast.error('Failed to create chat'),
   });
 
+  // React Query recreates the mutation object on every render, so route the
+  // auto-create through a ref: the effect must fire only when the URL params
+  // change, never on re-renders (which would create duplicate chats).
+  const createDirectChatRef = useRef(createDirectChat);
+  useEffect(() => {
+    createDirectChatRef.current = createDirectChat;
+  }, [createDirectChat]);
+
   useEffect(() => {
     // Only auto-create a direct chat when arriving with ?userId= and no
     // conversation is already pinned via ?chat= (e.g. a shared chat link).
     if (userIdParam && !chatParam) {
-      createDirectChat.mutate(userIdParam);
+      createDirectChatRef.current.mutate(userIdParam);
     }
   }, [userIdParam, chatParam]);
 

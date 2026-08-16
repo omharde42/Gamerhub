@@ -78,7 +78,10 @@ export default function ServerPage() {
   const [micMuted, setMicMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
-  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  // Stream is kept in a ref (not state) so the camera effect can start/stop it
+  // without re-running on every stream change (which would restart the camera
+  // in an infinite loop) and so the unmount cleanup always sees the live stream.
+  const videoStreamRef = useRef<MediaStream | null>(null);
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>('mock-1');
 
   // Query Server Info
@@ -183,7 +186,7 @@ export default function ServerPage() {
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        setVideoStream(stream);
+        videoStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
@@ -194,9 +197,10 @@ export default function ServerPage() {
     };
 
     const stopCamera = () => {
-      if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-        setVideoStream(null);
+      const stream = videoStreamRef.current;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        videoStreamRef.current = null;
       }
     };
 
