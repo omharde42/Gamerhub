@@ -1,11 +1,14 @@
 import prisma from '../config/database';
 import { NotFoundError, ConflictError, ForbiddenError } from '../utils/errors';
 import { generateSlug } from '../utils/helpers';
+import { achievementService } from './achievement.service';
 export class OrganizationService {
   async create(data: { name: string; description?: string; website?: string; location?: string }, ownerId: string) {
     const slug = generateSlug(data.name); const existing = await prisma.organization.findUnique({ where: { slug } });
     if (existing) throw new ConflictError('Organization with this name already exists');
-    return prisma.organization.create({ data: { ...data, slug, ownerId, members: { create: { userId: ownerId, role: 'OWNER' } } } });
+    const org = await prisma.organization.create({ data: { ...data, slug, ownerId, members: { create: { userId: ownerId, role: 'OWNER' } } } });
+    achievementService.unlockByKey(ownerId, 'COMMUNITY_JOINER').catch(() => {});
+    return org;
   }
   async getBySlug(slug: string) {
     const org = await prisma.organization.findUnique({ where: { slug }, include: { members: { include: { user: { select: { id: true, profile: true } } } }, _count: { select: { jobs: true, tournaments: true } } } });

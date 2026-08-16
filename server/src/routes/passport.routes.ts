@@ -7,6 +7,7 @@ const router = Router();
 
 // Public
 router.get('/leaderboard', passportController.getLeaderboard.bind(passportController));
+router.get('/achievements/progress', authenticate, passportController.getAchievementProgress.bind(passportController));
 router.get('/:username', optionalAuth, passportController.getPassport.bind(passportController));
 router.get('/:profileId/endorsements', passportController.getEndorsements.bind(passportController));
 

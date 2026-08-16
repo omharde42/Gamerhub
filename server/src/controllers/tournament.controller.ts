@@ -4,6 +4,7 @@ import { tournamentService } from '../services/tournament.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import { TournamentStatus } from '@prisma/client';
+import prisma from '../config/database';
 
 export class TournamentController {
   create = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -12,7 +13,7 @@ export class TournamentController {
   });
 
   getById = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const tournament = await tournamentService.getById(req.params.id);
+    const tournament = await tournamentService.getById(req.params.id, req.user?.userId);
     sendSuccess(res, tournament);
   });
 
@@ -37,6 +38,40 @@ export class TournamentController {
   generateBrackets = asyncHandler(async (req: AuthRequest, res: Response) => {
     const matches = await tournamentService.generateBrackets(req.params.id);
     sendSuccess(res, matches);
+  });
+
+  submitResult = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await tournamentService.submitResult(req.params.id, req.params.matchId, req.user!.userId, req.body);
+    sendSuccess(res, result, 'Match result recorded');
+  });
+
+  myTournaments = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const tournaments = await prisma.tournament.findMany({
+      where: {
+        OR: [
+          { participants: { some: { userId: req.user!.userId } } },
+          { teams: { some: { members: { some: { userId: req.user!.userId } } } } },
+        ],
+      },
+      include: { organizer: { select: { id: true, name: true, avatar: true } }, _count: { select: { teams: true } } },
+      orderBy: { startDate: 'desc' },
+    });
+    sendSuccess(res, tournaments);
+  });
+
+  getStandings = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const standings = await tournamentService.getStandings(req.params.id);
+    sendSuccess(res, standings);
+  });
+
+  fileDispute = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const dispute = await tournamentService.fileDispute(req.params.id, req.params.matchId, req.user!.userId, req.body);
+    sendSuccess(res, dispute, undefined, 201);
+  });
+
+  resolveDispute = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const dispute = await tournamentService.resolveDispute(req.params.id, req.params.disputeId, req.user!.userId, req.body);
+    sendSuccess(res, dispute, 'Dispute resolved');
   });
 }
 

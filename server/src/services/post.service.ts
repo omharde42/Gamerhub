@@ -2,6 +2,7 @@ import prisma from '../config/database';
 import { PostType } from '@prisma/client';
 import { NotFoundError, ForbiddenError } from '../utils/errors';
 import { VIEW_WINDOW_MS } from '../utils/views';
+import { achievementService } from './achievement.service';
 
 export class PostService {
   async create(
@@ -74,6 +75,7 @@ export class PostService {
         }
       }
     }
+    achievementService.unlockByKey(userId, 'FIRST_POST').catch(() => {});
     return post;
   }
 

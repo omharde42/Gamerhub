@@ -59,6 +59,38 @@ export class ChatController {
     sendSuccess(res, message, undefined, 201);
   });
 
+  editMessage = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const message = await chatService.editMessage(req.params.id, req.params.messageId, req.user!.userId, req.body.content);
+    sendSuccess(res, message, 'Message edited');
+  });
+
+  deleteMessage = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const message = await chatService.deleteMessage(req.params.id, req.params.messageId, req.user!.userId);
+    sendSuccess(res, message, 'Message deleted');
+  });
+
+  toggleReaction = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await chatService.toggleReaction(req.params.id, req.params.messageId, req.user!.userId, req.body.emoji);
+    sendSuccess(res, result);
+  });
+
+  setPinned = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const message = await chatService.setPinned(req.params.id, req.params.messageId, req.user!.userId, req.body.isPinned);
+    sendSuccess(res, message, req.body.isPinned ? 'Message pinned' : 'Message unpinned');
+  });
+
+  searchMessages = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { q, page, limit } = req.query;
+    const result = await chatService.searchMessages(
+      req.params.id,
+      req.user!.userId,
+      (q as string) || '',
+      page ? parseInt(page as string) : undefined,
+      limit ? parseInt(limit as string) : undefined,
+    );
+    sendSuccess(res, result.data, undefined, 200, result.meta);
+  });
+
   markAsRead = asyncHandler(async (req: AuthRequest, res: Response) => {
     const result = await chatService.markAsRead(req.params.id, req.user!.userId);
     sendSuccess(res, result);

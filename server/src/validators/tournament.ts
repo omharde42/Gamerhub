@@ -21,3 +21,26 @@ export const registerTournamentValidation = [
 export const tournamentIdParamValidation = [
   param('id').isUUID().withMessage('Valid tournament ID is required'),
 ];
+
+export const submitResultValidation = [
+  param('id').isUUID().withMessage('Valid tournament ID is required'),
+  param('matchId').isUUID().withMessage('Valid match ID is required'),
+  body('scoreTeam1').isInt({ min: 0 }).withMessage('Team 1 score must be a non-negative integer'),
+  body('scoreTeam2').isInt({ min: 0 }).withMessage('Team 2 score must be a non-negative integer'),
+  body('winnerId').optional({ values: 'falsy' }).isUUID().withMessage('Valid winner team ID is required'),
+];
+
+export const disputeValidation = [
+  param('id').isUUID().withMessage('Valid tournament ID is required'),
+  param('matchId').isUUID().withMessage('Valid match ID is required'),
+  body('reason').isString().trim().isLength({ min: 3, max: 200 }).withMessage('Reason must be 3-200 characters'),
+  body('description').optional({ values: 'falsy' }).isString().isLength({ max: 2000 }).withMessage('Description is too long'),
+];
+
+export const resolveDisputeValidation = [
+  param('id').isUUID().withMessage('Valid tournament ID is required'),
+  param('disputeId').isUUID().withMessage('Valid dispute ID is required'),
+  body('status').isIn(['RESOLVED', 'DISMISSED']).withMessage('Status must be RESOLVED or DISMISSED'),
+  body('resolution').optional({ values: 'falsy' }).isString().isLength({ max: 2000 }).withMessage('Resolution note is too long'),
+  body('newWinnerId').optional({ values: 'falsy' }).isUUID().withMessage('Valid new winner team ID is required'),
+];

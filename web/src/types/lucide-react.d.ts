@@ -199,4 +199,5 @@ declare module 'lucide-react' {
   export const Lightbulb: Icon;
   export const CalendarClock: Icon;
   export const Pencil: Icon;
+  export const GitBranch: Icon;
 }

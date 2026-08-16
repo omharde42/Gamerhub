@@ -16,6 +16,10 @@ export interface SocketDeps {
   chatService: {
     sendMessage(chatId: string, senderId: string, data: any): Promise<any>;
     markAsRead(chatId: string, userId: string): Promise<{ messageIds: string[] }>;
+    editMessage(chatId: string, messageId: string, userId: string, content: string): Promise<any>;
+    deleteMessage(chatId: string, messageId: string, userId: string): Promise<any>;
+    toggleReaction(chatId: string, messageId: string, userId: string, emoji: string): Promise<any>;
+    setPinned(chatId: string, messageId: string, userId: string, isPinned: boolean): Promise<any>;
   };
 }
 
@@ -174,12 +178,58 @@ export function createChatEventHandlers(io: IoLike, deps: SocketDeps) {
       }
     },
 
-    async handleMessageSend(socket: SocketLike, data: { chatId: string; content?: string; media?: string[]; gif?: string; voiceNote?: string }): Promise<void> {
+    async handleMessageSend(socket: SocketLike, data: { chatId: string; content?: string; media?: string[]; gif?: string; voiceNote?: string; parentId?: string }): Promise<void> {
       try {
         const message = await chatService.sendMessage(data.chatId, socket.userId, data);
         io.to(`chat:${data.chatId}`).emit('message:new', message);
       } catch (error: any) {
         socket.emit('error', { event: 'message:send', message: error.message || 'Failed to send message' });
+      }
+    },
+
+    async handleMessageEdit(socket: SocketLike, data: { chatId: string; messageId: string; content: string }): Promise<void> {
+      try {
+        const message = await chatService.editMessage(data.chatId, data.messageId, socket.userId, data.content);
+        io.to(`chat:${data.chatId}`).emit('message:edited', { chatId: data.chatId, message });
+      } catch (error: any) {
+        socket.emit('error', { event: 'message:edit', message: error.message || 'Failed to edit message' });
+      }
+    },
+
+    async handleMessageDelete(socket: SocketLike, data: { chatId: string; messageId: string }): Promise<void> {
+      try {
+        await chatService.deleteMessage(data.chatId, data.messageId, socket.userId);
+        io.to(`chat:${data.chatId}`).emit('message:deleted', { chatId: data.chatId, messageId: data.messageId });
+      } catch (error: any) {
+        socket.emit('error', { event: 'message:delete', message: error.message || 'Failed to delete message' });
+      }
+    },
+
+    async handleMessageReact(socket: SocketLike, data: { chatId: string; messageId: string; emoji: string }): Promise<void> {
+      try {
+        const result = await chatService.toggleReaction(data.chatId, data.messageId, socket.userId, data.emoji);
+        io.to(`chat:${data.chatId}`).emit(result.reacted ? 'message:reaction-added' : 'message:reaction-removed', {
+          chatId: data.chatId,
+          messageId: data.messageId,
+          emoji: data.emoji,
+          userId: socket.userId,
+          reaction: result.reaction,
+        });
+      } catch (error: any) {
+        socket.emit('error', { event: 'message:react', message: error.message || 'Failed to react to message' });
+      }
+    },
+
+    async handleMessagePin(socket: SocketLike, data: { chatId: string; messageId: string; isPinned: boolean }): Promise<void> {
+      try {
+        await chatService.setPinned(data.chatId, data.messageId, socket.userId, data.isPinned);
+        io.to(`chat:${data.chatId}`).emit('message:pin-changed', {
+          chatId: data.chatId,
+          messageId: data.messageId,
+          isPinned: data.isPinned,
+        });
+      } catch (error: any) {
+        socket.emit('error', { event: 'message:pin', message: error.message || 'Failed to pin message' });
       }
     },
 
@@ -340,6 +390,10 @@ export function registerSocketEvents(io: Server, deps: SocketDeps): void {
     socket.on('typing:start', (chatId: string) => void h.handleTypingStart(authedSocket, chatId));
     socket.on('typing:stop', (chatId: string) => void h.handleTypingStop(authedSocket, chatId));
     socket.on('message:send', (data: any) => void h.handleMessageSend(authedSocket, data));
+    socket.on('message:edit', (data: any) => void h.handleMessageEdit(authedSocket, data));
+    socket.on('message:delete', (data: any) => void h.handleMessageDelete(authedSocket, data));
+    socket.on('message:react', (data: any) => void h.handleMessageReact(authedSocket, data));
+    socket.on('message:pin', (data: any) => void h.handleMessagePin(authedSocket, data));
     socket.on('messages:read', (data: any) => void h.handleMessagesRead(authedSocket, data));
     socket.on('call:request', (data: any) => void h.handleCallRequest(authedSocket, data));
     socket.on('call:accept', (data: any) => void h.handleCallAccept(authedSocket, data));

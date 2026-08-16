@@ -252,8 +252,8 @@ function DiscordMessagesPage() {
   }, [userIdParam, chatParam]);
 
   const sendViaApi = useMutation({
-    mutationFn: (data: { chatId: string; content: string; media?: string[]; voiceNote?: string }) =>
-      api.post(`/chat/${data.chatId}/messages`, { content: data.content, media: data.media, voiceNote: data.voiceNote }),
+    mutationFn: (data: { chatId: string; content: string; media?: string[]; voiceNote?: string; parentId?: string }) =>
+      api.post(`/chat/${data.chatId}/messages`, { content: data.content, media: data.media, voiceNote: data.voiceNote, parentId: data.parentId }),
     onSuccess: () => { refetchMessages(); queryClient.invalidateQueries({ queryKey: ['chats'] }); setFilePreview(null); },
     onError: () => toast.error('Failed to send message'),
   });
@@ -451,15 +451,46 @@ function DiscordMessagesPage() {
         setMessages,
         toast,
       });
-      
+
+      // Keep messages in sync when someone edits, deletes, reacts or pins.
+      const onMessageEdited = (data: { chatId: string; message: any }) => {
+        setMessages(prev => prev.map(m => (m.id === data.message.id ? { ...m, ...data.message } : m)));
+        queryClient.setQueryData(['messages', data.chatId], (old: any[] | undefined) => old?.map(m => (m.id === data.message.id ? { ...m, ...data.message } : m)));
+      };
+      const onMessageDeleted = (data: { chatId: string; messageId: string }) => {
+        setMessages(prev => prev.map(m => (m.id === data.messageId ? { ...m, isDeleted: true, content: null } : m)));
+        queryClient.setQueryData(['messages', data.chatId], (old: any[] | undefined) => old?.map(m => (m.id === data.messageId ? { ...m, isDeleted: true, content: null } : m)));
+      };
+      const onReactionChanged = (data: { chatId: string; messageId: string; emoji: string; userId: string; reaction?: any }) => {
+        setMessages(prev => prev.map(m => {
+          if (m.id !== data.messageId) return m;
+          const reactions = Array.isArray(m.reactions) ? m.reactions : [];
+          const without = reactions.filter((r: any) => !(r.userId === data.userId && r.emoji === data.emoji));
+          return { ...m, reactions: data.reaction ? [...without, data.reaction] : without };
+        }));
+      };
+      const onPinChanged = (data: { chatId: string; messageId: string; isPinned: boolean }) => {
+        setMessages(prev => prev.map(m => (m.id === data.messageId ? { ...m, isPinned: data.isPinned } : m)));
+      };
+
       socket.on('message:new', onMessage);
       socket.on('messages:read', onMessagesRead);
+      socket.on('message:edited', onMessageEdited);
+      socket.on('message:deleted', onMessageDeleted);
+      socket.on('message:reaction-added', onReactionChanged);
+      socket.on('message:reaction-removed', onReactionChanged);
+      socket.on('message:pin-changed', onPinChanged);
       socket.on('error', onSocketError);
       
       return () => {
         socket.emit('leave:chat', selectedChat);
         socket.off('message:new', onMessage);
         socket.off('messages:read', onMessagesRead);
+        socket.off('message:edited', onMessageEdited);
+        socket.off('message:deleted', onMessageDeleted);
+        socket.off('message:reaction-added', onReactionChanged);
+        socket.off('message:reaction-removed', onReactionChanged);
+        socket.off('message:pin-changed', onPinChanged);
         socket.off('error', onSocketError);
       };
     }
@@ -488,6 +519,7 @@ function DiscordMessagesPage() {
     
     const payloadContent = message.trim();
     const media = attachedMedia.length > 0 ? attachedMedia : filePreview ? [filePreview] : undefined;
+    const parentId = replyingTo?.id;
 
     // Optimistic UI update: Immediately append the message to the local list with a temporary ID
     const tempId = `temp-${Date.now()}`;
@@ -495,6 +527,7 @@ function DiscordMessagesPage() {
       id: tempId,
       content: payloadContent,
       media: media || [],
+      parentId,
       sender: {
         id: user?.id,
         profile: user?.profile || { username: user?.profile?.username || 'me' },
@@ -507,9 +540,9 @@ function DiscordMessagesPage() {
 
     try {
       if (socket) {
-        socket.emit('message:send', { chatId: selectedChat, content: payloadContent, media });
+        socket.emit('message:send', { chatId: selectedChat, content: payloadContent, media, parentId });
       } else {
-        await sendViaApi.mutateAsync({ chatId: selectedChat, content: payloadContent, media });
+        await sendViaApi.mutateAsync({ chatId: selectedChat, content: payloadContent, media, parentId });
       }
     } catch (err) {
       // Mark as failed if sending fails
@@ -520,6 +553,7 @@ function DiscordMessagesPage() {
     setMessage('');
     setFilePreview(null);
     setAttachedMedia([]);
+    setReplyingTo(null);
   };
 
   const handleRetryMessage = async (msg: any) => {
@@ -579,6 +613,43 @@ function DiscordMessagesPage() {
   };
 
   const isOnline = (userId: string) => onlineUsers.has(userId);
+
+  // ─── Message actions (edit / delete / react / reply) ─────────────────────
+  const [replyingTo, setReplyingTo] = useState<any>(null);
+  const [editingMsg, setEditingMsg] = useState<any>(null);
+  const [editText, setEditText] = useState('');
+
+  const reactToMessage = (msg: any, emoji: string = '🔥') => {
+    if (!selectedChat || !socket) return;
+    socket.emit('message:react', { chatId: selectedChat, messageId: msg.id, emoji });
+  };
+
+  const deleteMessage = (msg: any) => {
+    if (!selectedChat || !socket) return;
+    socket.emit('message:delete', { chatId: selectedChat, messageId: msg.id });
+  };
+
+  const pinMessage = (msg: any) => {
+    if (!selectedChat || !socket) return;
+    socket.emit('message:pin', { chatId: selectedChat, messageId: msg.id, isPinned: !msg.isPinned });
+  };
+
+  const startReply = (msg: any) => {
+    setReplyingTo(msg);
+    inputRef.current?.focus();
+  };
+
+  const startEdit = (msg: any) => {
+    setEditingMsg(msg);
+    setEditText(msg.content || '');
+  };
+
+  const commitEdit = () => {
+    if (!editingMsg || !editText.trim() || !selectedChat || !socket) return;
+    socket.emit('message:edit', { chatId: selectedChat, messageId: editingMsg.id, content: editText.trim() });
+    setEditingMsg(null);
+    setEditText('');
+  };
 
   // Shared history-aware back: use the real browser history when available so
   // the user returns to the exact previous page; fall back to a sensible
@@ -1057,18 +1128,65 @@ function DiscordMessagesPage() {
                               <audio src={msg.voiceNote || ''} controls className="w-full max-w-[min(260px,72vw)] h-9 rounded-xl border border-border/30 bg-card" />
                             </div>
                           )}
-                          {msg.content && (
-                            <div
-                              onClick={() => msg.status === 'failed' && handleRetryMessage(msg)}
-                              className={cn(
-                                "px-4.5 py-3 rounded-[22px] text-sm leading-relaxed relative border transition-all duration-300 break-words break-all [overflow-wrap:anywhere] max-w-full overflow-hidden shadow-md backdrop-blur-xl font-medium",
-                                isOwn
-                                  ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 text-white rounded-br-xs shadow-purple-500/25 border-purple-400/30'
-                                  : 'bg-white/85 dark:bg-slate-800/85 border-white/95 dark:border-white/15 text-foreground rounded-bl-xs shadow-sm',
-                                msg.status === 'failed' ? 'border-destructive/50 text-destructive bg-destructive/10 cursor-pointer hover:bg-destructive/15' : ''
-                              )}
-                            >
-                              {msg.content}
+                          {replyingTo?.id === msg.id && (
+                            <div className="text-[10px] font-mono text-primary/80 mb-0.5 flex items-center gap-1">
+                              <Reply className="h-3 w-3" /> Replying
+                            </div>
+                          )}
+                          {msg.isEdited && (
+                            <span className="text-[9px] text-muted-foreground/70 italic mr-1">(edited)</span>
+                          )}
+                          {editingMsg?.id === msg.id ? (
+                            <div className="flex flex-col gap-1.5 w-full max-w-[min(320px,72vw)]">
+                              <textarea
+                                className="w-full px-3.5 py-2.5 rounded-2xl bg-card border border-primary/40 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 resize-none"
+                                rows={2}
+                                value={editText}
+                                autoFocus
+                                onChange={(e) => setEditText(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); } if (e.key === 'Escape') { setEditingMsg(null); } }}
+                              />
+                              <div className="flex gap-2 justify-end">
+                                <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setEditingMsg(null)}>Cancel</Button>
+                                <Button size="sm" variant="outline" className="h-7 text-[10px] border-primary/40 text-primary" onClick={commitEdit} disabled={!editText.trim()}>Save</Button>
+                              </div>
+                            </div>
+                          ) : (
+                            msg.content && !msg.isDeleted && (
+                              <div
+                                onClick={() => msg.status === 'failed' && handleRetryMessage(msg)}
+                                className={cn(
+                                  "px-4.5 py-3 rounded-[22px] text-sm leading-relaxed relative border transition-all duration-300 break-words break-all [overflow-wrap:anywhere] max-w-full overflow-hidden shadow-md backdrop-blur-xl font-medium",
+                                  isOwn
+                                    ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 text-white rounded-br-xs shadow-purple-500/25 border-purple-400/30'
+                                    : 'bg-white/85 dark:bg-slate-800/85 border-white/95 dark:border-white/15 text-foreground rounded-bl-xs shadow-sm',
+                                  msg.status === 'failed' ? 'border-destructive/50 text-destructive bg-destructive/10 cursor-pointer hover:bg-destructive/15' : ''
+                                )}
+                              >
+                                {msg.content}
+                              </div>
+                            )
+                          )}
+                          {msg.isDeleted && !editingMsg && (
+                            <span className="text-xs italic text-muted-foreground/60">Message deleted</span>
+                          )}
+                          {Array.isArray(msg.reactions) && msg.reactions.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {Object.entries(
+                                msg.reactions.reduce((acc: Record<string, any[]>, r: any) => {
+                                  (acc[r.emoji] = acc[r.emoji] || []).push(r);
+                                  return acc;
+                                }, {})
+                              ).map(([emoji, list]: [string, any]) => (
+                                <button
+                                  key={emoji}
+                                  className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/80 border border-border/40 text-[11px] hover:border-primary/50 transition-colors"
+                                  onClick={() => reactToMessage(msg, emoji)}
+                                >
+                                  <span>{emoji}</span>
+                                  <span className="font-mono text-muted-foreground">{list.length}</span>
+                                </button>
+                              ))}
                             </div>
                           )}
 
@@ -1105,10 +1223,16 @@ function DiscordMessagesPage() {
                                 exit={{ opacity: 0, y: -4 }}
                                 transition={{ duration: 0.1 }}
                               >
-                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Like message" onClick={() => toast.success('Reacted!')}><Heart className="h-3 w-3 text-red-500 fill-red-500/20" /></button>
-                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Reply to message"><Reply className="h-3 w-3" /></button>
-                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Add reaction"><Smile className="h-3 w-3" /></button>
-                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="More message options"><MoreVertical className="h-3 w-3" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="React with fire" onClick={() => reactToMessage(msg, '🔥')}><Heart className="h-3 w-3 text-red-500 fill-red-500/20" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Reply to message" onClick={() => startReply(msg)}><Reply className="h-3 w-3" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Add reaction" onClick={() => reactToMessage(msg, '👍')}><Smile className="h-3 w-3" /></button>
+                                <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Pin message" onClick={() => pinMessage(msg)}>{msg.isPinned ? <Lock className="h-3 w-3 text-primary" /> : <MoreVertical className="h-3 w-3" />}</button>
+                                {isOwn && (
+                                  <>
+                                    <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all" aria-label="Edit message" onClick={() => startEdit(msg)}><Square className="h-3 w-3" /></button>
+                                    <button className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all" aria-label="Delete message" onClick={() => deleteMessage(msg)}><Trash2 className="h-3 w-3" /></button>
+                                  </>
+                                )}
                               </motion.div>
                             )}
                           </AnimatePresence>
@@ -1181,6 +1305,22 @@ function DiscordMessagesPage() {
                       <button onClick={() => setFilePreview(null)} className="hover:text-destructive p-1 rounded-lg hover:bg-destructive/10 transition-colors"><X className="h-4 w-4" /></button>
                     </div>
                   )}
+                </motion.div>
+              )}
+              {replyingTo && (
+                <motion.div
+                  className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-xs"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <Reply className="h-3 w-3 text-primary shrink-0" />
+                  <span className="text-muted-foreground truncate min-w-0">
+                    Replying to <strong className="text-primary">@{replyingTo.sender?.profile?.username || 'user'}</strong>: {replyingTo.content || 'media'}
+                  </span>
+                  <button onClick={() => setReplyingTo(null)} className="ml-auto hover:text-destructive shrink-0" aria-label="Cancel reply">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </motion.div>
               )}
               <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 rounded-[26px] px-3.5 py-1.5 border border-white/95 dark:border-white/20 shadow-xl shadow-purple-500/10 backdrop-blur-2xl transition-all duration-300 focus-within:border-primary/50 focus-within:shadow-purple-500/20 focus-within:ring-1 focus-within:ring-primary/20 min-h-[48px]">

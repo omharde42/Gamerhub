@@ -92,6 +92,8 @@ model User {
   montageProjects     MontageProject[]
   profileViews        ProfileView[]
   postViews           PostView[]
+  chatMessageReactions ChatMessageReaction[]
+  matchDisputes       MatchDispute[]
   @@index([email])
   @@index([role])
 }
@@ -315,13 +317,17 @@ model Endorsement {
 
 model Achievement {
   id          String   @id @default(uuid())
+  key         String?
   title       String
   description String?
   icon        String?
   rarity      String?
+  progress    Int      @default(0)
+  progressMax Int?
   unlockedAt  DateTime @default(now())
   profileId   String
   profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  @@unique([profileId, key])
   @@index([profileId])
 }
 
@@ -515,6 +521,11 @@ model Message {
   fileSize   Int?
   isEdited   Boolean  @default(false)
   isDeleted  Boolean  @default(false)
+  isPinned   Boolean  @default(false)
+  parentId   String?
+  parent     Message? @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies    Message[] @relation("MessageReplies")
+  reactions  ChatMessageReaction[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   chatId     String
@@ -524,7 +535,21 @@ model Message {
   readBy     MessageRead[]
   @@index([chatId])
   @@index([senderId])
+  @@index([parentId])
   @@index([createdAt])
+}
+
+model ChatMessageReaction {
+  id        String   @id @default(uuid())
+  emoji     String
+  createdAt DateTime @default(now())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([messageId, userId, emoji])
+  @@index([userId])
+  @@index([messageId])
 }
 
 model MessageRead {
@@ -656,6 +681,7 @@ model Tournament {
   teams           TournamentTeam[]
   matches         Match[]
   participants    TournamentParticipant[]
+  disputes        MatchDispute[]
   @@index([status])
   @@index([game])
   @@index([startDate])
@@ -712,7 +738,29 @@ model Match {
   team1         TournamentTeam? @relation("Team1", fields: [team1Id], references: [id])
   team2Id       String?
   team2         TournamentTeam? @relation("Team2", fields: [team2Id], references: [id])
+  disputes      MatchDispute[]
   @@index([tournamentId])
+}
+
+// ─── Match disputes (result verification / appeals) ────────────────────────
+
+model MatchDispute {
+  id           String   @id @default(uuid())
+  reason       String
+  description  String?
+  status       String   @default("OPEN") // OPEN | RESOLVED | DISMISSED
+  resolution   String?
+  createdAt    DateTime @default(now())
+  resolvedAt   DateTime?
+  matchId      String
+  match        Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  reporterId   String
+  reporter     User     @relation(fields: [reporterId], references: [id])
+  @@index([matchId])
+  @@index([tournamentId])
+  @@index([status])
 }
 
 model Organization {
