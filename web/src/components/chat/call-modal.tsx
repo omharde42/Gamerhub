@@ -31,6 +31,9 @@ const ICE_SERVERS = {
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:stun.1und1.de:3478' },
   ],
 };
 
@@ -44,6 +47,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<any>(null);
@@ -119,6 +123,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
     }
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
   }, [stopTimer]);
 
   const createPeerConnection = useCallback(async (targetUserId: string) => {
@@ -132,8 +137,13 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
     }
 
     pc.ontrack = (event) => {
-      if (remoteVideoRef.current && event.streams[0]) {
-        remoteVideoRef.current.srcObject = event.streams[0];
+      if (event.streams[0]) {
+        if (event.track.kind === 'video' && remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = event.streams[0];
+        }
       }
     };
 
@@ -186,6 +196,21 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
       stopTimer();
     };
   }, [callState, cleanUpCall, startRingtone, startTimer, stopRingtone, stopTimer]);
+
+  // Acquire the local mic/camera as soon as the call starts (outgoing caller
+  // or incoming caller's side) so the peer connection always has tracks to
+  // send once the SDP offer/answer exchange happens. Without this the caller
+  // only hears/sees the callee, never the other way around.
+  useEffect(() => {
+    if (!callState?.active || !socket) return;
+    if ((callState.mode === 'outgoing' || callState.mode === 'incoming') && !localStreamRef.current) {
+      getMediaStream(callState.type, facingMode).catch(() => {
+        if (callState.mode === 'outgoing') {
+          toast.error('Microphone or camera unavailable — the call may be one-sided');
+        }
+      });
+    }
+  }, [callState?.active, callState?.mode, callState?.type, callState?.chatId, facingMode, socket]);
 
   // Socket signaling events listener
   useEffect(() => {
@@ -283,7 +308,9 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
     if (!callState || !targetUser) return;
     try {
       setConnectionStatus('Connecting...');
-      const stream = await getMediaStream(callState.type, facingMode);
+      if (!localStreamRef.current) {
+        await getMediaStream(callState.type, facingMode);
+      }
       const pc = await createPeerConnection(targetUser.id);
 
       socket.emit('call:accept', {
@@ -319,6 +346,17 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
     cleanUpCall();
     onEndCall();
   };
+
+  // Auto-cancel an outgoing call that was never answered (30s timeout).
+  useEffect(() => {
+    if (callState?.mode === 'outgoing') {
+      const t = setTimeout(() => {
+        toast('No one answered the call', { icon: '📞' });
+        handleEndCall();
+      }, 30000);
+      return () => clearTimeout(t);
+    }
+  }, [callState?.mode, callState?.chatId]);
 
 
   const toggleMute = () => {
@@ -451,7 +489,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
           )}
 
           {/* Hidden audio element for remote audio stream */}
-          <audio ref={remoteVideoRef as any} autoPlay />
+          <audio ref={remoteAudioRef} autoPlay playsInline />
 
           {/* Controls Footer */}
           <div className="w-full flex items-center justify-center gap-4 pt-4 border-t border-border/40 z-20">
