@@ -1,4 +1,5 @@
 'use client';
+import { useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import { HudCard } from '@/components/hud/hud-card';
 import { StatCounter } from '@/components/hud/stat-counter';
 import { LevelChip } from '@/components/hud/level-chip';
 import { gamerLevel, levelTitle, levelColor } from '@/lib/gamer-level';
+import { fireCelebration } from '@/components/hud/celebration';
 
 function AnimatedStat({ value, label, icon: Icon, color, bg, raw }: { value: string; label: string; icon: any; color: string; bg: string; raw?: number }) {
   return (
@@ -73,6 +75,16 @@ export default function DashboardPage() {
   const { level, xp } = gamerLevel(totalMatches);
   const rankTitle = levelTitle(level);
   const rankColor = levelColor(level);
+
+  // LEVEL-UP celebration: fire once when the gamer level increases.
+  useEffect(() => {
+    if (statsLoading) return;
+    const prev = Number(sessionStorage.getItem('gh-last-level') || '0');
+    if (level > prev && prev > 0) {
+      fireCelebration(`LEVEL ${level} UNLOCKED`, `${rankTitle} — keep climbing, legend!`);
+    }
+    sessionStorage.setItem('gh-last-level', String(level));
+  }, [level, totalMatches, statsLoading, rankTitle]);
 
   const quickActions = [
     { title: 'Find Teammates', href: '/feed', icon: Users, desc: 'Connect & squad up' },

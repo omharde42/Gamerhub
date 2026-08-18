@@ -19,6 +19,7 @@ import { useAuthStore } from '@/store/authStore';
 import { BackHeader } from '@/components/common/back-header';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { fireCelebration } from '@/components/hud/celebration';
 
 const ROUND_LABELS = ['Quarterfinals', 'Semifinals', 'Grand Finals 🏆'];
 
@@ -48,6 +49,7 @@ export default function TournamentDetailPage() {
     onSuccess: () => {
       setShowRegModal(false);
       toast.success('Successfully registered for this tournament!');
+      fireCelebration('You are registered!', 'Locked in. Time to dominate the bracket.');
       queryClient.invalidateQueries({ queryKey: ['tournament', id] });
       queryClient.invalidateQueries({ queryKey: ['tournaments'] });
     },
@@ -71,6 +73,7 @@ export default function TournamentDetailPage() {
       setScore1('');
       setScore2('');
       toast.success('Match result recorded — winner advanced');
+      fireCelebration('Victory recorded!', 'The winner advances to the next round.');
       queryClient.invalidateQueries({ queryKey: ['tournament', id] });
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to record result'),

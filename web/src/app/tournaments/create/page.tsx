@@ -12,6 +12,7 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { fireCelebration } from '@/components/hud/celebration';
 
 export default function CreateTournamentPage() {
   const router = useRouter();
@@ -49,6 +50,7 @@ export default function CreateTournamentPage() {
       });
 
       toast.success('Tournament created successfully!');
+      fireCelebration('Tournament published!', 'The arena is open — players can now register.');
       router.push(`/tournaments/${data.data?.id || ''}`);
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Failed to create tournament';

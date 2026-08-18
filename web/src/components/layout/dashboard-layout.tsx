@@ -13,6 +13,9 @@ import { useAutoHideNav } from '@/hooks/useAutoHideNav';
 import toast from 'react-hot-toast';
 import { PanelHost } from './panel-host';
 import { useOverlayActive } from '@/store/overlayStore';
+import { GamerBackground } from '@/components/hud/gamer-background';
+import { PageTransition } from '@/components/hud/page-transition';
+import { CelebrationHost } from '@/components/hud/celebration';
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -124,17 +127,21 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   if (isLanding) {
     return (
       <div className="min-h-screen bg-[#030509] text-foreground overflow-x-hidden relative">
-        <main id="main-content" role="main" className="w-full min-h-screen">
-          {children}
+        <GamerBackground dense />
+        <main id="main-content" role="main" className="w-full min-h-screen relative z-10">
+          <PageTransition pathname={pathname}>{children}</PageTransition>
         </main>
+        <CelebrationHost />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden relative">
-      {/* Background Floating Cybernetic Artifact Glow */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-30">
+      {/* Big Animation System: animated aurora + particles + panning grid */}
+      <GamerBackground />
+      {/* Background Floating Cybernetic Artifact Glow (kept for depth on top of aurora) */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-20">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full bg-gradient-to-tr from-emerald-500/20 via-purple-600/20 to-transparent blur-[120px]" />
       </div>
 
@@ -150,7 +157,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             </aside>
           )}
           <main id="main-content" role="main" className="flex-1 min-w-0 max-w-full">
-            {children}
+            <PageTransition pathname={pathname}>{children}</PageTransition>
           </main>
         </div>
         {!hideFooter && (
@@ -168,6 +175,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       {!isAuthOrLanding && !isMessages && <ScrollControls hidden={navHidden} />}
       {/* Premium overlay host: renders page-level features as panels */}
       <PanelHost />
+      {/* Full-screen confetti + banner celebrations */}
+      <CelebrationHost />
     </div>
   );
 }
