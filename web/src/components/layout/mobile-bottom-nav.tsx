@@ -7,6 +7,8 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { motion } from 'framer-motion';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 
 const mobileNavItems = [
   { href: '/feed', icon: Newspaper, label: 'Feed' },
@@ -19,6 +21,7 @@ const mobileNavItems = [
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { user } = useAuthStore();
+  const visible = useScrollDirection();
 
   const { data: chatUnreadData } = useQuery({
     queryKey: ['chat-unread'],
@@ -44,7 +47,15 @@ export function MobileBottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
+    <motion.nav
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+      initial={{ y: 0, opacity: 1 }}
+      animate={{
+        y: visible ? 0 : 80,
+        opacity: visible ? 1 : 0
+      }}
+      transition={{ duration: 0.25, ease: 'easeInOut' }}
+    >
       <div className="bg-background/90 backdrop-blur-xl border-t border-primary/20 shadow-[0_-4px_20px_hsl(var(--background)/0.8)] safe-area-bottom">
         <div className="flex items-center justify-around px-1 py-1.5">
           {mobileNavItems.map((item) => {
@@ -87,6 +98,6 @@ export function MobileBottomNav() {
           })}
         </div>
       </div>
-    </nav>
+    </motion.nav>
   );
 }

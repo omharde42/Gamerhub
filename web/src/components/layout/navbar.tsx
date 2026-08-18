@@ -13,6 +13,7 @@ import api from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 import {
   Search, Bell, MessageSquare, Users,
   LogOut, User, Settings, Crown, Home, ChevronDown,
@@ -33,6 +34,7 @@ export function Navbar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [scrolled, setScrolled] = useState(false);
+  const visible = useScrollDirection();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { theme: activeTheme, setTheme } = useTheme();
@@ -125,7 +127,15 @@ export function Navbar() {
   };
 
   return (
-    <header className={`fixed top-0 z-40 w-full transition-all duration-300 ${scrolled ? 'glass-strong border-border/60' : 'bg-background/80 backdrop-blur-md border-b border-border/60'}`}>
+    <motion.header
+      className={`fixed top-0 z-40 w-full transition-all duration-300 ${scrolled ? 'glass-strong border-border/60' : 'bg-background/80 backdrop-blur-md border-b border-border/60'}`}
+      initial={{ y: 0, opacity: 1 }}
+      animate={{
+        y: visible ? 0 : -64,
+        opacity: visible ? 1 : 0
+      }}
+      transition={{ duration: 0.25, ease: 'easeInOut' }}
+    >
       <div className="w-full mx-auto flex h-16 items-center px-4 md:px-6 gap-2 md:gap-3">
 
         {/* Left Side Menu Button: Trigger side drawer on mobile, brand on desktop */}
@@ -384,6 +394,6 @@ export function Navbar() {
           </>
         )}
       </AnimatePresence>
-    </header>
+    </motion.header>
   );
 }

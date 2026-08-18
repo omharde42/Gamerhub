@@ -14,8 +14,14 @@ import { mediaStorageService } from '../utils/storage';
 export class ProfileController {
   getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { username } = req.params;
-    const profile = await prisma.profile.findUnique({
-      where: { username },
+    const profile = await prisma.profile.findFirst({
+      where: {
+        OR: [
+          { username: { equals: username, mode: 'insensitive' } },
+          { userId: username },
+          { id: username },
+        ],
+      },
       include: {
         achievements: true,
         certifications: true,

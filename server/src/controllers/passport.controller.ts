@@ -36,8 +36,14 @@ export class PassportController {
   getPassport = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { username } = req.params;
     if (!username || typeof username !== 'string') throw new AppError('Username is required', 400);
-    const profile = await prisma.profile.findUnique({
-      where: { username },
+    const profile = await prisma.profile.findFirst({
+      where: {
+        OR: [
+          { username: { equals: username, mode: 'insensitive' } },
+          { userId: username },
+          { id: username },
+        ],
+      },
       include: {
         user: { select: { id: true, createdAt: true } },
         connectedGames: { orderBy: { hoursPlayed: 'desc' } },
