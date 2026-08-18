@@ -13,45 +13,6 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const FEATURED_TOURNAMENTS = [
-  {
-    id: 't-1',
-    title: 'Wox Sorning Team Masters',
-    game: 'Valorant',
-    status: 'REGISTRATION_OPEN',
-    prizePool: 50000,
-    teams: 16,
-    maxTeams: 16,
-    startDate: new Date(Date.now() + 86400000 * 3).toISOString(),
-    rating: '4.9 ⭐ (237 reviews)',
-    banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 't-2',
-    title: 'Recetese Spots Global League',
-    game: 'CS2',
-    status: 'IN_PROGRESS',
-    prizePool: 25000,
-    teams: 32,
-    maxTeams: 32,
-    startDate: new Date(Date.now() - 86400000 * 1).toISOString(),
-    rating: '4.8 ⭐ (195 reviews)',
-    banner: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=500&auto=format&fit=crop&q=80'
-  },
-  {
-    id: 't-3',
-    title: 'GamerZ Hub Featured Masters',
-    game: 'PUBG PC',
-    status: 'REGISTRATION_OPEN',
-    prizePool: 15000,
-    teams: 24,
-    maxTeams: 32,
-    startDate: new Date(Date.now() + 86400000 * 5).toISOString(),
-    rating: '5.0 ⭐ (310 reviews)',
-    banner: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=500&auto=format&fit=crop&q=80'
-  }
-];
-
 const STATUS_TABS = [
   { label: 'All', value: '' },
   { label: 'Upcoming', value: 'REGISTRATION_OPEN' },
@@ -69,7 +30,7 @@ export default function TournamentsPage() {
     refetchInterval: 30000,
   });
 
-  const displayList = (tournamentsData?.data && tournamentsData.data.length > 0) ? tournamentsData.data : FEATURED_TOURNAMENTS;
+  const displayList = tournamentsData?.data ?? [];
 
   return (
     <div className="space-y-6 overflow-x-hidden max-w-full">
@@ -164,11 +125,11 @@ export default function TournamentsPage() {
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-white/10">
                   <span className="flex items-center gap-1 font-semibold text-foreground"><Users className="h-3.5 w-3.5 text-emerald-400" />{t.teams || t._count?.teams || 0}/{t.maxTeams || 16} Squads</span>
-                  <span className="flex items-center gap-1 font-semibold text-foreground"><Clock className="h-3.5 w-3.5 text-amber-400" />{t.startDate ? formatDate(t.startDate) : '3 Days left'}</span>
+                  <span className="flex items-center gap-1 font-semibold text-foreground"><Clock className="h-3.5 w-3.5 text-amber-400" />{formatDate(t.startDate)}</span>
                 </div>
 
                 <div className="pt-2 flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground font-mono">{t.rating || '4.9 ⭐ Top Rated'}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono">{t.rating}</span>
                   <Link href={`/tournaments/${t.id}`}>
                     <Button variant="gradient" size="sm" className="h-8 px-3 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md">
                       Register Team

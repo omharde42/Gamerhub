@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,10 +36,11 @@ export default function TournamentDetailPage() {
   const [disputeDesc, setDisputeDesc] = useState('');
   const [showStandings, setShowStandings] = useState(false);
 
-  const { data: tournament, isLoading } = useQuery({
+  const { data: tournament, isLoading, isError } = useQuery({
     queryKey: ['tournament', id],
     queryFn: () => api.get(`/tournaments/${id}`).then((r) => r.data.data),
     refetchInterval: 15000,
+    retry: false,
   });
 
   const registerMut = useMutation({
@@ -101,8 +103,29 @@ export default function TournamentDetailPage() {
     );
   }
 
+  if (isError || !tournament) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        <BackHeader title="Tournament Arena" />
+        <Card variant="glass" className="rounded-[32px] border-white/10 p-10 text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mx-auto">
+            <Trophy className="h-8 w-8 text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-extrabold text-foreground">Tournament not found</h2>
+            <p className="text-xs text-muted-foreground mt-1">This tournament doesn&apos;t exist or is no longer available.</p>
+          </div>
+          <Link href="/tournaments">
+            <Button variant="gradient" className="rounded-2xl font-bold bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
+              Back to Tournaments
+            </Button>
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
   const tourney = tournament;
-  if (!tourney) return null;
 
   const isOrganizer = Boolean(tourney.isOrganizer);
   const matchesList = tourney.matches || [];
