@@ -10,7 +10,7 @@ FROM base AS builder
 WORKDIR /app
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
-RUN NEXT_TELEMETRY_DISABLED=1 npm run build && npm prune --omit=dev --legacy-peer-deps
+RUN NEXT_TELEMETRY_DISABLED=1 npm run build && rm -rf .next/cache && npm prune --omit=dev --legacy-peer-deps
 
 FROM base AS runner
 WORKDIR /app
