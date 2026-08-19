@@ -4,7 +4,7 @@ services:
     env: node
     region: singapore
     plan: free
-    buildCommand: npx prisma generate && npm run build
+    buildCommand: npx prisma generate && npm run build && npm prune --omit=dev --legacy-peer-deps
     startCommand: npm start
     envVars:
       - key: NODE_ENV

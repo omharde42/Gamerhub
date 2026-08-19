@@ -3,14 +3,14 @@ RUN npm i -g pnpm
 
 FROM base AS deps
 WORKDIR /app
-COPY package.json .
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm install --legacy-peer-deps --no-audit --no-fund && npm cache clean --force
 
 FROM base AS builder
 WORKDIR /app
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
-RUN npm run build
+RUN NEXT_TELEMETRY_DISABLED=1 npm run build && npm prune --omit=dev --legacy-peer-deps
 
 FROM base AS runner
 WORKDIR /app

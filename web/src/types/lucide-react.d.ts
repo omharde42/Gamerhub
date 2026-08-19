@@ -201,3 +201,8 @@ declare module 'lucide-react' {
   export const Pencil: Icon;
   export const GitBranch: Icon;
 }
+  export const Puzzle: Icon;
+  export const Timer: Icon;
+  export const Joystick: Icon;
+  export const Dices: Icon;
+  export const MousePointer2: Icon;
