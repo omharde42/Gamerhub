@@ -287,9 +287,9 @@
   }
 }
 
-/* ────────────────────────────────────────────────────────────
-   GAMERZ HUD — FUTRURISTIC GAMIFIED LAYER
-   ──────────────────────────────────────────────────────────── */
+/* 
+   GAMERZ HUD  FUTRURISTIC GAMIFIED LAYER
+    */
 
 /* Neon glow text */
 .neon-emerald { color: #34F5C5; text-shadow: 0 0 8px rgba(52, 245, 197, 0.75), 0 0 24px rgba(16, 185, 129, 0.45); }
@@ -446,7 +446,7 @@
 }
 
 /* --------------------------------------------------------------
-   BIG ANIMATION SYSTEM � GamerZ Hub
+   BIG ANIMATION SYSTEM - GamerZ Hub
    Animated background, cinematic page entrances, route wipes,
    celebration bursts. All GPU-friendly (transform/opacity/filter).
    -------------------------------------------------------------- */
