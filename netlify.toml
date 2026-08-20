@@ -1,6 +1,4 @@
 [build]
-  command = "cd web && npm ci --include=dev && npm run build"
-  publish = "web/.next"
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+  base = "web"
+  command = "npm run build"
+  publish = "out"
