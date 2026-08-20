@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Gamepad2, Gavel } from 'lucide-react';
 import {
   BRAND_NAME,
@@ -55,8 +56,8 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1 space-y-4">
             <Link href="/" className="inline-flex items-center gap-2.5 group" aria-label={`${BRAND_NAME} home`}>
-              <span className="w-10 h-10 rounded-xl overflow-hidden border border-primary/20 shadow-sm shrink-0 group-hover:border-primary/40 transition-colors">
-                <img src="/logo.jpg" alt="" className="w-full h-full object-cover" />
+              <span className="w-10 h-10 rounded-xl overflow-hidden border border-primary/20 shadow-sm shrink-0 group-hover:border-primary/40 transition-colors relative block">
+                <Image src="/logo.webp" alt="GamerZ Hub Platform Logo" width={40} height={40} className="w-full h-full object-cover" priority />
               </span>
               <span className="text-base font-extrabold tracking-tight text-foreground group-hover:text-primary transition-colors">
                 {BRAND_NAME}

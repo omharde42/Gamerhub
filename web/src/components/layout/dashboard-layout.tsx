@@ -1,21 +1,23 @@
 'use client';
+import dynamic from 'next/dynamic';
 import { ReactNode, useEffect, useState } from 'react';
 import { Navbar } from './navbar';
 import { Sidebar } from './sidebar';
 import { MobileBottomNav } from './mobile-bottom-nav';
 import { Footer } from './footer';
-import { ScrollControls } from './scroll-controls';
 import { LEGAL_ROUTES } from '@/config/legal';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAutoHideNav } from '@/hooks/useAutoHideNav';
 import toast from 'react-hot-toast';
-import { PanelHost } from './panel-host';
 import { useOverlayActive } from '@/store/overlayStore';
 import { GamerBackground } from '@/components/hud/gamer-background';
 import { PageTransition } from '@/components/hud/page-transition';
-import { CelebrationHost } from '@/components/hud/celebration';
+
+const PanelHost = dynamic(() => import('./panel-host').then((m) => m.PanelHost), { ssr: false });
+const CelebrationHost = dynamic(() => import('@/components/hud/celebration').then((m) => m.CelebrationHost), { ssr: false });
+const ScrollControls = dynamic(() => import('./scroll-controls').then((m) => m.ScrollControls), { ssr: false });
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();

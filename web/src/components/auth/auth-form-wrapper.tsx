@@ -1,5 +1,6 @@
 'use client';
 import { ReactNode } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -46,8 +47,8 @@ export function AuthFormWrapper({ children, title, subtitle, footer }: AuthFormW
           {/* Brand Identity Header */}
           <div className="text-center space-y-3">
             <div className="inline-flex items-center gap-2.5">
-              <div className="w-14 h-14 rounded-2xl overflow-hidden border border-primary/20 shadow-xl shadow-primary/10 animate-bounce-in shrink-0">
-                <img src="/logo.jpg" alt="GamerZ Hub Logo" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+              <div className="w-14 h-14 rounded-2xl overflow-hidden border border-primary/20 shadow-xl shadow-primary/10 animate-bounce-in shrink-0 relative">
+                <Image src="/logo.webp" alt="GamerZ Hub Logo" width={56} height={56} className="w-full h-full object-cover" priority />
               </div>
               <span className="text-2xl font-extrabold bg-gradient-to-r from-gaming-purple via-gaming-pink to-gaming-cyan bg-clip-text text-transparent tracking-tight">
                 GamerZ Hub
