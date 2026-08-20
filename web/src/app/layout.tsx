@@ -4,8 +4,8 @@ import './globals.css';
 import { Providers } from '@/providers';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 
-const inter = { className: 'font-sans', variable: '--font-inter' };
-const plusJakarta = { variable: '--font-jakarta' };
+const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
+const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], display: 'swap', variable: '--font-jakarta' });
 
 export const viewport = {
   width: 'device-width',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   description: 'Connect, compete, and level up. The professional AAA network for gamers.',
   keywords: 'gaming, esports, tournaments, teams, gaming community',
   icons: {
-    icon: '/logo.jpg',
+    icon: '/logo.webp',
     shortcut: '/favicon.ico',
     apple: '/apple-icon.png',
   },
@@ -31,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://res.cloudinary.com" />
-        <link rel="preload" href="/logo.jpg" as="image" type="image/jpeg" fetchPriority="high" />
+        <link rel="preload" href="/logo.webp" as="image" type="image/webp" fetchPriority="high" />
       </head>
       <body className={`${inter.className} ${inter.variable} ${plusJakarta.variable}`}>
         <Providers>
