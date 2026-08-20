@@ -39,6 +39,11 @@ export function Providers({ children }: { children: ReactNode }) {
     window.addEventListener('error', handleChunkError);
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
+    // Warm up backend API container on startup
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://gamerhub-c944.onrender.com/api';
+    const baseUrl = apiUrl.replace(/\/api\/?$/, '');
+    fetch(`${baseUrl}/health`).catch(() => {});
+
     return () => {
       window.removeEventListener('error', handleChunkError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
