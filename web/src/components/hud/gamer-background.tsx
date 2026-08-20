@@ -15,20 +15,23 @@ interface GamerBackgroundProps {
  */
 export function GamerBackground({ dense = false }: GamerBackgroundProps) {
   const particles = useMemo(
-    () =>
-      Array.from({ length: dense ? 38 : PARTICLES }, (_, i) => ({
+    () => {
+      const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
+      const count = isMobile ? 8 : (dense ? 38 : PARTICLES);
+      return Array.from({ length: count }, (_, i) => ({
         left: Math.random() * 100,
-        size: Math.random() * 3.5 + 1.5,
-        duration: Math.random() * 16 + 12,
-        delay: -Math.random() * 24,
-        drift: (Math.random() - 0.5) * 70,
+        size: Math.random() * 3 + 1.5,
+        duration: Math.random() * 14 + 10,
+        delay: -Math.random() * 20,
+        drift: (Math.random() - 0.5) * 40,
         color:
           i % 3 === 0
             ? 'rgba(16,185,129,0.75)'
             : i % 3 === 1
               ? 'rgba(139,92,246,0.7)'
               : 'rgba(236,72,153,0.6)',
-      })),
+      }));
+    },
     [dense],
   );
 

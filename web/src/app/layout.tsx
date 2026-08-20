@@ -7,6 +7,13 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 const inter = { className: 'font-sans', variable: '--font-inter' };
 const plusJakarta = { variable: '--font-jakarta' };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#0a0b0e',
+};
+
 export const metadata: Metadata = {
   title: 'GamerZ Hub - The Ultimate AAA Gaming Ecosystem',
   description: 'Connect, compete, and level up. The professional AAA network for gamers.',

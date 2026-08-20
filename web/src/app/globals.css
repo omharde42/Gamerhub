@@ -529,3 +529,19 @@
   60% { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
+
+
+/* Mobile Performance GPU Optimization */
+@media (max-width: 640px) {
+  .gamer-aurora {
+    filter: blur(35px) !important;
+    mix-blend-mode: normal !important;
+    opacity: 0.3 !important;
+  }
+  .gamer-aurora-1 { width: 260px !important; height: 260px !important; }
+  .gamer-aurora-2 { width: 280px !important; height: 280px !important; }
+  .gamer-aurora-3 { display: none !important; }
+  .gamer-particle {
+    box-shadow: none !important;
+  }
+}
