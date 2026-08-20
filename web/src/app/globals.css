@@ -452,7 +452,7 @@
    -------------------------------------------------------------- */
 
 /* -- Animated aurora background ------------------------------- */
-.gamer-aurora { position: absolute; border-radius: 9999px; filter: blur(90px); opacity: 0.55; will-change: transform; mix-blend-mode: screen; pointer-events: none; }
+.gamer-aurora { position: absolute; border-radius: 9999px; filter: blur(60px); opacity: 0.45; will-change: transform; pointer-events: none; }
 .gamer-aurora-1 { width: 560px; height: 560px; top: -8%; left: -6%; background: radial-gradient(circle, rgba(16,185,129,0.5), transparent 65%); animation: aurora-drift-1 22s ease-in-out infinite alternate; }
 .gamer-aurora-2 { width: 620px; height: 620px; top: 30%; right: -12%; background: radial-gradient(circle, rgba(139,92,246,0.45), transparent 65%); animation: aurora-drift-2 26s ease-in-out infinite alternate; }
 .gamer-aurora-3 { width: 520px; height: 520px; bottom: -14%; left: 22%; background: radial-gradient(circle, rgba(236,72,153,0.32), transparent 65%); animation: aurora-drift-3 30s ease-in-out infinite alternate; }
@@ -472,14 +472,15 @@
 }
 
 /* -- Panning cyber grid --------------------------------------- */
-.gamer-grid-pan { background-image: linear-gradient(rgba(16,185,129,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.10) 1px, transparent 1px); background-size: 48px 48px; animation: grid-pan 14s linear infinite; }
-@keyframes grid-pan { to { background-position: 48px 48px; } }
+.gamer-grid-pan { position: absolute; inset: 0; overflow: hidden; }
+.gamer-grid-pan::before { content: ""; position: absolute; inset: -48px; background-image: linear-gradient(rgba(16,185,129,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.10) 1px, transparent 1px); background-size: 48px 48px; animation: grid-pan 14s linear infinite; will-change: transform; }
+@keyframes grid-pan { to { transform: translate(48px, 48px); } }
 
 /* -- Cinematic page entrance ---------------------------------- */
 .cinema-page { animation: cinema-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @keyframes cinema-enter {
-  0% { opacity: 0; transform: translateY(28px) scale(0.985); filter: blur(6px); }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  0% { opacity: 0; transform: translateY(28px) scale(0.985); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Top sweep light bar during page entrance */
@@ -544,4 +545,16 @@
   .gamer-particle {
     box-shadow: none !important;
   }
+}
+
+/* Reduced motion: freeze ambient background layers entirely */
+@media (prefers-reduced-motion: reduce) {
+  .gamer-aurora,
+  .gamer-particle,
+  .gamer-grid-pan::before {
+    animation: none !important;
+  }
+  .gamer-aurora { opacity: 0.25 !important; }
+  .gamer-particle { display: none !important; }
+  .cinema-sweep::after { animation: none !important; opacity: 0 !important; }
 }

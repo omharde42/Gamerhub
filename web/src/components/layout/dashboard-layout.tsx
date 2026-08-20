@@ -142,10 +142,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden relative">
       {/* Big Animation System: animated aurora + particles + panning grid */}
       <GamerBackground />
-      {/* Background Floating Cybernetic Artifact Glow (kept for depth on top of aurora) */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-20">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full bg-gradient-to-tr from-emerald-500/20 via-purple-600/20 to-transparent blur-[120px]" />
-      </div>
 
       <header role="banner" className={isMessages || isSearch ? "hidden" : "block relative z-30"}>
         <Navbar hidden={navHidden} />

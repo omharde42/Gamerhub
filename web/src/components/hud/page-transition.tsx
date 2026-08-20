@@ -38,9 +38,9 @@ export function PageTransition({ pathname, children }: PageTransitionProps) {
       <motion.div
         key={pathname}
         className="cinema-page w-full min-w-0"
-        initial={{ opacity: 0, x: enterX, y: 16, scale: 0.985, filter: 'blur(6px)' }}
-        animate={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }}
-        exit={{ opacity: 0, x: exitX, y: -12, scale: 0.99, filter: 'blur(4px)' }}
+        initial={{ opacity: 0, x: enterX, y: 16, scale: 0.985 }}
+        animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+        exit={{ opacity: 0, x: exitX, y: -12, scale: 0.99 }}
         transition={{ duration: 0.42, ease: EASE }}
       >
         <span className="cinema-sweep" aria-hidden />
