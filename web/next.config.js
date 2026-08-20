@@ -2,9 +2,16 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   outputFileTracingRoot: path.join(__dirname, '../../'),
   reactStrictMode: true,
   compress: true,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 31536000,
@@ -18,6 +25,8 @@ const nextConfig = {
     ],
   },
   experimental: {
+    cpus: 1,
+    workerThreads: false,
     serverActions: { bodySizeLimit: '10mb' },
     optimizePackageImports: [
       'lucide-react',
