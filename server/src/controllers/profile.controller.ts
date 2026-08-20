@@ -112,21 +112,13 @@ export class ProfileController {
    */
   updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
     const body = req.body || {};
-    const { data, restrictedFields } = sanitizeProfileUpdate(body);
-
-    if (restrictedFields.length > 0) {
-      throw new ValidationError(
-        Object.fromEntries(
-          restrictedFields.map((f) => [f, ['This field is managed by the server and cannot be updated.']])
-        )
-      );
-    }
+    const { data } = sanitizeProfileUpdate(body);
 
     const profile = await prisma.profile.update({
       where: { userId: req.user!.userId },
       data,
     });
-    sendSuccess(res, profile);
+    sendSuccess(res, profile, 'Profile updated successfully');
   });
 
   uploadAvatar = asyncHandler(async (req: AuthRequest, res: Response) => {
