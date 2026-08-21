@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useTheme } from 'next-themes';
 import {
   LayoutDashboard, Newspaper, Users, Trophy, Briefcase,
-  MessageSquare, BarChart3, Bot, Crown,
+  MessageSquare, BarChart3, Bot,
   Settings, LogOut, Gamepad2, Compass, Bookmark, Bell,
   Shield, Globe, Film, Swords, Sun, Moon, Palette, Medal, Handshake, Joystick
 } from 'lucide-react';
@@ -40,7 +40,6 @@ const getNavItems = (username: string) => [
   { href: '/saved', label: 'Saved Posts', icon: Bookmark },
   { href: '/ai-coach', label: 'AI Coach', icon: Bot },
   { href: `/passport/${username}`, label: 'Gamer Passport', icon: Shield },
-  { href: '/premium', label: 'Premium', icon: Crown },
 ];
 
 export function Sidebar() {

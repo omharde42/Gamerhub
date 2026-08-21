@@ -16,7 +16,6 @@ const exploreLinks = [
   { href: '/leaderboards', label: 'Leaderboards' },
   { href: '/games', label: 'Games' },
   { href: '/jobs', label: 'Jobs' },
-  { href: '/premium', label: 'Premium' },
 ];
 
 const communityLinks = [

@@ -20,9 +20,9 @@ import { LevelChip } from '@/components/hud/level-chip';
 import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
 import {
   Search, Bell, MessageSquare, Users,
-  LogOut, User, Settings, Crown, Home, ChevronDown,
+  LogOut, User, Settings, Home, ChevronDown,
   Bookmark, Shield,  BarChart3, Gamepad2 as GamepadIcon, MoreHorizontal,
-  Globe, Loader2, Sun, Moon, Palette, Menu, X, Sparkles, Newspaper, Film, Heart, Reply,
+  Globe, Loader2, Sun, Moon, Palette, Menu, X, Newspaper, Film, Heart, Reply,
   Trophy, UserCheck
 } from 'lucide-react';
 
@@ -267,9 +267,6 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
                 <DropdownMenuItem onSelect={() => openPanelFromNav('settings')}>
                   <Settings className="h-4 w-4 mr-3" /> Settings
                 </DropdownMenuItem>
-                <Link href="/premium">
-                  <DropdownMenuItem><Crown className="h-4 w-4 mr-3" /> <span className="flex items-center gap-1">Premium <Sparkles className="h-3 w-3 text-yellow-500" /></span></DropdownMenuItem>
-                </Link>
                 <Link href="/explore">
                   <DropdownMenuItem><Home className="h-4 w-4 mr-3" /> Explore</DropdownMenuItem>
                 </Link>
