@@ -27,6 +27,8 @@ export default function LoginPage() {
     return null;
   }
 
+  // Redirect to feed if already logged in
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) return;

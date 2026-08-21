@@ -52,7 +52,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark" themes={['light', 'dark', 'gray']} enableSystem={false}>
+      <ThemeProvider attribute="class" defaultTheme="dark" themes={['light', 'dark']} enableSystem={false}>
         <Toaster
           position="top-right"
           toastOptions={{

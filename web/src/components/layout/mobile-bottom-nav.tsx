@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Newspaper, MessageSquare, Trophy, User, Gamepad2
+  Home, Search, Plus, MessageSquare, User
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -19,10 +19,10 @@ const mobileNavItems: {
   label: string;
   panel?: PanelType;
 }[] = [
-  { href: '/feed', icon: Newspaper, label: 'Feed' },
-  { href: '/arcade', icon: Gamepad2, label: 'Arcade' },
-  { href: '/messages', icon: MessageSquare, label: 'Messages' },
-  { href: '/tournaments', icon: Trophy, label: 'Tournaments', panel: 'tournaments' },
+  { href: '/feed', icon: Home, label: 'Home' },
+  { href: '/search', icon: Search, label: 'Search' },
+  { href: '/feed', icon: Plus, label: 'Create' },
+  { href: '/messages', icon: MessageSquare, label: 'Chat' },
   { href: '/profile', icon: User, label: 'Profile', panel: 'profile' },
 ];
 

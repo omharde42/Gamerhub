@@ -161,10 +161,10 @@ export default function SearchPage() {
 
   const highlightMatch = (text: string, search: string) => {
     if (!search || !text) return text;
-    const regex = new RegExp(`(${search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
-    const parts = text.split(regex);
+    const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
     return parts.map((part, i) =>
-      regex.test(part) ? (
+      part.toLowerCase() === search.toLowerCase() ? (
         <span key={i} className="text-primary font-extrabold bg-primary/15 px-0.5 rounded">
           {part}
         </span>
