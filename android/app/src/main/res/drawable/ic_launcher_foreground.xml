@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108">
+
+    <!-- Glow circle behind the G -->
+    <path
+        android:fillColor="#10B981"
+        android:fillAlpha="0.15"
+        android:pathData="M54,54m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0" />
+
+    <!-- Stylized G — GAMERZ Hub logo -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M68,42 C68,34 61.5,28 54,28 C46.5,28 40,34 40,42 C40,50 46.5,56 54,56 L54,56 L62,56 L62,62 L54,62 C43,62 34,53 34,42 C34,31 43,22 54,22 C65,22 74,31 74,42 L74,50 L68,50 Z" />
+
+    <!-- Horizontal bar of G -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M54,50 L68,50 L68,56 L54,56 Z" />
+
+    <!-- Neon accent dot -->
+    <path
+        android:fillColor="#7C3AED"
+        android:pathData="M70,44m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+</vector>

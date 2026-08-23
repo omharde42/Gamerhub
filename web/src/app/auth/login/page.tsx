@@ -16,12 +16,18 @@ import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { user, isAuthenticated, login } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState(false);
+
+  if (isAuthenticated && user) {
+    return null;
+  }
+
+  // Redirect to feed if already logged in
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,12 +49,18 @@ export default function LoginPage() {
   const handleSocialLogin = async (provider: string) => {
     setSocialLoading(true);
     try {
+      // These are OAuth redirects to the external backend, not internal Next.js
+      // navigation — the browser must leave the app, so full navigation is required.
+      if (provider === 'discord') {
+        window.location.href = API_URL + '/auth/discord?action=login';
+        return;
+      }
       if (provider === 'google') {
-        window.location.href = `${API_URL}/auth/google`;
+        window.location.href = API_URL + '/auth/google';
         return;
       }
       if (provider === 'steam') {
-        window.location.href = `${API_URL}/auth/steam`;
+        window.location.href = API_URL + '/auth/steam';
         return;
       }
 
@@ -76,8 +88,7 @@ export default function LoginPage() {
           <Link href="/auth/register" className="text-primary hover:underline font-medium">Sign up</Link>
         </span>
       }
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
+    >            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         <motion.div className="space-y-2" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
           <Label htmlFor="email">Email</Label>
           <Input

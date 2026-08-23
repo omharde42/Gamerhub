@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -13,12 +13,23 @@ function AuthCallbackContent() {
   const { login } = useAuthStore();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState('');
+  // Mirror `status` in a ref so the 3.5s fallback timer can read the latest
+  // value. Adding `status` itself to the auth effect's deps would restart
+  // OAuth/session processing every time it changes.
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   useEffect(() => {
+    let isSubscribed = true;
+
     const errorParam = searchParams.get('error');
     if (errorParam) {
-      setStatus('error');
-      setError(decodeURIComponent(errorParam));
+      if (isSubscribed) {
+        setStatus('error');
+        setError(decodeURIComponent(errorParam));
+      }
       return;
     }
 
@@ -28,17 +39,34 @@ function AuthCallbackContent() {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         login(data.data, accessToken, refreshToken);
-        setStatus('success');
-        setTimeout(() => router.push('/feed'), 1500);
+        if (isSubscribed) {
+          setStatus('success');
+          setTimeout(() => router.push('/feed'), 1000);
+        }
       } catch {
-        setStatus('error');
-        setError('Failed to verify your identity');
+        if (isSubscribed) {
+          setStatus('error');
+          setError('Failed to verify user session after social login.');
+        }
       }
     };
 
-    const checkSession = async () => {
+    const processSession = async () => {
       try {
-        // 1. Check for query parameters (e.g. accessToken/refreshToken from Steam/Google backend callback)
+        // 1. Hash parameters from Backend OAuth redirects (#accessToken=...)
+        //    Tokens live in the fragment, not the query string, so they never
+        //    reach server logs, browser history, or Referer headers.
+        if (typeof window !== 'undefined' && window.location.hash) {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const hashAccess = hashParams.get('accessToken');
+          const hashRefresh = hashParams.get('refreshToken');
+          if (hashAccess && hashRefresh) {
+            await verifyAndLogin(hashAccess, hashRefresh);
+            return;
+          }
+        }
+
+        // 2. Legacy query parameters (kept for backward compatibility)
         const queryAccess = searchParams.get('accessToken');
         const queryRefresh = searchParams.get('refreshToken');
         if (queryAccess && queryRefresh) {
@@ -46,7 +74,7 @@ function AuthCallbackContent() {
           return;
         }
 
-        // 2. Check for hash parameters from Google OAuth implicit redirect (#access_token=... or #id_token=...)
+        // 3. Hash parameters from Direct Google OAuth (#access_token=...)
         if (typeof window !== 'undefined' && window.location.hash) {
           const hashParams = new URLSearchParams(window.location.hash.substring(1));
           const googleAccessToken = hashParams.get('access_token');
@@ -62,8 +90,10 @@ function AuthCallbackContent() {
                   googleId: userInfo.sub,
                 });
                 login(data.data.user, data.data.accessToken, data.data.refreshToken);
-                setStatus('success');
-                setTimeout(() => router.push('/feed'), 1200);
+                if (isSubscribed) {
+                  setStatus('success');
+                  setTimeout(() => router.push('/feed'), 1000);
+                }
                 return;
               }
             } catch (googleErr) {
@@ -72,9 +102,9 @@ function AuthCallbackContent() {
           }
         }
 
-        // 3. Fallback to Supabase session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (session) {
+        // 4. Supabase Auth session (Google / Discord via Supabase)
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.access_token) {
           const provider = session.user?.app_metadata?.provider || 'google';
           const { data } = await api.post('/auth/social-login', {
             token: session.access_token,
@@ -82,20 +112,58 @@ function AuthCallbackContent() {
           });
 
           login(data.data.user, data.data.accessToken, data.data.refreshToken);
-          setStatus('success');
-          setTimeout(() => router.push('/feed'), 1200);
+          if (isSubscribed) {
+            setStatus('success');
+            setTimeout(() => router.push('/feed'), 1000);
+          }
           return;
         }
 
-        setStatus('error');
-        setError(sessionError?.message || 'Authentication missing or cancelled.');
+        // 5. Supabase auth state listener fallback if session hydration takes a moment
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+          if (newSession && newSession.access_token && isSubscribed) {
+            try {
+              const provider = newSession.user?.app_metadata?.provider || 'google';
+              const { data } = await api.post('/auth/social-login', {
+                token: newSession.access_token,
+                provider,
+              });
+
+              login(data.data.user, data.data.accessToken, data.data.refreshToken);
+              setStatus('success');
+              setTimeout(() => router.push('/feed'), 1000);
+            } catch (err: any) {
+              setStatus('error');
+              setError(err.response?.data?.message || 'Failed to process social login');
+            }
+          }
+        });
+
+        // 5. Fallback timer if no credentials found
+        const timer = setTimeout(() => {
+          if (isSubscribed && statusRef.current === 'loading') {
+            setStatus('error');
+            setError('Authentication cancelled or session expired. Please try signing in again.');
+          }
+        }, 3500);
+
+        return () => {
+          authListener.subscription.unsubscribe();
+          clearTimeout(timer);
+        };
       } catch (err: any) {
-        setStatus('error');
-        setError(err.response?.data?.message || err.message || 'Failed to exchange authentication credentials');
+        if (isSubscribed) {
+          setStatus('error');
+          setError(err.response?.data?.message || err.message || 'Authentication exchange failed');
+        }
       }
     };
 
-    checkSession();
+    processSession();
+
+    return () => {
+      isSubscribed = false;
+    };
   }, [searchParams, login, router]);
 
   return (

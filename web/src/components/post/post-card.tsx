@@ -2,13 +2,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ImagePreview } from '@/components/ui/image-preview';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, Trash2, ChevronDown, Sparkles, BarChart3, CheckCircle2 } from 'lucide-react';
-import { formatRelativeTime, formatNumber, getInitials, getMediaUrl, cn } from '@/lib/utils';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, Trash2, Sparkles, BarChart3, CheckCircle2, Eye } from 'lucide-react';
+import { formatNumber, formatViewCount, getInitials, getMediaUrl, getOptimizedMediaUrl, cn } from '@/lib/utils';
+import { RelativeTime } from '@/components/common/relative-time';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface PostCardProps {
   post: any;
   onDelete?: (id: string) => void;
+  priority?: boolean;
 }
 
 function LikeButton({ post }: { post: any }) {
@@ -42,18 +43,18 @@ function LikeButton({ post }: { post: any }) {
 
   return (
     <button
-      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:bg-red-500/5 group ${
-        post.isLiked ? 'text-red-500' : 'text-muted-foreground hover:text-foreground'
+      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 hover:bg-[#FF3D71]/10 group ${
+        post.isLiked ? 'text-[#FF3D71]' : 'text-[#94A3B8] hover:text-white'
       }`}
       onClick={handleClick}
     >
       <motion.div
-        animate={animated ? { scale: [1, 1.3, 1], rotate: [0, -5, 5, 0] } : {}}
+        animate={animated ? { scale: [1, 1.4, 1], rotate: [0, -8, 8, 0] } : {}}
         transition={{ duration: 0.3 }}
       >
-        <Heart className={`h-4 w-4 transition-all duration-150 ${post.isLiked ? 'fill-red-500 stroke-red-500' : ''} group-hover:scale-105`} />
+        <Heart className={`h-4 w-4 transition-all duration-150 ${post.isLiked ? 'fill-[#FF3D71] stroke-[#FF3D71]' : ''} group-hover:scale-110`} />
       </motion.div>
-      <span>{formatNumber(post._count?.likes || 0)}</span>
+      <span className="font-mono">{formatNumber(post._count?.likes || 0)}</span>
     </button>
   );
 }
@@ -80,10 +81,10 @@ function PollDisplay({ poll }: { poll: any }) {
   });
 
   return (
-    <div className="space-y-2 bg-muted/30 rounded-xl p-3 border border-border/50 my-2">
-      <div className="flex items-center gap-2 mb-1">
-        <BarChart3 className="h-4 w-4 text-primary" />
-        <p className="text-sm font-semibold">{poll.question}</p>
+    <div className="space-y-2 bg-[#0B1220] rounded-2xl p-4 border border-white/[0.08] my-3 shadow-inner">
+      <div className="flex items-center gap-2 mb-2">
+        <BarChart3 className="h-4 w-4 text-[#7C3AED]" />
+        <p className="text-sm font-bold text-white font-inter">{poll.question}</p>
       </div>
       <div className="space-y-2">
         {poll.options?.map((option: any) => {
@@ -97,17 +98,17 @@ function PollDisplay({ poll }: { poll: any }) {
               disabled={voteMutation.isPending}
               onClick={() => voteMutation.mutate(option.id)}
               className={cn(
-                "relative w-full text-left p-3 rounded-lg border transition-all overflow-hidden group select-none cursor-pointer",
+                "relative w-full text-left p-3 rounded-xl border transition-all overflow-hidden group select-none cursor-pointer",
                 isSelected
-                  ? "border-primary bg-primary/10 font-medium"
-                  : "border-border/60 bg-background hover:border-primary/50"
+                  ? "border-[#7C3AED] bg-[#7C3AED]/20 font-bold"
+                  : "border-white/[0.08] bg-[#111827] hover:border-[#7C3AED]/50"
               )}
             >
               {(hasVoted || totalVotes > 0) && (
                 <motion.div
                   className={cn(
-                    "absolute left-0 top-0 bottom-0 opacity-20",
-                    isSelected ? "bg-primary" : "bg-muted-foreground/30"
+                    "absolute left-0 top-0 bottom-0 opacity-25",
+                    isSelected ? "bg-[#7C3AED]" : "bg-white/10"
                   )}
                   initial={{ width: '0%' }}
                   animate={{ width: `${pct}%` }}
@@ -116,11 +117,11 @@ function PollDisplay({ poll }: { poll: any }) {
               )}
               <div className="relative flex items-center justify-between z-10 text-xs sm:text-sm">
                 <span className="flex items-center gap-2">
-                  {isSelected && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
-                  <span>{option.text}</span>
+                  {isSelected && <CheckCircle2 className="h-4 w-4 text-[#7C3AED] shrink-0" />}
+                  <span className="text-white font-medium">{option.text}</span>
                 </span>
                 {(hasVoted || totalVotes > 0) && (
-                  <span className="text-xs text-muted-foreground font-mono font-medium ml-2 shrink-0">
+                  <span className="text-xs text-[#94A3B8] font-mono font-bold ml-2 shrink-0">
                     {pct}% ({optionVotes})
                   </span>
                 )}
@@ -129,14 +130,14 @@ function PollDisplay({ poll }: { poll: any }) {
           );
         })}
       </div>
-      <p className="text-[11px] text-muted-foreground font-medium pt-1">
-        {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}
+      <p className="text-[11px] text-[#94A3B8] font-medium pt-1 font-mono">
+        {totalVotes} {totalVotes === 1 ? 'total vote' : 'total votes'}
       </p>
     </div>
   );
 }
 
-export function PostCard({ post, onDelete }: PostCardProps) {
+export function PostCard({ post, onDelete, priority }: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -177,190 +178,193 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} layout>
-      <Card variant="glass" className="group border-border/60 hover:border-border/80 shadow-sm transition-all duration-200">
-        <CardContent className="p-4 space-y-4">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <Link href={`/profile/${post.user?.profile?.username}`}>
-                <Avatar className="h-10 w-10 border border-border/60 transition-all duration-200 group-hover:border-primary/40">
-                  <AvatarImage src={post.user?.profile?.avatar || ''} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                    {getInitials(post.user?.profile?.username || 'U')}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-              <div>
-                <div className="flex items-center gap-2">
-                  <Link href={`/profile/${post.user?.profile?.username}`} className="font-semibold hover:text-primary transition-colors text-sm">
-                    {post.user?.profile?.displayName || post.user?.profile?.username}
-                  </Link>
-                  {post.user?.profile?.rank && (
-                    <Badge variant="rank" className="text-[10px] px-1.5 py-0 h-4">
-                      {post.user.profile.rank}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formatRelativeTime(post.createdAt)}
-                  {post.updatedAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 1000 && (
-                    <span className="text-[10px] text-muted-foreground/60 ml-1.5 italic">(Edited)</span>
-                  )}
-                </p>
+      <div className="gaming-card p-5 space-y-4 relative overflow-hidden group">
+        {/* Post Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3.5">
+            <Link href={`/profile/${post.user?.profile?.username}`}>
+              <Avatar className="h-12 w-12 border-2 border-white/10 shadow-md transition-transform duration-200 group-hover:scale-105">
+                <AvatarImage src={post.user?.profile?.avatar || ''} loading={priority ? 'eager' : 'lazy'} />
+                <AvatarFallback className="bg-gradient-to-br from-[#7C3AED] to-[#FF6B00] text-white font-bold text-base">
+                  {getInitials(post.user?.profile?.username || 'U')}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <Link href={`/profile/${post.user?.profile?.username}`} className="font-bold text-white hover:text-[#7C3AED] transition-colors text-sm font-inter truncate max-w-[150px] sm:max-w-xs">
+                  {post.user?.profile?.displayName || post.user?.profile?.username}
+                </Link>
+                {post.user?.profile?.rank && (
+                  <Badge variant="outline" className="text-[10px] font-mono bg-[#7C3AED]/15 text-[#7C3AED] border-[#7C3AED]/30 px-2 py-0.5 font-bold shrink-0">
+                    <Sparkles className="h-2.5 w-2.5 mr-1 text-[#FF6B00]" />
+                    {post.user.profile.rank}
+                  </Badge>
+                )}
               </div>
-            </div>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
-              {isOwner && (
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteMutation.mutate()}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+              <p className="text-xs text-[#94A3B8] mt-0.5 font-mono">
+                <RelativeTime date={post.createdAt} />
+              </p>
             </div>
           </div>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+            {isOwner && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-[#94A3B8] hover:text-[#FF3D71]" onClick={() => deleteMutation.mutate()}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-[#94A3B8]">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
 
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        {/* Post Content */}
+        <p className="text-sm leading-relaxed whitespace-pre-wrap text-white/95 font-inter">{post.content}</p>
 
-          {post.media && post.media.length > 0 && (
-            <motion.div
-              className="rounded-xl overflow-hidden bg-muted border border-border/50"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              {post.media[0].match(/\.(mp4|webm|ogg|mov)$/i) || post.media[0].includes('/video/upload/') ? (
-                <video
-                  src={getMediaUrl(post.media[0])}
-                  controls
-                  poster={
-                    post.media[0].includes('/video/upload/')
-                      ? post.media[0].replace(/\/video\/upload\/(v\d+\/)?/, '/video/upload/c_limit,w_1200,h_675/').replace(/\.[^/.]+$/, '.jpg')
-                      : undefined
-                  }
-                  className="w-full max-h-96 object-contain bg-black"
-                />
-              ) : (
-                <div className={`grid gap-1 ${post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                  {post.media.map((imgUrl: string, imgIdx: number) => (
-                    <img 
-                      key={imgIdx}
-                      src={getMediaUrl(imgUrl)} 
-                      alt="Post media" 
-                      className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.01] transition-transform duration-300" 
-                      onClick={() => {
-                        setSelectedImageIndex(imgIdx);
-                        setPreviewOpen(true);
-                      }}
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                  ))}
+        {/* Media Attachments */}
+        {post.media && post.media.length > 0 && (
+          <motion.div
+            className="rounded-2xl overflow-hidden bg-[#05070E] border border-white/[0.08] shadow-inner"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className={`grid gap-1.5 ${post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {post.media.map((imgUrl: string, imgIdx: number) => {
+                const isVideo = imgUrl.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i) || imgUrl.includes('/video/upload/');
+                return (
+                  <div key={imgIdx} className="relative overflow-hidden bg-black/40 rounded-xl max-h-96">
+                    {isVideo ? (
+                      <video
+                        src={getMediaUrl(imgUrl)}
+                        controls
+                        preload="metadata"
+                        className="w-full max-h-96 object-contain bg-black rounded-xl"
+                      />
+                    ) : (
+                      <img 
+                        src={getOptimizedMediaUrl(imgUrl, 1080)} 
+                        alt="Post media" 
+                        loading={priority && imgIdx === 0 ? 'eager' : 'lazy'}
+                        {...(priority && imgIdx === 0 ? { fetchPriority: 'high' } : {})}
+                        className="w-full max-h-96 object-cover cursor-pointer hover:scale-[1.02] transition-transform duration-300 rounded-xl" 
+                        onClick={() => {
+                          setSelectedImageIndex(imgIdx);
+                          setPreviewOpen(true);
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {post.poll && <PollDisplay poll={post.poll} />}
+
+        {/* Hashtags */}
+        {post.tags?.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {post.tags.map((tag: string, j: number) => (
+              <Link key={j} href={`/feed?hashtag=${tag}`}>
+                <Badge variant="secondary" className="cursor-pointer bg-[#0B1220] hover:bg-[#7C3AED]/20 text-[#7C3AED] border border-white/[0.08] text-xs font-mono font-bold transition-all duration-200">
+                  #{tag}
+                </Badge>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Post Action Footer */}
+        <div className="flex items-center justify-between border-t border-white/[0.08] pt-3.5">
+          <div className="flex items-center gap-1">
+            <LikeButton post={post} />
+            <Button variant="ghost" size="sm" aria-label="Comment on post" title="Comment" className={`gap-1.5 h-8 text-xs text-[#94A3B8] hover:text-white hover:bg-[#7C3AED]/10 rounded-xl ${showComments ? 'text-[#7C3AED] bg-[#7C3AED]/15 font-bold' : ''}`} onClick={() => setShowComments(!showComments)}>
+              <MessageCircle className="h-4 w-4" />
+              <span className="font-mono">{formatNumber(post._count?.comments || 0)}</span>
+            </Button>
+            <Button variant="ghost" size="sm" aria-label="Share post link" title="Share" className="gap-1.5 h-8 text-xs text-[#94A3B8] hover:text-white hover:bg-white/[0.06] rounded-xl"
+              onClick={() => {
+                const url = `${window.location.origin}/feed?post=${post.id}`;
+                navigator.clipboard.writeText(url);
+                toast.success('Link copied to clipboard');
+              }}>
+              <Share2 className="h-4 w-4" />
+            </Button>
+            <span title="Views" aria-label={`${post.viewCount || 0} views`} className="flex items-center gap-1.5 h-8 px-2.5 text-xs text-[#94A3B8] cursor-default">
+              <Eye className="h-4 w-4" />
+              <span className="font-mono">{formatViewCount(post.viewCount)}</span>
+            </span>
+          </div>
+          <Button variant="ghost" size="sm" aria-label={saved ? "Unsave post" : "Save post"} title={saved ? "Unsave" : "Save"}
+            className={`gap-1.5 h-8 text-xs transition-all duration-200 rounded-xl ${saved ? 'text-[#7C3AED] hover:text-[#7C3AED]' : 'text-[#94A3B8] hover:text-white'}`}
+            onClick={() => { toggleSave(post.id); toast.success(saved ? 'Post unsaved' : 'Post saved'); }}>
+            <Bookmark className={`h-4 w-4 transition-all duration-200 ${saved ? 'fill-[#7C3AED] drop-shadow-[0_0_6px_rgba(124,58,237,0.5)]' : ''}`} />
+          </Button>
+        </div>
+
+        {/* Comments Section */}
+        <AnimatePresence>
+          {showComments && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden space-y-3 border-t border-white/[0.08] pt-3">
+              <div className="flex gap-2.5">
+                <Avatar className="h-9 w-9 shrink-0">
+                  <AvatarImage src={user?.profile?.avatar || ''} />
+                  <AvatarFallback className="bg-gradient-to-br from-[#7C3AED] to-[#FF6B00] text-white text-xs font-bold">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 flex gap-2">
+                  <Textarea
+                    placeholder="Write a comment..."
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    className="min-h-0 h-10 py-2.5 text-xs bg-[#0B1220] border-white/[0.08] rounded-xl resize-none focus:border-[#7C3AED]"
+                  />
+                  <Button
+                    variant="gradient"
+                    size="icon"
+                    className="h-10 w-10 shrink-0 rounded-xl"
+                    disabled={!commentText.trim() || commentMutation.isPending}
+                    onClick={() => commentMutation.mutate()}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
                 </div>
+              </div>
+              {commentsData?.map((comment: any) => (
+                <motion.div key={comment.id} className="flex gap-2.5" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
+                  <Link href={`/profile/${comment.user?.profile?.username}`}>
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarImage src={comment.user?.profile?.avatar || ''} />
+                      <AvatarFallback className="text-xs">{getInitials(comment.user?.profile?.username || 'U')}</AvatarFallback>
+                    </Avatar>
+                  </Link>
+                  <div className="flex-1 bg-[#0B1220] rounded-2xl px-3.5 py-2.5 border border-white/[0.06]">
+                    <div className="flex items-center gap-2">
+                      <Link href={`/profile/${comment.user?.profile?.username}`} className="text-xs font-bold text-white hover:text-[#7C3AED]">
+                        {comment.user?.profile?.username}
+                      </Link>
+                      <span className="text-[10px] text-[#94A3B8] font-mono"><RelativeTime date={comment.createdAt} /></span>
+                    </div>
+                    <p className="text-xs text-white/90 mt-1 font-inter">{comment.content}</p>
+                  </div>
+                </motion.div>
+              ))}
+              {commentsData?.length === 0 && (
+                <p className="text-xs text-[#94A3B8] text-center py-2">No comments yet. Be the first to comment!</p>
               )}
             </motion.div>
           )}
+        </AnimatePresence>
 
-          {post.poll && <PollDisplay poll={post.poll} />}
-
-          <ImagePreview 
-            images={post.media || []} 
-            initialIndex={selectedImageIndex} 
-            isOpen={previewOpen} 
-            onClose={() => setPreviewOpen(false)} 
-          />
-
-          {post.tags?.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {post.tags.map((tag: string, j: number) => (
-                <Link key={j} href={`/feed?hashtag=${tag}`}>
-                  <Badge variant="secondary" className="cursor-pointer hover:bg-accent hover:text-accent-foreground text-xs transition-all duration-200">
-                    #{tag}
-                  </Badge>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {post.poll && <PollDisplay poll={post.poll} />}
-
-          <div className="flex items-center justify-between border-t border-border/50 pt-3">
-            <div className="flex items-center gap-0.5">
-              <LikeButton post={post} />
-              <Button variant="ghost" size="sm" className={`gap-1.5 h-8 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 ${showComments ? 'text-primary bg-primary/10' : ''}`} onClick={() => setShowComments(!showComments)}>
-                <MessageCircle className="h-4 w-4" />
-                <span>{formatNumber(post._count?.comments || 0)}</span>
-              </Button>
-              <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
-                onClick={() => {
-                  const url = `${window.location.origin}/feed?post=${post.id}`;
-                  navigator.clipboard.writeText(url);
-                  toast.success('Link copied to clipboard');
-                }}>
-                <Share2 className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button variant="ghost" size="sm"
-              className={`gap-1.5 h-8 text-xs transition-all duration-200 ${saved ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-primary'}`}
-              onClick={() => { toggleSave(post.id); toast.success(saved ? 'Post unsaved' : 'Post saved'); }}>
-              <Bookmark className={`h-4 w-4 transition-all duration-200 ${saved ? 'fill-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.5)]' : ''}`} />
-            </Button>
-          </div>
-
-          <AnimatePresence>
-            {showComments && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden space-y-3 border-t border-border/50 pt-3">
-                <div className="flex gap-2">
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarImage src={user?.profile?.avatar || ''} />
-                    <AvatarFallback className="text-xs">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 flex gap-2">
-                    <Textarea
-                      placeholder="Write a comment..."
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      className="min-h-0 h-9 py-2 text-sm resize-none"
-                    />
-                    <Button
-                      variant="default"
-                      size="icon"
-                      className="h-9 w-9 shrink-0"
-                      disabled={!commentText.trim() || commentMutation.isPending}
-                      onClick={() => commentMutation.mutate()}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {commentsData?.map((comment: any) => (
-                  <motion.div key={comment.id} className="flex gap-2" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
-                    <Link href={`/profile/${comment.user?.profile?.username}`}>
-                      <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarImage src={comment.user?.profile?.avatar || ''} />
-                        <AvatarFallback className="text-xs">{getInitials(comment.user?.profile?.username || 'U')}</AvatarFallback>
-                      </Avatar>
-                    </Link>
-                    <div className="flex-1 bg-muted/50 rounded-xl px-3 py-2 border border-border/30">
-                      <div className="flex items-center gap-2">
-                        <Link href={`/profile/${comment.user?.profile?.username}`} className="text-xs font-semibold hover:underline">
-                          {comment.user?.profile?.username}
-                        </Link>
-                        <span className="text-[10px] text-muted-foreground">{formatRelativeTime(comment.createdAt)}</span>
-                      </div>
-                      <p className="text-sm mt-0.5">{comment.content}</p>
-                    </div>
-                  </motion.div>
-                ))}
-                {commentsData?.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-2">No comments yet. Be the first!</p>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </CardContent>
-      </Card>
+        <ImagePreview 
+          images={(post.media || []).filter((url: string) => !url.match(/\.(mp4|webm|ogg|mov)$/i) && !url.includes('/video/upload/'))} 
+          initialIndex={selectedImageIndex} 
+          isOpen={previewOpen} 
+          onClose={() => setPreviewOpen(false)} 
+        />
+      </div>
     </motion.div>
   );
 }

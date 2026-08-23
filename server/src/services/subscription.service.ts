@@ -5,13 +5,13 @@ import { AppError, NotFoundError, ValidationError } from '../utils/errors';
 
 let stripe: Stripe | null = null;
 if (config.stripe.secretKey) {
-  stripe = new Stripe(config.stripe.secretKey, { apiVersion: '2025-02-24.acacia' as any });
+  stripe = new Stripe(config.stripe.secretKey, { apiVersion: '2025-02-24.acacia' });
 }
 
 const PRICE_IDS: Record<string, string> = {
+  PREMIUM: 'price_premium',
   PRO: 'price_pro',
-  ELITE: 'price_elite',
-  TEAM_PRO: 'price_team_pro',
+  ENTERPRISE: 'price_enterprise',
 };
 
 export class SubscriptionService {
@@ -30,12 +30,13 @@ export class SubscriptionService {
         cancel_url: `${config.frontendUrl}/premium`,
       });
       return { url: session.url };
-    } catch (error: any) {
-      throw new AppError(error?.message || 'Failed to create checkout session', 502);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to create checkout session';
+      throw new AppError(msg, 502);
     }
   }
 
-  async handleWebhook(event: any) {
+  async handleWebhook(event: { type: string; data: { object: Record<string, any> } }) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const userId = session.metadata.userId;
@@ -43,7 +44,7 @@ export class SubscriptionService {
       await prisma.subscription.upsert({
         where: { userId },
         update: {
-          tier: tier as any,
+          tier: tier as 'PREMIUM' | 'PRO' | 'ENTERPRISE',
           stripeId: session.id,
           status: 'ACTIVE',
           currentPeriodStart: new Date(session.current_period_start * 1000),
@@ -51,7 +52,7 @@ export class SubscriptionService {
         },
         create: {
           userId,
-          tier: tier as any,
+          tier: tier as 'PREMIUM' | 'PRO' | 'ENTERPRISE',
           stripeId: session.id,
           status: 'ACTIVE',
           currentPeriodStart: new Date(session.current_period_start * 1000),
@@ -83,8 +84,9 @@ export class SubscriptionService {
     if (!stripe) throw new AppError('Stripe is not configured', 503);
     try {
       await stripe.subscriptions.update(sub.stripeId, { cancel_at_period_end: true });
-    } catch (error: any) {
-      throw new AppError(error?.message || 'Failed to cancel subscription', 502);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to cancel subscription';
+      throw new AppError(msg, 502);
     }
     await prisma.subscription.update({ where: { userId }, data: { cancelAtPeriodEnd: true } });
   }

@@ -1,0 +1,275 @@
+From fe22f59bb809722bb31e0c1bc84d55f7f3e3bca9 Mon Sep 17 00:00:00 2001
+From: "omharde@4" <you@example.com>
+Date: Thu, 13 Aug 2026 11:09:31 +0530
+Subject: [PATCH 03/12] fix(auth): validate Steam OpenID responses before login
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+steamCallback trusted openid.claimed_id from the query string without proving
+the response came from Steam, so anyone could forge a claimed_id and log in as
+any Steam user (authentication bypass, high).
+
+- Added server/src/utils/oauth.ts verifySteamOpenIdResponse(): requires
+  openid.mode=id_res, a steamcommunity.com claimed_id, a return_to that
+  matches our own callback exactly, and a check_authentication round trip to
+  Steam returning is_valid:true. Fails closed on any anomaly.
+- steamCallback now verifies before creating/logging into any account.
+- steamRedirect now builds its callback URL from config.apiUrl instead of the
+  Host header (the callback verification requires the two to agree).
+- Added API_URL to server config and .env.template.
+
+Tests: server/src/utils/oauth.test.ts - accepts a valid response; rejects
+is_valid:false, non-id_res mode, non-Steam claimed_id, mismatched return_to,
+and network failures.
+
+Run: cd server && npx jest src/utils/oauth.test.ts
+
+🤖 Generated with Codebuff
+Co-Authored-By: Codebuff <noreply@codebuff.com>
+---
+ .env.template                             |  1 +
+ server/src/config/index.ts                |  1 +
+ server/src/controllers/auth.controller.ts | 28 +++++----
+ server/src/utils/oauth.test.ts            | 72 +++++++++++++++++++++++
+ server/src/utils/oauth.ts                 | 65 ++++++++++++++++++++
+ 5 files changed, 156 insertions(+), 11 deletions(-)
+ create mode 100644 server/src/utils/oauth.test.ts
+ create mode 100644 server/src/utils/oauth.ts
+
+diff --git a/.env.template b/.env.template
+index f528d53..1336bac 100644
+--- a/.env.template
++++ b/.env.template
+@@ -1,6 +1,7 @@
+ NODE_ENV=development
+ PORT=4000
+ FRONTEND_URL=http://localhost:3000
++API_URL=http://localhost:4000 # Backend base URL; used for OAuth callback URLs (set to your deployed API host in production)
+ 
+ # Database / Supabase
+ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/gamerhub?schema=public
+diff --git a/server/src/config/index.ts b/server/src/config/index.ts
+index 04f4d4f..e816cc7 100644
+--- a/server/src/config/index.ts
++++ b/server/src/config/index.ts
+@@ -19,6 +19,7 @@ export const config = {
+   port: parseInt(process.env.PORT || '4000', 10),
+   nodeEnv: process.env.NODE_ENV || 'development',
+   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
++  apiUrl: process.env.API_URL || process.env.BACKEND_URL || 'http://localhost:4000',
+   database: { url: databaseUrl || requiredEnv('DATABASE_URL') },
+   supabase: {
+     url: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+diff --git a/server/src/controllers/auth.controller.ts b/server/src/controllers/auth.controller.ts
+index 3fb02c2..c7ad3a3 100644
+--- a/server/src/controllers/auth.controller.ts
++++ b/server/src/controllers/auth.controller.ts
+@@ -4,6 +4,7 @@ import { AuthRequest } from '../types';
+ import prisma from '../config/database';
+ import { config } from '../config';
+ import { NotFoundError, ValidationError } from '../utils/errors';
++import { verifySteamOpenIdResponse, SteamOpenIdParams } from '../utils/oauth';
+ import { asyncHandler } from '../utils/asyncHandler';
+ import { sendSuccess, sendError } from '../utils/response';
+ 
+@@ -130,16 +131,16 @@ export class AuthController {
+     sendSuccess(res, result, 'Logged in with Google successfully!');
+   });
+ 
+-  steamRedirect = asyncHandler(async (req: Request, res: Response) => {
+-    const host = req.get('host') || 'localhost:4000';
+-    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+-    const returnTo = `${protocol}://${host}/api/auth/steam/callback`;
++  steamRedirect = asyncHandler(async (_req: Request, res: Response) => {
++    // Callback URL is built from configuration, never from the Host header,
++    // so attackers cannot steer the OpenID flow to their own domain.
++    const returnTo = `${config.apiUrl}/api/auth/steam/callback`;
+ 
+     const openIdUrl = new URL('https://steamcommunity.com/openid/login');
+     openIdUrl.searchParams.append('openid.ns', 'http://specs.openid.net/auth/2.0');
+     openIdUrl.searchParams.append('openid.mode', 'checkid_setup');
+     openIdUrl.searchParams.append('openid.return_to', returnTo);
+-    openIdUrl.searchParams.append('openid.realm', `${protocol}://${host}`);
++    openIdUrl.searchParams.append('openid.realm', config.frontendUrl);
+     openIdUrl.searchParams.append('openid.identity', 'http://specs.openid.net/auth/2.0/identifier_select');
+     openIdUrl.searchParams.append('openid.claimed_id', 'http://specs.openid.net/auth/2.0/identifier_select');
+ 
+@@ -147,14 +148,19 @@ export class AuthController {
+   });
+ 
+   steamCallback = asyncHandler(async (req: Request, res: Response) => {
+-    const claimedId = req.query['openid.claimed_id'] as string;
+-    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+-
+-    if (!claimedId) {
+-      return res.redirect(`${clientUrl}/auth/callback?error=${encodeURIComponent('Steam authentication was cancelled or failed')}`);
++    const clientUrl = config.frontendUrl;
++    const expectedReturnTo = `${config.apiUrl}/api/auth/steam/callback`;
++
++    // The OpenID response must be validated against Steam (check_authentication).
++    // Without this, an attacker can forge openid.claimed_id and log in as any
++    // Steam user (authentication bypass).
++    const responseValid = await verifySteamOpenIdResponse(req.query as SteamOpenIdParams, expectedReturnTo);
++    if (!responseValid) {
++      return res.redirect(`${clientUrl}/auth/callback?error=${encodeURIComponent('Steam authentication failed: invalid OpenID response')}`);
+     }
+ 
+-    const matches = claimedId.match(/\/id\/(\d+)/) || claimedId.match(/(\d{17,19})/);
++    const claimedId = (req.query['openid.claimed_id'] as string) || '';
++    const matches = claimedId.match(/\/id\/(\d{17,19})/);
+     const steamId = matches ? matches[1] : null;
+ 
+     if (!steamId) {
+diff --git a/server/src/utils/oauth.test.ts b/server/src/utils/oauth.test.ts
+new file mode 100644
+index 0000000..f996723
+--- /dev/null
++++ b/server/src/utils/oauth.test.ts
+@@ -0,0 +1,72 @@
++import { verifySteamOpenIdResponse, SteamOpenIdParams } from './oauth';
++
++const EXPECTED_RETURN_TO = 'https://api.gamerhub.example/api/auth/steam/callback';
++
++function validParams(): SteamOpenIdParams {
++  return {
++    'openid.mode': 'id_res',
++    'openid.claimed_id': 'https://steamcommunity.com/openid/id/76561198000000000',
++    'openid.identity': 'https://steamcommunity.com/openid/id/76561198000000000',
++    'openid.return_to': EXPECTED_RETURN_TO,
++    'openid.response_nonce': '2026-08-13T00:00:00Zabc',
++    'openid.assoc_handle': '1234567890',
++    'openid.op_endpoint': 'https://steamcommunity.com/openid/login',
++    'openid.signed': 'signed,op_endpoint,claimed_id,identity,return_to,response_nonce,assoc_handle',
++    'openid.sig': 'dGVzdHNpZ25hdHVyZQ==',
++  };
++}
++
++function mockFetch(respondWith: string | null): typeof fetch {
++  return (async () => {
++    if (respondWith === null) {
++      throw new Error('network down');
++    }
++    return {
++      text: async () => respondWith,
++      ok: true,
++    } as unknown as Response;
++  }) as unknown as typeof fetch;
++}
++
++describe('verifySteamOpenIdResponse', () => {
++  it('accepts a valid Steam OpenID response (is_valid:true)', async () => {
++    const ok = await verifySteamOpenIdResponse(
++      validParams(),
++      EXPECTED_RETURN_TO,
++      mockFetch('ns:http://specs.openid.net/auth/2.0\nis_valid:true\n')
++    );
++    expect(ok).toBe(true);
++  });
++
++  it('rejects a response Steam says is invalid (is_valid:false)', async () => {
++    const ok = await verifySteamOpenIdResponse(
++      validParams(),
++      EXPECTED_RETURN_TO,
++      mockFetch('ns:http://specs.openid.net/auth/2.0\nis_valid:false\n')
++    );
++    expect(ok).toBe(false);
++  });
++
++  it('rejects a response that is not in id_res mode (forged login attempt)', async () => {
++    const params = { ...validParams(), 'openid.mode': 'checkid_setup' };
++    const ok = await verifySteamOpenIdResponse(params, EXPECTED_RETURN_TO, mockFetch('is_valid:true'));
++    expect(ok).toBe(false);
++  });
++
++  it('rejects a claimed_id that is not a Steam community profile', async () => {
++    const params = { ...validParams(), 'openid.claimed_id': 'https://evil.example/profile/123' };
++    const ok = await verifySteamOpenIdResponse(params, EXPECTED_RETURN_TO, mockFetch('is_valid:true'));
++    expect(ok).toBe(false);
++  });
++
++  it('rejects a return_to that does not match our callback URL', async () => {
++    const params = { ...validParams(), 'openid.return_to': 'https://evil.example/callback' };
++    const ok = await verifySteamOpenIdResponse(params, EXPECTED_RETURN_TO, mockFetch('is_valid:true'));
++    expect(ok).toBe(false);
++  });
++
++  it('fails closed when the verification round trip errors', async () => {
++    const ok = await verifySteamOpenIdResponse(validParams(), EXPECTED_RETURN_TO, mockFetch(null));
++    expect(ok).toBe(false);
++  });
++});
+diff --git a/server/src/utils/oauth.ts b/server/src/utils/oauth.ts
+new file mode 100644
+index 0000000..e6660ca
+--- /dev/null
++++ b/server/src/utils/oauth.ts
+@@ -0,0 +1,65 @@
++/**
++ * Verification helpers for OAuth provider callbacks.
++ */
++
++const STEAM_OPENID_ENDPOINT = 'https://steamcommunity.com/openid/login';
++
++export interface SteamOpenIdParams {
++  'openid.mode'?: unknown;
++  'openid.claimed_id'?: unknown;
++  'openid.return_to'?: unknown;
++  [key: string]: unknown;
++}
++
++/**
++ * Validates a Steam OpenID 2.0 response (openid.mode=id_res).
++ *
++ * The RP must prove the response actually came from Steam, otherwise an
++ * attacker can forge openid.claimed_id and log in as any Steam user:
++ *
++ *  1. mode must be id_res
++ *  2. claimed_id must be a steamcommunity.com/openid/id/<steam64> URL
++ *  3. return_to must match our own callback URL exactly (prevents replay
++ *     against a different/attacker callback)
++ *  4. a check_authentication round trip to Steam must return is_valid:true
++ *
++ * Fails closed: any missing/abnormal input returns false.
++ */
++export async function verifySteamOpenIdResponse(
++  params: SteamOpenIdParams,
++  expectedReturnTo: string,
++  fetchImpl: typeof fetch = fetch
++): Promise<boolean> {
++  if (params['openid.mode'] !== 'id_res') return false;
++
++  const claimedId = params['openid.claimed_id'];
++  if (typeof claimedId !== 'string' || !claimedId.startsWith('https://steamcommunity.com/openid/id/')) {
++    return false;
++  }
++
++  const returnTo = params['openid.return_to'];
++  if (typeof returnTo !== 'string' || returnTo !== expectedReturnTo) return false;
++
++  // Echo every openid.* parameter back to Steam with mode=check_authentication.
++  const body = new URLSearchParams();
++  for (const [key, value] of Object.entries(params)) {
++    if (typeof value === 'string' && key.startsWith('openid.')) {
++      body.append(key, value);
++    }
++  }
++  body.set('openid.mode', 'check_authentication');
++
++  let res: Response;
++  try {
++    res = await fetchImpl(STEAM_OPENID_ENDPOINT, {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
++      body: body.toString(),
++    });
++  } catch {
++    return false;
++  }
++
++  const text = await res.text();
++  return /\bis_valid:true\b/.test(text);
++}
+-- 
+2.54.0.windows.1
+

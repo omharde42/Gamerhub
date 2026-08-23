@@ -6,13 +6,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bell, Heart, MessageCircle, UserPlus, Trophy, Calendar, Briefcase, Flag, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
+import { Bell, Heart, MessageCircle, UserPlus, Trophy, Calendar, Briefcase, Flag, CheckCircle, Loader2, Swords, Ban, Check, Film } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { formatRelativeTime, getInitials } from '@/lib/utils';
+import { getInitials } from '@/lib/utils';
+import { RelativeTime } from '@/components/common/relative-time';
+import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { BackHeader } from '@/components/common/back-header';
 
 const NOTIFICATION_ICONS: Record<string, any> = {
   LIKE: Heart,
@@ -25,6 +28,13 @@ const NOTIFICATION_ICONS: Record<string, any> = {
   ACHIEVEMENT: Flag,
   SYSTEM: Bell,
   MATCH_FOUND: Trophy,
+  CHALLENGE_RECEIVED: Swords,
+  CHALLENGE_ACCEPTED: Swords,
+  CHALLENGE_DECLINED: Swords,
+  CHALLENGE_CANCELLED: Swords,
+  CHALLENGE_EXPIRED: Swords,
+  CHALLENGE_COMPLETED: Trophy,
+  VIDEO_RENDER: Film,
 };
 
 export default function NotificationsPage() {
@@ -32,9 +42,12 @@ export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState('all');
 
-  const { data: notifications, isLoading } = useQuery({
+  useNotificationRealtime();
+
+  const { data: notifications, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get('/notifications').then(r => r.data.data),
+    retry: 1,
   });
 
   const markAllRead = useMutation({
@@ -56,39 +69,70 @@ export default function NotificationsPage() {
 
   const filtered = tab === 'all' ? notifications : notifications?.filter((n: any) => n.type === tab.toUpperCase());
 
+  // ── Challenge actions (Accept / Decline) ──────────────────────────
+  const challengeAction = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'accept' | 'decline' }) => api.post(`/challenges/${id}/${action}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
+      queryClient.invalidateQueries({ queryKey: ['challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-counts'] });
+      toast.success('Challenge updated');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Action failed'),
+  });
+
   const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <div className="max-w-3xl mx-auto px-4 md:px-0 space-y-4">
+      {/* Dynamic Back Header */}
+      <BackHeader title="Notifications" />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
-            Notifications
+            <Bell className="h-5 w-5 text-emerald-400" />
+            Inbox
           </h1>
           <p className="text-xs text-muted-foreground">Stay updated with your activity</p>
         </div>
         {unreadCount > 0 && (
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => markAllRead.mutate()}>
+          <Button variant="outline" size="sm" className="gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20" onClick={() => markAllRead.mutate()}>
             <CheckCircle className="h-4 w-4" /> Mark all read
           </Button>
         )}
       </div>
 
-      <Card>
+      <Card variant="glass">
         <CardContent className="p-0">
           <Tabs value={tab} onValueChange={setTab}>
             <div className="px-4 pt-4">
-              <TabsList className="w-full">
-                <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
-                <TabsTrigger value="like" className="flex-1">Likes</TabsTrigger>
-                <TabsTrigger value="comment" className="flex-1">Comments</TabsTrigger>
-                <TabsTrigger value="follow" className="flex-1">Follows</TabsTrigger>
+              <TabsList className="w-full bg-card/60 border border-white/10 p-1 rounded-2xl gap-1">
+                <TabsTrigger value="all" className="flex-1 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold">All</TabsTrigger>
+                <TabsTrigger value="like" className="flex-1 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold">Likes</TabsTrigger>
+                <TabsTrigger value="comment" className="flex-1 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold">Comments</TabsTrigger>
+                <TabsTrigger value="follow" className="flex-1 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 font-bold">Follows</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value={tab} className="mt-0">
               {isLoading ? (
                 <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+              ) : isError ? (
+                <div className="py-10 px-4 flex flex-col items-center gap-3 text-center">
+                  <Bell className="h-8 w-8 text-destructive" />
+                  <p className="text-sm font-semibold">Could not load your notifications</p>
+                  <p className="text-xs text-muted-foreground max-w-sm">{(error as any)?.response?.data?.message || 'Something went wrong while fetching your notifications.'}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => refetch()}
+                    disabled={isFetching}
+                  >
+                    <Loader2 className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} /> Retry
+                  </Button>
+                </div>
               ) : filtered?.length === 0 ? (
                 <div className="py-8">
                   <EmptyState 
@@ -128,13 +172,38 @@ export default function NotificationsPage() {
                           {notif.message && (
                             <p className="text-xs text-muted-foreground mt-0.5">{notif.message}</p>
                           )}
-                          <p className="text-[10px] text-muted-foreground mt-1">{formatRelativeTime(notif.createdAt)}</p>
+                          {notif.type === 'CHALLENGE_RECEIVED' && notif.metadata?.challengeId && notif.metadata?.status === 'PENDING' && (
+                            <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="h-7 gap-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500"
+                                onClick={() => challengeAction.mutate({ id: notif.metadata.challengeId, action: 'accept' })}
+                                disabled={challengeAction.isPending}
+                              >
+                                <Check className="h-3 w-3" /> Accept
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 gap-1 text-[10px] border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                onClick={() => challengeAction.mutate({ id: notif.metadata.challengeId, action: 'decline' })}
+                                disabled={challengeAction.isPending}
+                              >
+                                <Ban className="h-3 w-3" /> Decline
+                              </Button>
+                              <Link href="/challenges" className="text-[10px] text-primary hover:underline font-semibold">
+                                View all
+                              </Link>
+                            </div>
+                          )}
+                          <p className="text-[10px] text-muted-foreground mt-1"><RelativeTime date={notif.createdAt} /></p>
                         </div>
                         {!notif.isRead && (
                           <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
                         )}
                         {notif.image && (
-                          <img src={notif.image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                          <img src={notif.image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" loading="lazy" decoding="async" />
                         )}
                       </motion.div>
                     );

@@ -193,4 +193,15 @@ declare module 'lucide-react' {
   export const Meh: Icon;
   export const ThumbsUp: Icon;
   export const ThumbsDown: Icon;
+  export const Gauge: Icon;
+  export const Scale: Icon;
+  export const LineChart: Icon;
+  export const Lightbulb: Icon;
+  export const CalendarClock: Icon;
+  export const Pencil: Icon;
+export const GitBranch: Icon;
+  export const Puzzle: Icon;
+  export const Timer: Icon;
+  export const Joystick: Icon;
+  export const Dices: Icon;
 }

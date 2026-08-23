@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,18 +8,25 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { MapPin, Globe, Trophy, Target, TrendingUp, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Calendar, Award, Swords, X, Send, Plus, Hash, Search, Loader2, Heart, Reply, MoreVertical, Smile, Paperclip, Image as ImageIcon, UserCheck, UserPlus, Phone, Link as LinkIcon, Sparkles, Settings, Camera } from 'lucide-react';
-import { formatDate, formatNumber, getInitials, getRankColor, formatRelativeTime } from '@/lib/utils';
+import { MapPin, Trophy, Target, Gamepad2, Twitch, Youtube, MessageCircle, ExternalLink, Star, Shield, Users, Award, Swords, X, Loader2, Heart, UserCheck, UserPlus, Sparkles, Settings, Camera, MessageSquare, Search, ImagePlus } from 'lucide-react';
+import { formatDate, formatViewCount, getInitials, getRankColor } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
+import { useOverlayStore } from '@/store/overlayStore';
 import { useSocket } from '@/hooks/useSocket';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { PremiumModal } from '@/components/ui/premium-modal';
 import { PostCard } from '@/components/post/post-card';
+import { SteamShowcase } from '@/components/profile/steam-showcase';
+import { ClashOfClansCard } from '@/components/game-sync/clash-of-clans-card';
+import { ModularGameHub } from '@/components/profile/modular-game-hub';
+import { ChallengeButton } from '@/components/challenges/challenge-button';
+import { BackHeader } from '@/components/common/back-header';
+import { LevelChip } from '@/components/hud/level-chip';
+import { gamerLevel } from '@/lib/gamer-level';
 
 function StatCard({ value, label, color, delay = 0 }: { value: string | number; label: string; color: string; delay?: number }) {
   return (
@@ -46,7 +53,13 @@ function StatCard({ value, label, color, delay = 0 }: { value: string | number; 
 }
 
 export default function ProfilePage() {
-  const { username } = useParams();
+  const { username: paramUsername } = useParams();
+  // When rendered inside the Profile overlay panel the username is provided by
+  // the overlay store; as a normal route it comes from the URL params.
+  const panelEmbedded = useOverlayStore((s) => s.panel === 'profile');
+  const panelUsername = useOverlayStore((s) => s.panelUsername);
+  const username = (panelEmbedded ? panelUsername : paramUsername) as string;
+  const embedded = panelEmbedded;
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const socket = useSocket();
@@ -97,9 +110,9 @@ export default function ProfilePage() {
       const newUrl = variables.type === 'avatar' ? data.data?.avatar : data.data?.banner;
       if (user && newUrl) {
         if (variables.type === 'avatar') {
-          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, avatar: newUrl } });
+          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, avatar: newUrl } as any });
         } else {
-          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, banner: newUrl } });
+          useAuthStore.getState().setUser({ ...user, profile: { ...user.profile, banner: newUrl } as any });
         }
       }
       toast.success(`${variables.type === 'avatar' ? 'Avatar' : 'Banner'} updated successfully!`);
@@ -201,30 +214,14 @@ export default function ProfilePage() {
     setListModalOpen(true);
   };
 
-  // Full-screen chat
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatId, setChatId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [msgText, setMsgText] = useState('');
-  const [typingUsers, setTypingUsers] = useState<Record<string, string[]>>({});
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const openMessages = () => {
+    if (profile?.user?.id) {
+      router.push(`/messages?userId=${profile.user.id}`);
+    }
+  };
+
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
-
-  const { data: chatData } = useQuery({
-    queryKey: ['chat-with', profile?.user?.id],
-    queryFn: () => api.post('/chat/direct', { userId: profile.user.id }).then(r => r.data.data),
-    enabled: chatOpen && !!profile?.user?.id,
-  });
-  useEffect(() => { if (chatData?.id) setChatId(chatData.id); }, [chatData]);
-
-  const { data: messagesData } = useQuery({
-    queryKey: ['messages', chatId],
-    queryFn: () => api.get(`/chat/${chatId}/messages`).then(r => r.data.data),
-    enabled: !!chatId,
-  });
-  useEffect(() => { if (messagesData) setMessages(messagesData); }, [messagesData]);
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   useEffect(() => {
     if (socket) {
@@ -236,29 +233,10 @@ export default function ProfilePage() {
     }
   }, [socket]);
 
-  useEffect(() => {
-    if (socket && chatId) {
-      socket.emit('join:chat', chatId);
-      const onMessage = (msg: any) => setMessages(prev => [...prev, msg]);
-      socket.on('message:new', onMessage);
-      return () => { socket.emit('leave:chat', chatId); socket.off('message:new', onMessage); };
-    }
-  }, [chatId, socket]);
-
-  const sendMessage = () => {
-    if (!msgText.trim() || !chatId) return;
-    if (socket) {
-      socket.emit('message:send', { chatId, content: msgText });
-    } else {
-      api.post(`/chat/${chatId}/messages`, { content: msgText }).then(() => queryClient.invalidateQueries({ queryKey: ['messages', chatId] }));
-    }
-    setMsgText('');
-  };
-
-  const isOnline = (userId: string) => onlineUsers.has(userId);
-
   if (isLoading) return <div className="max-w-4xl mx-auto space-y-6"><Skeleton className="h-64 rounded-2xl" /><Skeleton className="h-96 rounded-2xl" /></div>;
   if (!profile) return <div className="text-center py-20"><h2 className="text-2xl font-bold">Profile not found</h2></div>;
+
+  const profileLevel = gamerLevel(Number(profile.totalMatches || 0));
 
   const isOwn = user?.profile?.username === username;
   const socialLinks = [
@@ -270,122 +248,8 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Full-screen chat overlay */}
-      <AnimatePresence>
-        {chatOpen && (
-          <motion.div
-            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-2xl flex flex-col"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="flex items-center justify-between px-4 h-14 border-b border-border/50 shrink-0 bg-muted/10">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9" status={profile?.user?.id && isOnline(profile.user.id) ? 'online' : undefined}>
-                  <AvatarImage src={profile?.avatar || ''} />
-                  <AvatarFallback className="text-xs">{getInitials(profile?.username || '')}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-semibold">{profile?.displayName || profile?.username}</p>
-                  <p className="text-[10px]" style={{ color: isOnline(profile?.user?.id) ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }}>
-                    {profile?.user?.id && isOnline(profile.user.id) ? 'Online' : 'Offline'}
-                  </p>
-                </div>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => { setChatOpen(false); setChatId(null); setMessages([]); }}>
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-            <ScrollArea className="flex-1 px-4 bg-grid bg-[length:40px_40px]">
-              <div className="py-4 space-y-0.5 max-w-3xl mx-auto">
-                <AnimatePresence>
-                  {messages?.map((msg: any, idx: number) => {
-                    const isOwnMsg = msg.sender?.id === user?.id;
-                    const prev = messages[idx - 1];
-                    const showHeader = !prev || prev.sender?.id !== msg.sender?.id;
-                    const isHovered = hoveredMsgId === msg.id;
-                    return (
-                      <motion.div
-                        key={msg.id}
-                        className={`flex gap-3 ${showHeader ? 'mt-4' : 'mt-0.5'} ${isOwnMsg ? 'flex-row-reverse' : ''}`}
-                        onHoverStart={() => setHoveredMsgId(msg.id)}
-                        onHoverEnd={() => setHoveredMsgId(null)}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        layout
-                      >
-                        {showHeader && (
-                          <Avatar className="h-9 w-9 mt-0.5 shrink-0">
-                            <AvatarImage src={msg.sender?.profile?.avatar || ''} />
-                            <AvatarFallback className="text-[10px]">{getInitials(msg.sender?.profile?.username || 'U')}</AvatarFallback>
-                          </Avatar>
-                        )}
-                        {!showHeader && <div className="w-9 shrink-0" />}
-                        <div className={`flex flex-col min-w-0 max-w-[70%] ${isOwnMsg ? 'items-end' : ''}`}>
-                          {showHeader && (
-                            <div className={`flex items-center gap-2 mb-1 ${isOwnMsg ? 'flex-row-reverse' : ''}`}>
-                              <span className="text-sm font-semibold">{msg.sender?.profile?.username}</span>
-                              <span className="text-[10px] text-muted-foreground">{formatRelativeTime(msg.createdAt)}</span>
-                            </div>
-                          )}
-                          {msg.media?.length > 0 && msg.media.map((url: string, i: number) => (
-                            url.match(/\.(mp4|webm|ogg)$/i)
-                              ? <video key={i} src={url} controls className="max-w-60 max-h-40 rounded-xl border border-border/30" />
-                              : <img key={i} src={url} alt="" className="max-w-60 max-h-40 rounded-xl object-cover border border-border/30" />
-                          ))}
-                          {msg.content && (
-                            <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${isOwnMsg ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-muted/70 border border-border/30 rounded-tl-sm'}`}>
-                              {msg.content}
-                            </div>
-                          )}
-                          <AnimatePresence>
-                            {isHovered && (
-                              <motion.div className={`flex items-center gap-0.5 mt-1 ${isOwnMsg ? 'flex-row-reverse' : ''}`} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground transition-all"><Heart className="h-3 w-3" /></button>
-                                <button className="p-1 rounded-lg hover:bg-accent text-muted-foreground transition-all"><MoreVertical className="h-3 w-3" /></button>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-                {chatId && typingUsers[chatId]?.length > 0 && (
-                  <motion.div className="flex items-center gap-2 text-xs text-muted-foreground py-1 ml-12" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <div className="flex gap-1">
-                      {[0, 150, 300].map((delay, i) => (
-                        <span key={i} className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full" style={{ animation: 'typing-dot 1.4s ease-in-out infinite', animationDelay: `${delay}ms` }} />
-                      ))}
-                    </div>
-                    Typing...
-                  </motion.div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
-            <div className="p-4 border-t border-border/50 bg-muted/10">
-              <div className="max-w-3xl mx-auto flex items-center gap-2 bg-muted/30 rounded-xl px-4 py-2 border border-border/30">
-                <Input
-                  placeholder={`Message @${profile?.username}`}
-                  value={msgText}
-                  onChange={(e) => {
-                    setMsgText(e.target.value);
-                    if (socket && chatId) socket.emit('typing:start', chatId);
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
-                  className="flex-1 h-10 border-0 bg-transparent text-sm focus-visible:ring-0 px-0"
-                  variant="ghost"
-                />
-                <Button variant="gradient" size="icon" className="h-9 w-9 rounded-xl" disabled={!msgText.trim()} onClick={sendMessage} animate>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Back navigation button (hidden when embedded as an overlay panel) */}
+      {!embedded && <BackHeader title={profile.displayName || profile.username} />}
 
       {/* Profile header */}
       <Card variant="glass" className="overflow-hidden border-border/60" hover={false}>
@@ -395,13 +259,47 @@ export default function ProfilePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          {profile.banner && <img src={profile.banner} alt="" className="w-full h-full object-cover" />}
+          {profile.banner ? (
+            <img src={profile.banner} alt="Profile banner" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-2 text-slate-500 pointer-events-none">
+                <div className="w-14 h-14 rounded-2xl border-2 border-dashed border-slate-600/70 flex items-center justify-center">
+                  <ImagePlus className="h-6 w-6" />
+                </div>
+                <p className="text-xs font-semibold uppercase tracking-widest">Add Cover Photo</p>
+              </div>
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
           <div className="absolute inset-0 bg-grid opacity-5" />
           {user?.profile?.username === username && (
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-              <div className="opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center gap-1 text-white text-xs font-semibold">
-                <Camera className="h-6 w-6" /> Edit Banner
+            <>
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center pointer-events-none">
+                <div className="opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center gap-1 text-white text-xs font-semibold">
+                  <Camera className="h-6 w-6" /> {profile.banner ? 'Edit Banner' : 'Add Banner'}
+                </div>
+              </div>
+              {/* Always-visible edit button (LinkedIn-style) */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handlePhotoUpload('banner'); }}
+                className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/70 border border-white/20 text-white text-xs font-bold backdrop-blur-md hover:bg-emerald-600/80 hover:border-emerald-400/60 hover:shadow-[0_0_16px_rgba(16,185,129,0.5)] transition-all"
+              >
+                {uploading === 'banner' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Camera className="h-3.5 w-3.5" />
+                )}
+                {profile.banner ? 'Edit Cover' : 'Add Cover'}
+              </button>
+            </>
+          )}
+          {uploading === 'banner' && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 pointer-events-none">
+              <div className="flex flex-col items-center gap-2 text-white">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+                <span className="text-xs font-bold uppercase tracking-widest">Uploading Cover...</span>
               </div>
             </div>
           )}
@@ -409,10 +307,12 @@ export default function ProfilePage() {
         <CardContent className="relative px-6 pb-6">
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-16 md:-mt-20 mb-4">
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, delay: 0.2 }} className={`relative ${user?.profile?.username === username ? 'group cursor-pointer' : ''}`} onClick={() => user?.profile?.username === username && handlePhotoUpload('avatar')}>
-              <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-background ring-2 ring-indigo-500 shadow-md">
-                <AvatarImage src={profile.avatar || ''} />
-                <AvatarFallback className="text-4xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white">{getInitials(profile.username)}</AvatarFallback>
-              </Avatar>
+              <div className="level-ring" style={{ ['--lvl-pct' as any]: `${profileLevel.xp}%` }}>
+                <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-background">
+                  <AvatarImage src={profile.avatar || ''} />
+                  <AvatarFallback className="text-4xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white">{getInitials(profile.username)}</AvatarFallback>
+                </Avatar>
+              </div>
               {user?.profile?.username === username && (
                 <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center text-white">
                   <Camera className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -430,11 +330,11 @@ export default function ProfilePage() {
                 <span className="text-muted-foreground">@{profile.username}</span>
               </motion.div>
               <motion.div className="flex flex-wrap items-center gap-2 mt-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+                <LevelChip totalMatches={Number(profile.totalMatches || 0)} />
                 <Badge variant="rank" className={getRankColor(profile.rank)}><Trophy className="h-3 w-3 mr-1" />{profile.rank || 'Unranked'}</Badge>
                 <Badge variant="outline">{profile.role || 'Flex'}</Badge>
                 {profile.country && <Badge variant="outline"><MapPin className="h-3 w-3 mr-1" />{profile.country}</Badge>}
                 
-                {/* Dynamically derived gaming style/status badges */}
                 {profile.winRate >= 60 && (
                   <Badge variant="neon" className="bg-success/5 border-success/30 text-success gap-1 text-[10px] py-0.5 px-2">
                     <Sparkles className="h-2.5 w-2.5 animate-pulse" /> Dominator
@@ -459,7 +359,7 @@ export default function ProfilePage() {
                     <Badge variant="neon" className="bg-success/5 border-success/30 text-success gap-1.5 px-3 h-11 text-xs font-semibold rounded-xl w-full sm:w-auto justify-center">
                       <UserCheck className="h-4 w-4 text-success" /> Connected
                     </Badge>
-                    <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto h-11" onClick={() => setChatOpen(true)}>
+                    <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto h-11" onClick={openMessages}>
                       <MessageCircle className="h-4 w-4" /> Message
                     </Button>
                   </>
@@ -497,6 +397,17 @@ export default function ProfilePage() {
                   {following ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                   {following ? 'Following' : 'Follow'}
                 </Button>
+                <Link href={`/messages?userId=${profile.userId}`} className="w-full sm:w-auto">
+                  <Button variant="outline" size="sm" className="gap-1.5 min-w-[100px] w-full sm:w-auto h-11">
+                    <MessageSquare className="h-4 w-4 text-primary" /> Message
+                  </Button>
+                </Link>
+                <ChallengeButton
+                  opponentId={profile.userId || profile.user?.id || profile.id}
+                  opponentUsername={profile.username}
+                  opponentDisplayName={profile.displayName}
+                  opponentAvatar={profile.avatar}
+                />
               </motion.div>
             ) : (
               <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
@@ -530,7 +441,7 @@ export default function ProfilePage() {
               className="flex items-center gap-1.5 hover:text-gaming-pink transition-colors cursor-pointer group"
             >
               <Heart className="h-4 w-4 text-gaming-pink group-hover:scale-110 transition-transform" />
-              <span className="font-bold">{profile.user?._count?.followers || 0}</span>
+              <span className="font-bold">{(profile.user as any)?._count?.followers || 0}</span>
               <span className="text-muted-foreground text-xs">Followers</span>
             </button>
             <button 
@@ -538,17 +449,17 @@ export default function ProfilePage() {
               className="flex items-center gap-1.5 hover:text-gaming-cyan transition-colors cursor-pointer group"
             >
               <UserCheck className="h-4 w-4 text-gaming-cyan group-hover:scale-110 transition-transform" />
-              <span className="font-bold">{profile.user?._count?.following || 0}</span>
+              <span className="font-bold">{(profile.user as any)?._count?.following || 0}</span>
               <span className="text-muted-foreground text-xs">Following</span>
             </button>
             <div className="flex items-center gap-1.5 cursor-default group">
               <Sparkles className="h-4 w-4 text-yellow-500 group-hover:rotate-12 transition-transform" />
-              <span className="font-bold">{profile.profileViews || 0}</span>
+              <span className="font-bold">{formatViewCount(profile.profileViews)}</span>
               <span className="text-muted-foreground text-xs">Views</span>
             </div>
             <div className="flex items-center gap-1.5 cursor-default group">
               <Star className="h-4 w-4 text-gaming-purple group-hover:scale-110 transition-transform" />
-              <span className="font-bold">{profile.user?._count?.posts || 0}</span>
+              <span className="font-bold">{(profile.user as any)?._count?.posts || posts?.length || 0}</span>
               <span className="text-muted-foreground text-xs">Posts</span>
             </div>
           </motion.div>
@@ -569,22 +480,22 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard value={`${profile.winRate}%`} label="Win Rate" color="text-success" delay={0} />
-        <StatCard value={profile.kd} label="K/D Ratio" color="text-primary" delay={0.1} />
-        <StatCard value={`${profile.accuracy}%`} label="Accuracy" color="text-gaming-purple" delay={0.2} />
-        <StatCard value={profile.totalMatches} label="Total Matches" color="text-yellow-500" delay={0.3} />
-      </div>
+      {/* Modular Multi-Game Platform Hub with Dynamic Game Statistics */}
+      <ModularGameHub userId={profile.userId || profile.user?.id || profile.id} isOwner={isOwn} />
 
       {/* Content tabs */}
       <Tabs defaultValue="achievements" className="w-full">
         <TabsList className="w-full bg-muted/30 p-1 rounded-xl flex md:inline-flex overflow-x-auto whitespace-nowrap scrollbar-none justify-start">
+          <TabsTrigger value="steam" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Gamepad2 className="h-4 w-4 mr-1" />Steam Library</TabsTrigger>
           <TabsTrigger value="achievements" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Award className="h-4 w-4 mr-1" />Achievements ({profile.achievements?.length || 0})</TabsTrigger>
           <TabsTrigger value="history" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Swords className="h-4 w-4 mr-1" />History ({profile.tournamentHistory?.length || 0})</TabsTrigger>
-          <TabsTrigger value="posts" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Star className="h-4 w-4 mr-1" />Posts ({profile.user?._count?.posts || 0})</TabsTrigger>
+          <TabsTrigger value="posts" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Star className="h-4 w-4 mr-1" />Posts ({posts?.length || 0})</TabsTrigger>
           <TabsTrigger value="about" className="shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg"><Shield className="h-4 w-4 mr-1" />About</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="steam">
+          <SteamShowcase userId={profile.userId || profile.user?.id || profile.id} />
+        </TabsContent>
 
         <TabsContent value="achievements">
           <Card variant="glass">
@@ -656,14 +567,14 @@ export default function ProfilePage() {
                   <h3 className="font-semibold">Gaming Info</h3>
                   <div className="space-y-2 text-sm bg-muted/20 rounded-xl p-4 border border-border/30">
                     {[
-                      { label: 'Play Style', value: profile.playStyle },
-                      { label: 'Communication', value: profile.communicationStyle },
-                      { label: 'Active Time', value: profile.activeTime },
-                      { label: 'Experience', value: profile.experienceLevel },
+                      { label: 'Play Style', value: profile.playStyle || 'Aggressive' },
+                      { label: 'Communication', value: profile.communicationStyle || 'Shotcaller' },
+                      { label: 'Active Time', value: profile.activeTime || 'Evenings & Weekends' },
+                      { label: 'Experience', value: profile.experienceLevel || 'Competitive (3+ yrs)' },
                     ].map((item, i) => (
                       <div key={i} className="flex justify-between">
                         <span className="text-muted-foreground">{item.label}</span>
-                        <span className="font-medium">{item.value || 'N/A'}</span>
+                        <span className="font-medium text-white">{item.value}</span>
                       </div>
                     ))}
                   </div>
@@ -671,24 +582,33 @@ export default function ProfilePage() {
                 <div className="space-y-3">
                   <h3 className="font-semibold">Stats Breakdown</h3>
                   <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1.5"><span>Win Rate</span><span className="font-semibold text-success">{profile.winRate}%</span></div>
-                      <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                        <motion.div className="h-full bg-gradient-to-r from-success/70 to-success rounded-full" initial={{ width: 0 }} animate={{ width: `${profile.winRate}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1.5"><span>K/D Ratio</span><span className="font-semibold text-primary">{profile.kd}</span></div>
-                      <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                        <motion.div className="h-full bg-gradient-to-r from-primary/70 to-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min((profile.kd / 5) * 100, 100)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1.5"><span>Accuracy</span><span className="font-semibold text-gaming-purple">{profile.accuracy}%</span></div>
-                      <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                        <motion.div className="h-full bg-gradient-to-r from-gaming-purple/70 to-gaming-purple rounded-full" initial={{ width: 0 }} animate={{ width: `${profile.accuracy}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.4 }} />
-                      </div>
-                    </div>
+                    {(() => {
+                      const winRateVal = profile.winRate;
+                      const kdVal = profile.kd;
+                      const accuracyVal = profile.accuracy;
+                      return (
+                        <>
+                          <div>
+                            <div className="flex justify-between text-sm mb-1.5"><span>Win Rate</span><span className="font-semibold text-emerald-400">{winRateVal ? `${winRateVal}%` : 'Not Available'}</span></div>
+                            <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                              <motion.div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" initial={{ width: 0 }} animate={{ width: `${winRateVal || 0}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-sm mb-1.5"><span>K/D Ratio</span><span className="font-semibold text-primary">{kdVal ? kdVal : 'Not Available'}</span></div>
+                            <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                              <motion.div className="h-full bg-gradient-to-r from-indigo-500 to-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min(((kdVal || 0) / 3) * 100, 100)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }} />
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-sm mb-1.5"><span>Accuracy</span><span className="font-semibold text-[#7C3AED]">{accuracyVal ? `${accuracyVal}%` : 'Not Available'}</span></div>
+                            <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                              <motion.div className="h-full bg-gradient-to-r from-purple-500 to-[#7C3AED] rounded-full" initial={{ width: 0 }} animate={{ width: `${accuracyVal || 0}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.4 }} />
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -698,122 +618,117 @@ export default function ProfilePage() {
       </Tabs>
 
       {/* Social List Modal (Connections, Followers, Following) */}
-      <AnimatePresence>
-        {listModalOpen && listType && (
-          <motion.div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="bg-background border border-border/50 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl relative overflow-hidden"
-              initial={{ scale: 0.95, y: 15 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 15 }}
-              transition={{ type: 'spring', duration: 0.3 }}
-            >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50 bg-muted/10 shrink-0">
-                <div>
-                  <h3 className="font-bold text-base capitalize">{listType}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {filteredList.length} {filteredList.length === 1 ? 'user' : 'users'} found
-                  </p>
+      <PremiumModal
+        open={listModalOpen && !!listType}
+        onClose={() => setListModalOpen(false)}
+        variant="center"
+        size="lg"
+        title={listType ? `${listType} list` : undefined}
+        header={
+          listType ? (
+            <div className="flex w-full items-center justify-between">
+              <div>
+                <h3 className="font-bold text-base capitalize">{listType}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {filteredList.length} {filteredList.length === 1 ? 'user' : 'users'} found
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setListModalOpen(false)} className="h-9 w-9 rounded-full">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          ) : undefined
+        }
+      >
+        {listType && (
+          <div>
+            {/* Local Search input */}
+            <div className="flex items-center gap-2 border-b border-border/30 bg-muted/5 px-4 py-3">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search user..."
+                value={listSearch}
+                onChange={(e) => setListSearch(e.target.value)}
+                className="h-8 border-0 bg-transparent text-xs focus-visible:ring-0 px-0"
+                variant="ghost"
+              />
+            </div>
+
+            {/* List Content */}
+            <div className="p-4">
+              {listLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="text-xs text-muted-foreground">Loading list...</span>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setListModalOpen(false)}>
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
+              ) : filteredList.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-muted-foreground">No users found</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredList.map((item: any) => {
+                    if (!item) return null;
+                    const isMe = item.id === user?.id;
+                    const isFriend = friendList?.includes(item.id);
+                    const isFollowingItem = followingList?.includes(item.id);
 
-              {/* Local Search input */}
-              <div className="p-3 border-b border-border/30 bg-muted/5 shrink-0 flex items-center gap-2">
-                <Search className="h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search user..."
-                  value={listSearch}
-                  onChange={(e) => setListSearch(e.target.value)}
-                  className="h-8 border-0 bg-transparent text-xs focus-visible:ring-0 px-0"
-                  variant="ghost"
-                />
-              </div>
+                    return (
+                      <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/15 border border-transparent hover:border-border/30 transition-all duration-200">
+                        {/* User Info */}
+                        <Link 
+                          href={`/profile/${item.profile?.username}`}
+                          onClick={() => setListModalOpen(false)}
+                          className="flex items-center gap-3 min-w-0"
+                        >
+                          <Avatar className="h-9 w-9 border border-border/30">
+                            <AvatarImage src={item.profile?.avatar || ''} />
+                            <AvatarFallback className="text-xs">{getInitials(item.profile?.username || '')}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate hover:text-primary transition-colors">
+                              {item.profile?.displayName || item.profile?.username}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              @{item.profile?.username}
+                            </p>
+                          </div>
+                        </Link>
 
-              {/* List Content */}
-              <ScrollArea className="flex-1 p-4">
-                {listLoading ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <span className="text-xs text-muted-foreground">Loading list...</span>
-                  </div>
-                ) : filteredList.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-muted-foreground">No users found</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredList.map((item: any) => {
-                      if (!item) return null;
-                      const isMe = item.id === user?.id;
-                      const isFriend = friendList?.includes(item.id);
-                      const isFollowingItem = followingList?.includes(item.id);
+                        {/* Action buttons */}
+                        {!isMe && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            {/* Follow / Unfollow */}
+                            <Button
+                              variant={isFollowingItem ? 'outline' : 'secondary'}
+                              onClick={() => listToggleFollow.mutate(item.id)}
+                              disabled={listToggleFollow.isPending}
+                              className="h-7 text-[10px] px-2 rounded-lg font-bold"
+                            >
+                              {isFollowingItem ? 'Unfollow' : 'Follow'}
+                            </Button>
 
-                      return (
-                        <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/15 border border-transparent hover:border-border/30 transition-all duration-200">
-                          {/* User Info */}
-                          <Link 
-                            href={`/profile/${item.profile?.username}`}
-                            onClick={() => setListModalOpen(false)}
-                            className="flex items-center gap-3 min-w-0"
-                          >
-                            <Avatar className="h-9 w-9 border border-border/30">
-                              <AvatarImage src={item.profile?.avatar || ''} />
-                              <AvatarFallback className="text-xs">{getInitials(item.profile?.username || '')}</AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold truncate hover:text-primary transition-colors">
-                                {item.profile?.displayName || item.profile?.username}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                @{item.profile?.username}
-                              </p>
-                            </div>
-                          </Link>
-
-                          {/* Action buttons */}
-                          {!isMe && (
-                            <div className="flex items-center gap-2 shrink-0">
-                              {/* Follow / Unfollow */}
-                              <Button
-                                variant={isFollowingItem ? 'outline' : 'secondary'}
-                                onClick={() => listToggleFollow.mutate(item.id)}
-                                disabled={listToggleFollow.isPending}
-                                className="h-7 text-[10px] px-2 rounded-lg font-bold"
-                              >
-                                {isFollowingItem ? 'Unfollow' : 'Follow'}
-                              </Button>
-
-                              {/* Connect / Connected */}
-                              <Button
-                                variant={isFriend ? 'default' : 'outline'}
-                                onClick={() => !isFriend && listConnect.mutate(item.id)}
-                                disabled={isFriend || listConnect.isPending}
-                                className={`h-7 text-[10px] px-2 rounded-lg font-bold ${isFriend ? 'bg-success/10 text-success hover:bg-success/15 border-success/30' : ''}`}
-                              >
-                                {isFriend ? 'Connected' : 'Connect'}
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </ScrollArea>
-            </motion.div>
-          </motion.div>
+                            {/* Connect / Connected */}
+                            <Button
+                              variant={isFriend ? 'default' : 'outline'}
+                              onClick={() => !isFriend && listConnect.mutate(item.id)}
+                              disabled={isFriend || listConnect.isPending}
+                              className={`h-7 text-[10px] px-2 rounded-lg font-bold ${isFriend ? 'bg-success/10 text-success hover:bg-success/15 border-success/30' : ''}`}
+                            >
+                              {isFriend ? 'Connected' : 'Connect'}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      </PremiumModal>
     </div>
   );
 }

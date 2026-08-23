@@ -1,15 +1,34 @@
 import prisma from '../config/database';
+import { PostType } from '@prisma/client';
 import { NotFoundError, ForbiddenError } from '../utils/errors';
+import { VIEW_WINDOW_MS } from '../utils/views';
+import { achievementService } from './achievement.service';
 
 export class PostService {
   async create(
-    data: { content: string; type?: string; media?: string[]; tags?: string[]; poll?: { question: string; options: string[] } },
+    data: { content?: string; type?: string; media?: string[]; tags?: string[]; poll?: { question: string; options: string[] } },
     userId: string
   ) {
+    const validPostTypes: PostType[] = ['POST', 'ARTICLE', 'VIDEO', 'NEWS', 'POLL'];
+    let postType: PostType = 'POST';
+
+    if (data.type && validPostTypes.includes(data.type as PostType)) {
+      postType = data.type as PostType;
+    } else if (data.type === 'CLIP') {
+      postType = 'VIDEO';
+    } else if (data.poll) {
+      postType = 'POLL';
+    } else if (data.media && data.media.length > 0) {
+      const hasVideo = data.media.some(m => m.match(/\.(mp4|webm|ogg|mov)$/i) || m.includes('/video/'));
+      postType = hasVideo ? 'VIDEO' : 'POST';
+    }
+
+    const postContent = (data.content || '').trim();
+
     const post = await prisma.post.create({
       data: {
-        content: data.content,
-        type: (data.type as any) || (data.poll ? 'POLL' : data.media?.length ? 'CLIP' : 'POST'),
+        content: postContent,
+        type: postType,
         media: data.media || [],
         tags: data.tags || [],
         userId,
@@ -37,27 +56,37 @@ export class PostService {
       }
     });
 
-    if (data.tags) {
-      for (const tag of data.tags) {
-        const hashtag = await prisma.hashtag.upsert({
-          where: { name: tag.toLowerCase() },
-          update: { count: { increment: 1 } },
-          create: { name: tag.toLowerCase(), count: 1 }
-        });
-        await prisma.postHashtag.create({ data: { postId: post.id, hashtagId: hashtag.id } });
+    if (data.tags && Array.isArray(data.tags)) {
+      const uniqueTags = Array.from(new Set(data.tags.map(t => typeof t === 'string' ? t.trim().toLowerCase().replace(/^#/, '') : '').filter(Boolean)));
+      for (const tag of uniqueTags) {
+        try {
+          const hashtag = await prisma.hashtag.upsert({
+            where: { name: tag },
+            update: { count: { increment: 1 } },
+            create: { name: tag, count: 1 }
+          });
+          await prisma.postHashtag.upsert({
+            where: { postId_hashtagId: { postId: post.id, hashtagId: hashtag.id } },
+            create: { postId: post.id, hashtagId: hashtag.id },
+            update: {}
+          });
+        } catch (tagErr) {
+          console.warn('Hashtag processing warning:', tagErr);
+        }
       }
     }
+    achievementService.unlockByKey(userId, 'FIRST_POST').catch(() => {});
     return post;
   }
 
   async list(params: { page?: number; limit?: number; hashtag?: string; userId?: string; following?: string }) {
     const { page = 1, limit = 20, hashtag, userId, following } = params;
-    const where: any = { isPublished: true };
+    const where: Record<string, unknown> = { isPublished: true };
     if (hashtag) where.hashtags = { some: { hashtag: { name: hashtag.toLowerCase() } } };
     if (userId) where.userId = userId;
     if (following) {
       const follows = await prisma.follow.findMany({ where: { followerId: following }, select: { followingId: true } });
-      where.userId = { in: [...follows.map((f: any) => f.followingId), following] };
+      where.userId = { in: [...follows.map((f) => f.followingId), following] };
     }
 
     const [posts, total] = await Promise.all([
@@ -90,7 +119,7 @@ export class PostService {
     };
   }
 
-  async getById(id: string) {
+  async getById(id: string, viewerIdParam?: string, ipHash?: string) {
     const post = await prisma.post.findUnique({
       where: { id },
       include: {
@@ -117,7 +146,33 @@ export class PostService {
       }
     });
 
-    if (post) await prisma.post.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+    if (post) {
+      // Deduped view tracking: one view per viewer (or IP for anonymous) per
+      // 24h window, and the author's own views are not counted.
+      const viewerId = viewerIdParam;
+      if (viewerId !== post.userId) {
+        const viewerIp = viewerId ? undefined : ipHash;
+        const since = new Date(Date.now() - VIEW_WINDOW_MS);
+        const existing = await prisma.postView.findFirst({
+          where: viewerId
+            ? { postId: post.id, viewerId, createdAt: { gte: since } }
+            : viewerIp
+              ? { postId: post.id, viewerIp, createdAt: { gte: since } }
+              : { postId: post.id },
+          select: { id: true },
+        });
+        if (!existing) {
+          await prisma.postView.create({
+            data: viewerId
+              ? { postId: post.id, viewerId }
+              : viewerIp
+                ? { postId: post.id, viewerIp }
+                : { postId: post.id },
+          });
+          await prisma.post.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+        }
+      }
+    }
     return post;
   }
 

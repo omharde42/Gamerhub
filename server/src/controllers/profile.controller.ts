@@ -9,6 +9,9 @@ import { aiService } from '../services/ai.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendError } from '../utils/response';
 import { NotFoundError, ValidationError } from '../utils/errors';
+import { VIEW_WINDOW_MS, hashIp } from '../utils/views';
+import { mediaStorageService } from '../utils/storage';
+import { sanitizeProfileUpdate } from '../utils/profile-allowlist';
 
 export class ProfileController {
   getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -19,6 +22,7 @@ export class ProfileController {
         achievements: true,
         certifications: true,
         tournamentHistory: true,
+        _count: { select: { views: true } },
         user: {
           select: {
             id: true,
@@ -41,7 +45,31 @@ export class ProfileController {
       prisma.friendRequest.count({ where: { receiverId: profile.userId, status: 'ACCEPTED' } }),
     ]);
     const connectionsCount = sentCount + receivedCount;
-    const profileViews = Math.floor((profile.kd || 0.0) * 142 + (profile.totalMatches || 0) * 3.5 + 57);
+
+    // Real view tracking: record one deduped view per viewer (or IP for
+    // anonymous visitors) per 24h window. Own profile views are not counted.
+    const viewerId = req.user?.userId ?? undefined;
+    if (viewerId !== profile.userId) {
+      const viewerIp = viewerId ? undefined : hashIp(req.ip || req.socket?.remoteAddress || '');
+      const since = new Date(Date.now() - VIEW_WINDOW_MS);
+      const existing = await prisma.profileView.findFirst({
+        where: viewerId
+          ? { profileId: profile.id, viewerId, createdAt: { gte: since } }
+          : viewerIp
+            ? { profileId: profile.id, viewerIp, createdAt: { gte: since } }
+            : { profileId: profile.id },
+        select: { id: true },
+      });
+      if (!existing) {
+        await prisma.profileView.create({
+          data: viewerId
+            ? { profileId: profile.id, viewerId }
+            : viewerIp
+              ? { profileId: profile.id, viewerIp }
+              : { profileId: profile.id },
+        });
+      }
+    }
 
     let friendshipStatus: 'friends' | 'pending' | null = null;
     if (req.user) {
@@ -66,18 +94,31 @@ export class ProfileController {
     sendSuccess(res, {
       ...profile,
       connectionsCount,
-      profileViews,
+      profileViews: profile._count.views,
       friendshipStatus,
     });
   });
 
+  /**
+   * PUT /api/profiles
+   *
+   * Strict allowlist — a user may only update their own editable profile
+   * fields. Server-owned fields (gamerScore, skillScore, competitiveScore,
+   * communicationScore, leadershipScore, teamworkScore, improvementRate,
+   * winRate, kd, accuracy, totalMatches, wins, losses, rankScore, rank,
+   * verified, toxicityScore, and any game-verification/statistics fields) are
+   * rejected with a validation error — clients can never write them, even by
+   * accident or direct API call.
+   */
   updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const data = req.body;
+    const body = req.body || {};
+    const { data } = sanitizeProfileUpdate(body);
+
     const profile = await prisma.profile.update({
       where: { userId: req.user!.userId },
       data,
     });
-    sendSuccess(res, profile);
+    sendSuccess(res, profile, 'Profile updated successfully');
   });
 
   uploadAvatar = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -90,46 +131,17 @@ export class ProfileController {
       return sendError(res, 400, 'Unsupported file format. Please upload a JPG, JPEG, PNG, or WebP image.');
     }
 
-    if (req.file.size > 5 * 1024 * 1024) {
-      return sendError(res, 400, 'Image is too large. Maximum size is 5MB.');
+    if (req.file.size > 10 * 1024 * 1024) {
+      return sendError(res, 400, 'Image is too large. Maximum size is 10MB.');
     }
 
-    let avatarUrl = '';
-
-    // 1. Try Cloudinary upload if configured
-    if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
-      try {
-        const b64 = Buffer.from(req.file.buffer).toString('base64');
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-        const result = await cloudinary.uploader.upload(dataURI, {
-          folder: 'gamerhub/avatars',
-          width: 512,
-          height: 512,
-          crop: 'fill',
-        });
-        if (result && result.secure_url) {
-          avatarUrl = result.secure_url;
-        }
-      } catch (cloudErr) {
-        console.warn('Cloudinary avatar upload warning:', cloudErr);
-      }
-    }
-
-    // 2. Local Disk Storage Fallback if Cloudinary is unconfigured or fails
-    if (!avatarUrl) {
-      const uploadsDir = path.join(__dirname, '../../public/uploads/avatars');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-      const ext = path.extname(req.file.originalname) || '.jpg';
-      const filename = `avatar_${req.user!.userId}_${Date.now()}${ext}`;
-      const filePath = path.join(uploadsDir, filename);
-      fs.writeFileSync(filePath, req.file.buffer);
-
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-      const host = req.get('host') || 'localhost:4000';
-      avatarUrl = `${protocol}://${host}/uploads/avatars/${filename}`;
-    }
+    const result = await mediaStorageService.uploadMedia(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      'avatars'
+    );
+    const avatarUrl = result.url;
 
     const profile = await prisma.profile.update({
       where: { userId: req.user!.userId },
@@ -153,40 +165,13 @@ export class ProfileController {
       return sendError(res, 400, 'Image is too large. Maximum size is 10MB.');
     }
 
-    let bannerUrl = '';
-
-    if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
-      try {
-        const b64 = Buffer.from(req.file.buffer).toString('base64');
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-        const result = await cloudinary.uploader.upload(dataURI, {
-          folder: 'gamerhub/banners',
-          width: 1200,
-          height: 400,
-          crop: 'fill',
-        });
-        if (result && result.secure_url) {
-          bannerUrl = result.secure_url;
-        }
-      } catch (cloudErr) {
-        console.warn('Cloudinary banner upload warning:', cloudErr);
-      }
-    }
-
-    if (!bannerUrl) {
-      const uploadsDir = path.join(__dirname, '../../public/uploads/banners');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-      const ext = path.extname(req.file.originalname) || '.jpg';
-      const filename = `banner_${req.user!.userId}_${Date.now()}${ext}`;
-      const filePath = path.join(uploadsDir, filename);
-      fs.writeFileSync(filePath, req.file.buffer);
-
-      const protocol = req.protocol || 'http';
-      const host = req.get('host') || 'localhost:4000';
-      bannerUrl = `${protocol}://${host}/uploads/banners/${filename}`;
-    }
+    const result = await mediaStorageService.uploadMedia(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      'banners'
+    );
+    const bannerUrl = result.url;
 
     const profile = await prisma.profile.update({
       where: { userId: req.user!.userId },

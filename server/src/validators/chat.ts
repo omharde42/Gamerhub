@@ -25,3 +25,26 @@ export const paginationValidation = [
 export const idParamValidation = [
   param('id').isUUID().withMessage('Valid ID parameter is required'),
 ];
+
+export const messageActionValidation = [
+  param('id').isUUID().withMessage('Valid chat ID is required'),
+  param('messageId').isUUID().withMessage('Valid message ID is required'),
+];
+
+export const editMessageValidation = [
+  body('content').isString().trim().isLength({ min: 1, max: 5000 }).withMessage('Content must be 1-5000 characters'),
+];
+
+export const reactionValidation = [
+  body('emoji').isString().trim().isLength({ min: 1, max: 8 }).withMessage('Emoji must be 1-8 characters'),
+];
+
+export const pinValidation = [
+  body('isPinned').isBoolean().withMessage('isPinned must be a boolean'),
+];
+
+export const searchValidation = [
+  query('q').isString().trim().isLength({ min: 1, max: 100 }).withMessage('Query is required'),
+  query('page').optional().isInt({ min: 1 }).toInt().withMessage('Page must be a positive integer'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).toInt().withMessage('Limit must be 1-100'),
+];

@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { user, isAuthenticated, login } = useAuthStore();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +24,10 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState(false);
+
+  if (isAuthenticated && user) {
+    return null;
+  }
 
   const passwordChecks = {
     length: password.length >= 6,
@@ -59,12 +63,18 @@ export default function RegisterPage() {
   const handleSocialLogin = async (provider: string) => {
     setSocialLoading(true);
     try {
+      // These are OAuth redirects to the external backend, not internal Next.js
+      // navigation — the browser must leave the app, so full navigation is required.
+      if (provider === 'discord') {
+        window.location.href = API_URL + '/auth/discord?action=login';
+        return;
+      }
       if (provider === 'google') {
-        window.location.href = `${API_URL}/auth/google`;
+        window.location.href = API_URL + '/auth/google';
         return;
       }
       if (provider === 'steam') {
-        window.location.href = `${API_URL}/auth/steam`;
+        window.location.href = API_URL + '/auth/steam';
         return;
       }
 

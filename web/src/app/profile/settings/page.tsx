@@ -15,11 +15,14 @@ import { useAuthStore } from '@/store/authStore';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { GAMES, ROLES, PLAY_STYLES, COMMUNICATION_STYLES, REGIONS, LANGUAGES, API_URL } from '@/lib/constants';
+import { GAMES, ROLES, PLAY_STYLES, COMMUNICATION_STYLES, LANGUAGES, API_URL } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { Shield, Bell, User, Gamepad2, X, Loader2, CheckCircle2, Circle, Sparkles, Trophy } from 'lucide-react';
+import { Shield, Bell, User, Gamepad2, X, Loader2, CheckCircle2, Circle, Sparkles, Trophy, Camera, Gauge, Scale } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { BackHeader } from '@/components/common/back-header';
+import { AdvancedSettingsTab } from '@/components/settings/advanced-settings';
+import { LegalSettingsTab } from '@/components/settings/legal-settings';
  
 export default function SettingsPage() {
   const router = useRouter();
@@ -30,7 +33,7 @@ export default function SettingsPage() {
     displayName: user?.profile?.displayName || '',
     bio: user?.profile?.bio || '',
     country: user?.profile?.country || '',
-    city: user?.profile?.city || '',
+    city: (user?.profile as any)?.city || '',
     playStyle: user?.profile?.playStyle || '',
     communicationStyle: user?.profile?.communicationStyle || '',
     rank: user?.profile?.rank || '',
@@ -54,7 +57,7 @@ export default function SettingsPage() {
         displayName: user.profile.displayName || '',
         bio: user.profile.bio || '',
         country: user.profile.country || '',
-        city: user.profile.city || '',
+        city: (user.profile as any).city || '',
         playStyle: user.profile.playStyle || '',
         communicationStyle: user.profile.communicationStyle || '',
         rank: user.profile.rank || '',
@@ -90,15 +93,13 @@ export default function SettingsPage() {
     profile.mainGames.length > 0;
 
   const updateProfile = useMutation({
-    // Wait, the API endpoint is PUT /profiles
     mutationFn: () => api.put('/profiles', profile),
     onSuccess: (res: any) => {
       const updated = res.data.data;
-      setUser({ ...user, profile: updated });
+      setUser({ ...user, profile: updated } as any);
       
-      const username = updated.username || user?.profile?.username || user?.username;
+      const username = updated.username || user?.profile?.username || (user as any)?.username;
       
-      // Invalidate the cache for profile query so it reloads in real time without refreshing
       queryClient.invalidateQueries({ queryKey: ['profile', username] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       
@@ -108,10 +109,36 @@ export default function SettingsPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to update profile')
   });
 
-  const { data: linkedAccounts, refetch: refetchAccounts } = useQuery({
+  const { data: linkedData, refetch: refetchAccounts } = useQuery({
     queryKey: ['linked-accounts'],
-    queryFn: () => api.get('/auth/accounts').then((r) => r.data.data).catch(() => []),
+    queryFn: () => api.get('/auth/accounts').then((r) => r.data.data).catch(() => null),
     enabled: !!user,
+  });
+
+  const linkedAccounts = linkedData?.accounts || (Array.isArray(linkedData) ? linkedData : []);
+  const discordData = linkedData?.discord;
+  const steamData = linkedData?.steam;
+
+  const disconnectDiscord = useMutation({
+    mutationFn: () => api.post('/auth/discord/disconnect'),
+    onSuccess: () => {
+      refetchAccounts();
+      toast.success('Discord account unlinked successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to disconnect Discord');
+    },
+  });
+
+  const disconnectSteam = useMutation({
+    mutationFn: () => api.post('/steam/disconnect'),
+    onSuccess: () => {
+      refetchAccounts();
+      toast.success('Steam account unlinked successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to disconnect Steam');
+    },
   });
 
   const unlinkAccount = useMutation({
@@ -126,8 +153,25 @@ export default function SettingsPage() {
   });
 
   const handleLinkSocial = async (provider: string) => {
+    if (provider === 'discord') {
+      // Authenticated initiation: the server signs a state bound to the current
+      // user, so the link can never be hijacked to attach to another account.
+      try {
+        const { data } = await api.post('/auth/discord/link');
+        if (data?.data?.url) {
+          window.location.href = data.data.url;
+        } else if (data?.data?.linked) {
+          refetchAccounts();
+          toast.success('Discord account linked successfully');
+        }
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Failed to start Discord linking');
+      }
+      return;
+    }
     if (provider === 'steam') {
-      window.location.href = `${API_URL}/auth/steam`;
+      // External OAuth redirect to the backend — full navigation is required.
+      window.location.href = API_URL + '/auth/steam';
       return;
     }
     try {
@@ -162,19 +206,38 @@ export default function SettingsPage() {
     updateProfile.mutate();
   };
 
-  const uploadAvatar = useMutation({
-    mutationFn: (file: File) => {
-      const fd = new FormData();
-      fd.append('avatar', file);
-      return api.post('/profiles/avatar', fd);
-    },
-    onSuccess: async (data) => {
-      const avatarUrl = data.data.data.avatar;
-      setUser({ ...user, profile: { ...user?.profile, avatar: avatarUrl } });
-      toast.success('Avatar updated!');
-    },
-    onError: () => toast.error('Failed to upload avatar')
-  });
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarProgress, setAvatarProgress] = useState(0);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarUploading(true);
+    setAvatarProgress(5);
+    try {
+      const { uploadMediaFile } = await import('@/lib/upload');
+      const avatarUrl = await uploadMediaFile(file, {
+        endpoint: '/profiles/avatar',
+        fieldName: 'avatar',
+        onProgress: (p) => setAvatarProgress(p),
+      });
+
+      setUser({ ...user, profile: { ...user?.profile, avatar: avatarUrl } } as any);
+      const username = user?.profile?.username || (user as any)?.username;
+      if (username) {
+        queryClient.invalidateQueries({ queryKey: ['profile', username] });
+        queryClient.invalidateQueries({ queryKey: ['profile'] });
+      }
+      toast.success('Avatar updated successfully!');
+    } catch (err: any) {
+      console.error('Avatar upload failed:', err);
+      toast.error(err.message || 'Failed to upload avatar. Please try again.');
+    } finally {
+      setAvatarUploading(false);
+      setAvatarProgress(0);
+    }
+  };
 
   const addGame = () => {
     if (newGame && !profile.mainGames.includes(newGame)) {
@@ -192,6 +255,9 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Back navigation button */}
+      <BackHeader title="Settings" />
+
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold">Passport Settings</h1>
         {!coreSetupCompleted && (
@@ -254,28 +320,48 @@ export default function SettingsPage() {
           <TabsTrigger value="social" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Sparkles className="h-4 w-4" />Social Links</TabsTrigger>
           <TabsTrigger value="accounts" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Shield className="h-4 w-4" />Connected Accounts</TabsTrigger>
           <TabsTrigger value="notifications" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Bell className="h-4 w-4" />Notifications</TabsTrigger>
+          <TabsTrigger value="advanced" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Gauge className="h-4 w-4" />Advanced</TabsTrigger>
+          <TabsTrigger value="legal" className="shrink-0 data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-2 py-3 bg-transparent hover:text-foreground text-sm gap-1.5"><Scale className="h-4 w-4" />License & Legal</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
           <Card variant="glass">
             <CardContent className="p-6 space-y-6">
               <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20 border-2 border-primary/20 shadow-md">
-                  <AvatarImage src={user?.profile?.avatar || ''} />
-                  <AvatarFallback className="text-2xl bg-gradient-to-br from-gaming-purple to-gaming-pink text-white">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
-                </Avatar>
+                <div className="relative group">
+                  <Avatar className="h-20 w-20 border-2 border-primary/40 shadow-lg">
+                    <AvatarImage src={user?.profile?.avatar || ''} />
+                    <AvatarFallback className="text-2xl bg-gradient-to-br from-gaming-purple to-gaming-pink text-white">{getInitials(user?.profile?.username || 'U')}</AvatarFallback>
+                  </Avatar>
+                  {avatarUploading && (
+                    <div className="absolute inset-0 bg-black/70 rounded-full flex flex-col items-center justify-center text-white backdrop-blur-sm">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary mb-1" />
+                      <span className="text-[10px] font-bold font-mono">{avatarProgress}%</span>
+                    </div>
+                  )}
+                </div>
                 <div>
-                  <Button variant="outline" size="sm" className="relative h-9 px-4 rounded-xl cursor-pointer">
+                  <Button variant="outline" size="sm" className="relative h-9 px-4 rounded-xl cursor-pointer" disabled={avatarUploading}>
                     <input 
                       type="file" 
                       accept="image/*" 
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
-                      onChange={(e) => e.target.files?.[0] && uploadAvatar.mutate(e.target.files[0])} 
-                      disabled={uploadAvatar.isPending}
+                      onChange={handleAvatarChange} 
+                      disabled={avatarUploading}
                     />
-                    {uploadAvatar.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-                    Change Avatar
+                    {avatarUploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                        <span>Uploading... {avatarProgress}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-4 w-4 mr-1.5 text-primary" />
+                        <span>Change Avatar</span>
+                      </>
+                    )}
                   </Button>
+                  <p className="text-[11px] text-muted-foreground mt-1">Supports JPG, PNG, WEBP (Max 10MB)</p>
                 </div>
               </div>
 
@@ -356,7 +442,12 @@ export default function SettingsPage() {
                     <SelectTrigger className="h-10"><SelectValue placeholder="Add game" /></SelectTrigger>
                     <SelectContent>
                       {GAMES.filter((game: string) => !profile.mainGames.includes(game)).map((game: string) => (
-                        <SelectItem key={game} value={game}>{game}</SelectItem>
+                        <SelectItem key={game} value={game}>
+                          <span className="flex items-center justify-between w-full gap-2">
+                            <span>{game}</span>
+                            <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Verified Connection ✅</span>
+                          </span>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -562,25 +653,92 @@ export default function SettingsPage() {
                   ),
                 },
               ].map((item) => {
+                const isDiscord = item.provider === 'DISCORD';
+                const isSteam = item.provider === 'STEAM';
+                const isDiscordConnected = isDiscord && discordData?.connected;
+                const isSteamConnected = isSteam && steamData?.connected;
                 const linkedAcc = (linkedAccounts || []).find((a: any) => a.provider === item.provider);
+                const isConnected = isDiscordConnected || isSteamConnected || !!linkedAcc;
+
                 return (
                   <div key={item.provider} className="flex items-center justify-between p-4 rounded-xl border border-border bg-background/40">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-muted/40 shrink-0">{item.icon}</div>
+                      {isDiscordConnected && discordData?.avatar ? (
+                        <Avatar className="h-10 w-10 border border-[#5865F2]/40 shadow-sm shrink-0">
+                          <AvatarImage src={discordData.avatar} alt={discordData.username} />
+                          <AvatarFallback className="bg-[#5865F2] text-white font-bold text-xs">{getInitials(discordData.username)}</AvatarFallback>
+                        </Avatar>
+                      ) : isSteamConnected && steamData?.avatar ? (
+                        <Avatar className="h-10 w-10 border border-primary/40 shadow-sm shrink-0">
+                          <AvatarImage src={steamData.avatar} alt={steamData.username} />
+                          <AvatarFallback className="bg-primary/20 text-primary font-bold text-xs">{getInitials(steamData.username)}</AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="p-2 rounded-lg bg-muted/40 shrink-0">{item.icon}</div>
+                      )}
                       <div>
-                        <p className="font-semibold text-sm">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {linkedAcc ? `Connected as ${linkedAcc.providerUsername || linkedAcc.providerId}` : 'Not connected'}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-sm">{item.name}</p>
+                          {isConnected && (
+                            <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/10 text-[10px]">
+                              🟢 Connected
+                            </Badge>
+                          )}
+                          {isSteamConnected && steamData?.level && (
+                            <Badge variant="secondary" className="text-[10px] font-mono bg-primary/10 text-primary border-primary/20">
+                              Level {steamData.level} 🎮
+                            </Badge>
+                          )}
+                        </div>
+                        {isDiscordConnected ? (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            <p className="font-medium text-foreground">Username: @{discordData.username}</p>
+                            {discordData.connectedAt && (
+                              <p className="text-[10px] text-muted-foreground/70">Connected on {new Date(discordData.connectedAt).toLocaleDateString()}</p>
+                            )}
+                          </div>
+                        ) : isSteamConnected ? (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            <p className="font-medium text-foreground">Persona: {steamData.username}</p>
+                            {steamData.connectedAt && (
+                              <p className="text-[10px] text-muted-foreground/70">Connected on {new Date(steamData.connectedAt).toLocaleDateString()}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            {linkedAcc ? `Connected as ${linkedAcc.providerUsername || linkedAcc.providerId}` : 'Not connected'}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    {linkedAcc ? (
+                    {isDiscordConnected ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-destructive hover:bg-destructive/10 rounded-xl"
+                        onClick={() => disconnectDiscord.mutate()}
+                        disabled={disconnectDiscord.isPending}
+                      >
+                        {disconnectDiscord.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                        Disconnect
+                      </Button>
+                    ) : isSteamConnected ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-destructive hover:bg-destructive/10 rounded-xl"
+                        onClick={() => disconnectSteam.mutate()}
+                        disabled={disconnectSteam.isPending}
+                      >
+                        {disconnectSteam.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                        Disconnect
+                      </Button>
+                    ) : linkedAcc ? (
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-success border-success/30 bg-success/10">Connected</Badge>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs text-destructive hover:bg-destructive/10"
+                          className="text-xs text-destructive hover:bg-destructive/10 rounded-xl"
                           onClick={() => unlinkAccount.mutate(item.provider)}
                           disabled={unlinkAccount.isPending}
                         >
@@ -591,10 +749,10 @@ export default function SettingsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-xs gap-1.5 rounded-xl"
+                        className={`text-xs gap-1.5 rounded-xl ${isDiscord ? 'border-[#5865F2]/40 text-[#5865F2] hover:bg-[#5865F2]/10' : ''}`}
                         onClick={() => handleLinkSocial(item.provider.toLowerCase())}
                       >
-                        Link {item.name}
+                        Connect {item.name}
                       </Button>
                     )}
                   </div>
@@ -625,6 +783,14 @@ export default function SettingsPage() {
               ))}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="advanced">
+          <AdvancedSettingsTab />
+        </TabsContent>
+
+        <TabsContent value="legal">
+          <LegalSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

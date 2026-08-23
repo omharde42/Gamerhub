@@ -1,0 +1,77 @@
+From 071e94f6d87e0c430eed2a7672174ee387c22486 Mon Sep 17 00:00:00 2001
+From: "omharde@4" <you@example.com>
+Date: Thu, 13 Aug 2026 11:17:27 +0530
+Subject: [PATCH 07/12] fix(subscriptions): verify Stripe webhook signatures
+ against the raw body
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+handleWebhook passed req.body (the JSON-parsed object) to
+stripe.webhooks.constructEvent, which requires the exact raw request bytes.
+Re-serializing the parsed object almost never matches the original byte
+sequence, so the signature check could never succeed — subscription events
+were effectively never processed, and any "verification" that did run was
+meaningless.
+
+- express.json now captures the raw body buffer via its verify hook.
+- handleWebhook verifies against req.rawBody and fails closed (400) if the
+  raw body is unavailable.
+- Also capped express.urlencoded at 1mb (unbounded body -> DoS).
+
+Validation: cd server && npx tsc --noEmit.
+
+🤖 Generated with Codebuff
+Co-Authored-By: Codebuff <noreply@codebuff.com>
+---
+ server/src/controllers/subscription.controller.ts | 10 +++++++++-
+ server/src/index.ts                               | 12 ++++++++++--
+ 2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/server/src/controllers/subscription.controller.ts b/server/src/controllers/subscription.controller.ts
+index 337abdb..d74384b 100644
+--- a/server/src/controllers/subscription.controller.ts
++++ b/server/src/controllers/subscription.controller.ts
+@@ -21,7 +21,15 @@ export class SubscriptionController {
+     }
+     try {
+       const stripe = new Stripe(config.stripe.secretKey, { apiVersion: '2025-02-24.acacia' as any });
+-      const event = stripe.webhooks.constructEvent(req.body, sig, config.stripe.webhookSecret);
++      // Signature verification must use the raw request body captured by the
++      // express.json verify hook. Passing the parsed JSON object here means the
++      // signature can never validate and every webhook would be rejected (or,
++      // worse, verification silently skipped).
++      const rawBody = (req as any).rawBody;
++      if (!rawBody) {
++        throw new AppError('Raw request body unavailable for webhook verification', 400);
++      }
++      const event = stripe.webhooks.constructEvent(rawBody, sig, config.stripe.webhookSecret);
+       await subscriptionService.handleWebhook(event);
+       res.json({ received: true });
+     } catch (error: any) {
+diff --git a/server/src/index.ts b/server/src/index.ts
+index 854b466..0a2dd29 100644
+--- a/server/src/index.ts
++++ b/server/src/index.ts
+@@ -286,8 +286,16 @@ if (!fs.existsSync(bannersDir)) {
+   fs.mkdirSync(bannersDir, { recursive: true });
+ }
+ app.use(cookieParser());
+-app.use(express.json({ limit: '10mb' }));
+-app.use(express.urlencoded({ extended: true }));
++// Keep the raw request body available: Stripe webhook signature verification
++// (stripe.webhooks.constructEvent) must run against the exact bytes received,
++// not the JSON-parsed object (re-serialization would break the HMAC).
++app.use(express.json({
++  limit: '10mb',
++  verify: (req: any, _res, buf: Buffer) => {
++    req.rawBody = buf;
++  },
++}));
++app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+ app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+ app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
+ app.use(generalLimiter);
+-- 
+2.54.0.windows.1
+

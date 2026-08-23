@@ -11,7 +11,17 @@ export const verifyRefreshToken = (token: string): JWTPayload => jwt.verify(toke
 export const hashPassword = async (password: string): Promise<string> => bcrypt.hash(password, 12);
 export const comparePassword = async (password: string, hash: string): Promise<boolean> => bcrypt.compare(password, hash);
 export const generateUUID = (): string => uuidv4();
-export const sanitizeUser = (user: any) => { const { password, twoFactorSecret, ...sanitized } = user; return sanitized; };
+import { User } from '@prisma/client';
+
+// Strip sensitive fields from a user object before sending to the client
+type SensitiveUserFields = 'password' | 'twoFactorSecret';
+export type SafeUser = Omit<User, SensitiveUserFields>;
+
+export const sanitizeUser = (user: User): SafeUser => {
+  const { password, twoFactorSecret, ...sanitized } = user;
+  void password; void twoFactorSecret; // explicitly acknowledge unused fields
+  return sanitized;
+};
 export const generateVerificationCode = (length: number = 6): string => {
   const safeLength = Math.max(4, Math.min(length || 6, 12));
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

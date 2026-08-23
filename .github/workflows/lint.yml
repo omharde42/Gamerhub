@@ -1,0 +1,36 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: ESLint (server + web)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Matches the runtime used by the Docker image and Render services.
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            web/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci --prefix server --legacy-peer-deps
+
+      - name: Install web dependencies
+        run: npm ci --prefix web --legacy-peer-deps
+
+      - name: Lint server
+        run: npm run lint --prefix server
+
+      - name: Lint web
+        run: npm run lint --prefix web

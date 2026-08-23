@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { teamService } from '../services/team.service';
+import prisma from '../config/database';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 
@@ -26,6 +27,21 @@ export class TeamController {
     sendSuccess(res, result.data, undefined, 200, result.meta);
   });
 
+  listMine = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const teams = await prisma.team.findMany({
+      where: { members: { some: { userId: req.user!.userId } } },
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, profile: { select: { username: true, displayName: true, avatar: true } } } },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+    sendSuccess(res, teams);
+  });
+
   update = asyncHandler(async (req: AuthRequest, res: Response) => {
     const team = await teamService.update(req.params.id, req.body, req.user!.userId);
     sendSuccess(res, team);
@@ -37,9 +53,19 @@ export class TeamController {
     sendSuccess(res, invite);
   });
 
+  myInvites = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const invites = await teamService.myInvites(req.user!.userId);
+    sendSuccess(res, invites);
+  });
+
   acceptInvite = asyncHandler(async (req: AuthRequest, res: Response) => {
-    await teamService.acceptInvite(req.params.id, req.user!.userId);
-    sendSuccess(res, null, 'Joined team');
+    const result = await teamService.acceptInvite(req.params.id, req.user!.userId);
+    sendSuccess(res, result, 'Joined team successfully');
+  });
+
+  declineInvite = asyncHandler(async (req: AuthRequest, res: Response) => {
+    await teamService.declineInvite(req.params.id, req.user!.userId);
+    sendSuccess(res, null, 'Invite declined');
   });
 
   apply = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -48,10 +74,21 @@ export class TeamController {
     sendSuccess(res, application, undefined, 201);
   });
 
+  handleApplication = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { applicationId, action } = req.body;
+    const result = await teamService.handleApplication(req.params.id, applicationId, action, req.user!.userId);
+    sendSuccess(res, result);
+  });
+
   kick = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { userId } = req.body;
     await teamService.kick(req.params.id, userId, req.user!.userId);
     sendSuccess(res, null, 'Member removed');
+  });
+
+  leave = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await teamService.leave(req.params.id, req.user!.userId);
+    sendSuccess(res, result);
   });
 }
 

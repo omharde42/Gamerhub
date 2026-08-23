@@ -1,13 +1,32 @@
 const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
 const envSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
 
-export const API_URL = envApiUrl || 'http://localhost:4000/api';
-export const SOCKET_URL = envSocketUrl || 'http://localhost:4000';
+export const API_URL = envApiUrl || 'https://gamerhub-api-6lga.onrender.com/api';
+export const SOCKET_URL = envSocketUrl || 'https://gamerhub-api-6lga.onrender.com';
 export const APP_NAME = 'GamerZ Hub';
 export const COPYRIGHT = `© ${new Date().getFullYear()} GamerZ Hub. All rights reserved.`;
 
 export const RANK_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Challenger'];
-export const GAMES = ['Valorant', 'CS2', 'League of Legends', 'Dota 2', 'Overwatch 2', 'Apex Legends', 'Fortnite', 'Rainbow Six Siege', 'Rocket League', 'Call of Duty', 'PUBG', 'Elden Ring', 'Street Fighter 6', 'Tekken 8', 'Super Smash Bros. Ultimate', 'Minecraft', 'GTA V', 'World of Warcraft', 'Final Fantasy XIV', 'Destiny 2', 'Warframe', 'Dead by Daylight', 'Fall Guys', 'Among Us', 'Rust', 'Escape from Tarkov', 'Halo Infinite', 'Battlefield 2042', 'Counter-Strike 1.6', 'Team Fortress 2'];
+export const GAMES = [
+  'Valorant',
+  'CS2',
+  'League of Legends',
+  'Dota 2',
+  'FACEIT Esports',
+  'PUBG / BGMI',
+  'Free Fire',
+  'Apex Legends',
+  'Fortnite',
+  'Overwatch 2',
+  'Rocket League',
+  'Rainbow Six Siege',
+  'Call of Duty / Warzone',
+  'Call of Duty Mobile',
+  'Clash Royale',
+  'Clash of Clans',
+  'Brawl Stars',
+  'Teamfight Tactics',
+];
 export const GAMES_BY_PLATFORM: Record<string, { games: string[]; icon: string }> = {
   'Riot Games': { games: ['Valorant', 'League of Legends', 'Teamfight Tactics', 'Legends of Runeterra'], icon: 'Swords' },
   'Steam': { games: ['CS2', 'Dota 2', 'PUBG', 'Rust', 'Escape from Tarkov', 'Team Fortress 2', 'Dead by Daylight', 'Warframe', 'Destiny 2'], icon: 'Steam' },

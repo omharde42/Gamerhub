@@ -1,0 +1,345 @@
+From 63fcc5dd9375ca2ccf34e795fc56cfcb221af2bc Mon Sep 17 00:00:00 2001
+From: "omharde@4" <you@example.com>
+Date: Thu, 13 Aug 2026 11:12:13 +0530
+Subject: [PATCH 04/12] fix(auth): sign Discord OAuth state and require auth to
+ initiate account linking
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Discord's OAuth `state` was attacker-controllable base64 JSON. An attacker
+could run their own Discord authorize flow with state = { action: 'link',
+userId: '<victim>' }, then the callback would link the ATTACKER's Discord
+account to the VICTIM's GamerHub account — giving the attacker a permanent
+login to the victim's account (account takeover, critical).
+
+- oauth.ts: signOAuthState/verifyOAuthState - HMAC-SHA256 signed state with
+  nonce, timestamp and 10-minute expiry; constant-time comparison; fails closed.
+- discordRedirect: login only; state is now signed. The old
+  ?action=link&userId= flow is removed (it was the vulnerable path).
+- NEW authenticated POST /auth/discord/link: binds the link to req.user, signs
+  a state containing the current user's id, and returns the Discord authorize
+  URL. The callback only trusts signed states.
+- discordCallback: uses config.apiUrl for redirect_uri (no Host header) and
+  verifies state before honoring action/userId.
+- web settings page now starts Discord linking via the authenticated endpoint.
+
+Tests: oauth.test.ts - state round-trip, wrong-secret rejection, tampered
+payload rejection, expiry, malformed input.
+
+Run: cd server && npx jest src/utils/oauth.test.ts
+
+🤖 Generated with Codebuff
+Co-Authored-By: Codebuff <noreply@codebuff.com>
+---
+ server/src/controllers/auth.controller.ts | 96 +++++++++++++++--------
+ server/src/routes/auth.routes.ts          |  1 +
+ server/src/utils/oauth.test.ts            | 37 ++++++++-
+ server/src/utils/oauth.ts                 | 52 ++++++++++++
+ web/src/app/profile/settings/page.tsx     | 14 +++-
+ 5 files changed, 167 insertions(+), 33 deletions(-)
+
+diff --git a/server/src/controllers/auth.controller.ts b/server/src/controllers/auth.controller.ts
+index c7ad3a3..806802f 100644
+--- a/server/src/controllers/auth.controller.ts
++++ b/server/src/controllers/auth.controller.ts
+@@ -4,7 +4,8 @@ import { AuthRequest } from '../types';
+ import prisma from '../config/database';
+ import { config } from '../config';
+ import { NotFoundError, ValidationError } from '../utils/errors';
+-import { verifySteamOpenIdResponse, SteamOpenIdParams } from '../utils/oauth';
++import { verifySteamOpenIdResponse, SteamOpenIdParams, signOAuthState, verifyOAuthState, OAuthStatePayload } from '../utils/oauth';
++import crypto from 'crypto';
+ import { asyncHandler } from '../utils/asyncHandler';
+ import { sendSuccess, sendError } from '../utils/response';
+ 
+@@ -189,21 +190,18 @@ export class AuthController {
+     res.redirect(`${clientUrl}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
+   });
+ 
+-  discordRedirect = asyncHandler(async (req: Request, res: Response) => {
+-    const action = (req.query.action as string) || 'login';
+-    const userId = (req.query.userId as string) || '';
+-    const host = req.get('host') || 'localhost:4000';
+-    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+-
+-    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
++  discordRedirect = asyncHandler(async (_req: Request, res: Response) => {
++    // Login flow only. Account linking goes through the authenticated
++    // POST /auth/discord/link endpoint (see discordLinkInitiate) — the old
++    // query-driven `?action=link&userId=` flow let an attacker link their own
++    // Discord account to a victim's account and then log in as the victim.
++    const clientUrl = config.frontendUrl;
+     const clientId = config.discord.clientId || process.env.DISCORD_CLIENT_ID;
++    const redirectUri = config.discord.redirectUri || `${config.apiUrl}/api/auth/discord/callback`;
+ 
+-    // Use backend callback URL or custom redirect URI
+-    const redirectUri = config.discord.redirectUri || `${protocol}://${host}/api/auth/discord/callback`;
+-
+-    // Encode state parameter for CSRF prevention & action tracking
+-    const statePayload = JSON.stringify({ action, userId, nonce: Date.now() });
+-    const state = Buffer.from(statePayload).toString('base64url');
++    // Signed state so the callback can trust action/nonce values.
++    const statePayload: OAuthStatePayload = { action: 'login', nonce: crypto.randomBytes(16).toString('hex'), iat: Date.now() };
++    const state = signOAuthState(statePayload, config.jwt.secret);
+ 
+     if (!clientId) {
+       // In dev or when Client ID is unconfigured, fallback gracefully so local testing never breaks
+@@ -216,13 +214,8 @@ export class AuthController {
+         email: `discord_dev@gamerhub.local`,
+       };
+ 
+-      if (action === 'link' && userId) {
+-        await authService.linkDiscordAccount(userId, mockProfile);
+-        return res.redirect(`${clientUrl}/profile/settings?linked=discord`);
+-      } else {
+-        const result = await authService.discordLogin(mockProfile);
+-        return res.redirect(`${clientUrl}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
+-      }
++      const result = await authService.discordLogin(mockProfile);
++      return res.redirect(`${clientUrl}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`);
+     }
+ 
+     const discordAuthUrl = new URL('https://discord.com/api/oauth2/authorize');
+@@ -235,34 +228,75 @@ export class AuthController {
+     res.redirect(discordAuthUrl.toString());
+   });
+ 
++  discordLinkInitiate = asyncHandler(async (req: AuthRequest, res: Response) => {
++    // Authenticated initiation of the Discord linking flow. The signed state
++    // binds the link to the CURRENT authenticated user, so a victim's userId
++    // can never be injected into the flow by an attacker.
++    const clientId = config.discord.clientId || process.env.DISCORD_CLIENT_ID;
++    const redirectUri = config.discord.redirectUri || `${config.apiUrl}/api/auth/discord/callback`;
++
++    if (!clientId) {
++      // Dev fallback: link a mock Discord identity directly.
++      const mockDiscordId = `discord_dev_${Date.now()}`;
++      const mockProfile = {
++        id: mockDiscordId,
++        username: `DiscordDev_${mockDiscordId.slice(-4)}`,
++        globalName: 'Discord Dev User',
++        avatar: 'https://cdn.discordapp.com/embed/avatars/0.png',
++        email: 'discord_dev@gamerhub.local',
++      };
++      await authService.linkDiscordAccount(req.user!.userId, mockProfile);
++      return sendSuccess(res, { linked: true }, 'Discord account linked successfully (dev mock)');
++    }
++
++    const statePayload: OAuthStatePayload = {
++      action: 'link',
++      userId: req.user!.userId,
++      nonce: crypto.randomBytes(16).toString('hex'),
++      iat: Date.now(),
++    };
++    const state = signOAuthState(statePayload, config.jwt.secret);
++
++    const discordAuthUrl = new URL('https://discord.com/api/oauth2/authorize');
++    discordAuthUrl.searchParams.append('client_id', clientId);
++    discordAuthUrl.searchParams.append('redirect_uri', redirectUri);
++    discordAuthUrl.searchParams.append('response_type', 'code');
++    discordAuthUrl.searchParams.append('scope', 'identify email');
++    discordAuthUrl.searchParams.append('state', state);
++
++    sendSuccess(res, { url: discordAuthUrl.toString() });
++  });
++
+   discordCallback = asyncHandler(async (req: Request, res: Response) => {
+     const { code, state, error, error_description } = req.query;
+-    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
++    const clientUrl = config.frontendUrl;
+ 
+     if (error || !code) {
+       const errorMsg = (error_description as string) || (error as string) || 'Discord authentication was cancelled or failed';
+       return res.redirect(`${clientUrl}/auth/callback?error=${encodeURIComponent(errorMsg)}`);
+     }
+ 
++    // Only trust a state that carries a valid HMAC signature from this server;
++    // an unsigned/tampered/expired state is treated as a login (no userId) and
++    // can never trigger an account link.
+     let action = 'login';
+     let userId = '';
+ 
+     if (state && typeof state === 'string') {
+-      try {
+-        const decodedState = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
+-        action = decodedState.action || 'login';
+-        userId = decodedState.userId || '';
+-      } catch (e) {
+-        console.warn('Could not parse Discord OAuth state parameter:', e);
++      const verifiedState = verifyOAuthState(state, config.jwt.secret);
++      if (verifiedState) {
++        action = verifiedState.action || 'login';
++        userId = verifiedState.userId || '';
++      } else {
++        console.warn('Discord OAuth state failed verification; ignoring it');
+       }
+     }
+ 
+     try {
+       const clientId = config.discord.clientId || process.env.DISCORD_CLIENT_ID || '';
+       const clientSecret = config.discord.clientSecret || process.env.DISCORD_CLIENT_SECRET || '';
+-      const host = req.get('host') || 'localhost:4000';
+-      const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+-      const redirectUri = config.discord.redirectUri || `${protocol}://${host}/api/auth/discord/callback`;
++      // Must match the redirect_uri used when building the authorize URL.
++      const redirectUri = config.discord.redirectUri || `${config.apiUrl}/api/auth/discord/callback`;
+ 
+       // 1. Exchange code for access token
+       const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+diff --git a/server/src/routes/auth.routes.ts b/server/src/routes/auth.routes.ts
+index 3d942c0..59a82ac 100644
+--- a/server/src/routes/auth.routes.ts
++++ b/server/src/routes/auth.routes.ts
+@@ -14,6 +14,7 @@ router.post('/google', authController.googleLogin);
+ router.get('/steam', authController.steamRedirect);
+ router.get('/steam/callback', authController.steamCallback);
+ router.get('/discord', authController.discordRedirect);
++router.post('/discord/link', authenticate, authController.discordLinkInitiate);
+ router.get('/discord/callback', authController.discordCallback);
+ router.post('/discord/disconnect', authenticate, authController.discordDisconnect);
+ router.get('/accounts', authenticate, authController.getLinkedAccounts);
+diff --git a/server/src/utils/oauth.test.ts b/server/src/utils/oauth.test.ts
+index f996723..0d2a5a8 100644
+--- a/server/src/utils/oauth.test.ts
++++ b/server/src/utils/oauth.test.ts
+@@ -1,4 +1,4 @@
+-import { verifySteamOpenIdResponse, SteamOpenIdParams } from './oauth';
++import { verifySteamOpenIdResponse, SteamOpenIdParams, signOAuthState, verifyOAuthState } from './oauth';
+ 
+ const EXPECTED_RETURN_TO = 'https://api.gamerhub.example/api/auth/steam/callback';
+ 
+@@ -70,3 +70,38 @@ describe('verifySteamOpenIdResponse', () => {
+     expect(ok).toBe(false);
+   });
+ });
++
++describe('signOAuthState / verifyOAuthState', () => {
++  const SECRET = 'test-oauth-state-secret';
++  const payload = { action: 'link', userId: 'victim-user-id', nonce: 'abc123', iat: Date.now() };
++
++  it('round-trips a signed state', () => {
++    const state = signOAuthState(payload, SECRET);
++    const verified = verifyOAuthState(state, SECRET);
++    expect(verified).not.toBeNull();
++    expect(verified!.action).toBe('link');
++    expect(verified!.userId).toBe('victim-user-id');
++  });
++
++  it('rejects a state signed with a different secret', () => {
++    const state = signOAuthState(payload, 'attacker-secret');
++    expect(verifyOAuthState(state, SECRET)).toBeNull();
++  });
++
++  it('rejects a tampered payload (attacker swaps userId)', () => {
++    // Simulate the old attack: base64-encode { action: 'link', userId: victim } and use a valid-looking but wrong sig
++    const forged = Buffer.from(JSON.stringify({ action: 'link', userId: 'victim-user-id', nonce: 'x', iat: Date.now() })).toString('base64url');
++    expect(verifyOAuthState(`${forged}.c2lnbmF0dXJl`, SECRET)).toBeNull();
++  });
++
++  it('rejects an expired state', () => {
++    const expired = { ...payload, iat: Date.now() - 11 * 60 * 1000 };
++    const state = signOAuthState(expired, SECRET);
++    expect(verifyOAuthState(state, SECRET)).toBeNull();
++  });
++
++  it('rejects malformed state strings', () => {
++    expect(verifyOAuthState('not-a-signed-state', SECRET)).toBeNull();
++    expect(verifyOAuthState('a.b.c', SECRET)).toBeNull();
++  });
++});
+diff --git a/server/src/utils/oauth.ts b/server/src/utils/oauth.ts
+index e6660ca..bd27483 100644
+--- a/server/src/utils/oauth.ts
++++ b/server/src/utils/oauth.ts
+@@ -2,6 +2,8 @@
+  * Verification helpers for OAuth provider callbacks.
+  */
+ 
++import crypto from 'crypto';
++
+ const STEAM_OPENID_ENDPOINT = 'https://steamcommunity.com/openid/login';
+ 
+ export interface SteamOpenIdParams {
+@@ -63,3 +65,53 @@ export async function verifySteamOpenIdResponse(
+   const text = await res.text();
+   return /\bis_valid:true\b/.test(text);
+ }
++
++export interface OAuthStatePayload {
++  action: string;
++  userId?: string;
++  nonce: string;
++  iat: number;
++}
++
++const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
++
++/**
++ * Signs an OAuth state payload so the callback can trust it.
++ *
++ * The state is the only thing carrying `userId` into the Discord callback.
++ * If it were unsigned base64 (as before), an attacker could craft
++ * { action: 'link', userId: '<victim>' } and link their own Discord account
++ * to a victim's GamerHub account, then log in as the victim.
++ */
++export function signOAuthState(payload: OAuthStatePayload, secret: string): string {
++  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
++  const sig = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
++  return `${encoded}.${sig}`;
++}
++
++/**
++ * Verifies a signed OAuth state and returns the payload, or null if the state
++ * was tampered with, expired, or malformed. Fails closed.
++ */
++export function verifyOAuthState(state: string, secret: string, maxAgeMs: number = OAUTH_STATE_MAX_AGE_MS): OAuthStatePayload | null {
++  const parts = state.split('.');
++  if (parts.length !== 2) return null;
++
++  const [encoded, sig] = parts;
++  const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
++  const sigBuf = Buffer.from(sig);
++  const expectedBuf = Buffer.from(expected);
++  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
++    return null;
++  }
++
++  try {
++    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as OAuthStatePayload;
++    if (typeof payload.action !== 'string' || typeof payload.iat !== 'number') return null;
++    const now = Date.now();
++    if (now - payload.iat > maxAgeMs || payload.iat > now + 60_000) return null;
++    return payload;
++  } catch {
++    return null;
++  }
++}
+diff --git a/web/src/app/profile/settings/page.tsx b/web/src/app/profile/settings/page.tsx
+index 5f4f9c5..a2592ac 100644
+--- a/web/src/app/profile/settings/page.tsx
++++ b/web/src/app/profile/settings/page.tsx
+@@ -152,7 +152,19 @@ export default function SettingsPage() {
+ 
+   const handleLinkSocial = async (provider: string) => {
+     if (provider === 'discord') {
+-      window.location.href = `${API_URL}/auth/discord?action=link&userId=${user?.id}`;
++      // Authenticated initiation: the server signs a state bound to the current
++      // user, so the link can never be hijacked to attach to another account.
++      try {
++        const { data } = await api.post('/auth/discord/link');
++        if (data?.data?.url) {
++          window.location.href = data.data.url;
++        } else if (data?.data?.linked) {
++          refetchAccounts();
++          toast.success('Discord account linked successfully');
++        }
++      } catch (err: any) {
++        toast.error(err.response?.data?.message || 'Failed to start Discord linking');
++      }
+       return;
+     }
+     if (provider === 'steam') {
+-- 
+2.54.0.windows.1
+

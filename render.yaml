@@ -6,13 +6,11 @@ services:
     plan: free
     region: singapore # You can change this to your nearest region
     rootDir: server
-    buildCommand: npm install --include=dev && npx prisma generate && npm run build
+    buildCommand: npm install --production=false --legacy-peer-deps --force && npm run build && npm prune --omit=dev --legacy-peer-deps
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
       - key: NODE_VERSION
         value: 20
       - key: DATABASE_URL
@@ -35,13 +33,11 @@ services:
     plan: free
     region: singapore
     rootDir: web
-    buildCommand: npm install --include=dev && npm run build
+    buildCommand: npm install --production=false --legacy-peer-deps --force && npm run build && rm -rf .next/cache && npm prune --omit=dev --legacy-peer-deps
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
       - key: NODE_VERSION
         value: 20
       - key: NEXT_PUBLIC_API_URL

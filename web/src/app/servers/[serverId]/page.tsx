@@ -19,7 +19,8 @@ import {
   Smile, MoreVertical, X, UserPlus, Calendar, Lock, Mic, MicOff,
   Video, VideoOff, Monitor, PhoneOff, ShieldAlert
 } from 'lucide-react';
-import { getInitials, formatRelativeTime } from '@/lib/utils';
+import { getInitials } from '@/lib/utils';
+import { RelativeTime } from '@/components/common/relative-time';
 import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = { 
@@ -56,6 +57,8 @@ export default function ServerPage() {
   const [showMembers, setShowMembers] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showServerSidebar, setShowServerSidebar] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   
@@ -75,7 +78,10 @@ export default function ServerPage() {
   const [micMuted, setMicMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
-  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  // Stream is kept in a ref (not state) so the camera effect can start/stop it
+  // without re-running on every stream change (which would restart the camera
+  // in an infinite loop) and so the unmount cleanup always sees the live stream.
+  const videoStreamRef = useRef<MediaStream | null>(null);
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>('mock-1');
 
   // Query Server Info
@@ -180,7 +186,7 @@ export default function ServerPage() {
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        setVideoStream(stream);
+        videoStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
@@ -191,9 +197,10 @@ export default function ServerPage() {
     };
 
     const stopCamera = () => {
-      if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-        setVideoStream(null);
+      const stream = videoStreamRef.current;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        videoStreamRef.current = null;
       }
     };
 
@@ -304,19 +311,26 @@ export default function ServerPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex bg-background">
-      {/* Servers icon list sidebar */}
-      <div className="w-16 bg-muted/40 border-r flex flex-col items-center py-3 gap-2.5 shrink-0 overflow-y-auto">
+    <div className="h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-4rem)] flex bg-background overflow-hidden">
+      {/* Mobile channel toggle button */}
+      <button
+        className="md:hidden fixed top-16 left-2 z-30 w-8 h-8 rounded-lg bg-background/90 backdrop-blur-sm border border-primary/20 flex items-center justify-center text-muted-foreground hover:text-foreground shadow-lg"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        aria-label="Toggle channels"
+      >
+        <Hash className="h-4 w-4" />
+      </button>
+      <div className={`${mobileMenuOpen ? 'flex' : 'hidden'} md:flex flex-col fixed md:static inset-y-0 left-0 top-14 md:top-0 z-20 w-16 bg-muted/40 border-r items-center py-3 gap-2 shrink-0 overflow-y-auto`}>
         <button onClick={() => router.push('/servers')} className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center text-lg font-bold text-primary hover:bg-primary/20 transition-all shrink-0">
           <MessageCircle className="h-5 w-5" />
         </button>
         <div className="w-8 h-px bg-border my-1" />
-        {user?.servers?.map((ms: any) => (
+        {(user as any)?.servers?.map((ms: any) => (
           <button key={ms.serverId} onClick={() => router.push(`/servers/${ms.serverId}`)}
             className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xs font-bold transition-all shrink-0 overflow-hidden relative ${ms.serverId === serverId ? 'rounded-xl bg-primary text-primary-foreground border-2 border-primary' : 'bg-muted hover:bg-muted-foreground/20 hover:rounded-xl text-muted-foreground hover:text-foreground'}`}
             title={ms.server?.name || ''}>
             {ms.server?.avatar ? (
-              <img src={ms.server?.avatar} alt={ms.server?.name} className="w-full h-full object-cover" />
+              <img src={ms.server?.avatar} alt={ms.server?.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
             ) : (
               (ms.server?.name || 'S').charAt(0).toUpperCase()
             )}
@@ -334,7 +348,7 @@ export default function ServerPage() {
           {/* Banner overlay */}
           <div className="absolute inset-0 z-0 bg-primary/10">
             {server?.banner ? (
-              <img src={server.banner} alt={server.name} className="w-full h-full object-cover" />
+              <img src={server.banner} alt={server.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
             ) : (
               <div className="w-full h-full bg-gradient-to-r from-gaming-purple/30 to-primary/30" />
             )}
@@ -460,7 +474,14 @@ export default function ServerPage() {
       </div>
 
       {/* Main content display area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        {/* Overlay for mobile menu */}
+        {mobileMenuOpen && (
+          <div
+            className="md:hidden fixed inset-0 bg-black/40 z-[5]"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
         {selectedChannel === '__events' ? (
           /* Events Panel Page */
           <div className="flex-1 flex flex-col min-h-0 bg-background">
@@ -598,7 +619,7 @@ export default function ServerPage() {
                   {MOCK_PARTICIPANTS.map((part) => (
                     <div key={part.id} className={`relative aspect-video rounded-2xl bg-zinc-900 border overflow-hidden flex items-center justify-center transition-all duration-300 ${activeSpeaker === part.id ? 'border-green-500 shadow-lg shadow-green-500/10' : 'border-zinc-800'}`}>
                       {part.cameraOn && part.cameraFeed ? (
-                        <img src={part.cameraFeed} alt={part.name} className="w-full h-full object-cover" />
+                        <img src={part.cameraFeed} alt={part.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                         <div className="flex flex-col items-center gap-3">
                           <Avatar className="h-16 w-16 border-2 border-zinc-700">
@@ -709,7 +730,7 @@ export default function ServerPage() {
                               {showHeader && (
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <span className="text-sm font-semibold hover:underline cursor-pointer text-foreground">{msg.sender?.profile?.username}</span>
-                                  <span className="text-[10px] text-muted-foreground">{formatRelativeTime(msg.createdAt)}</span>
+                                  <span className="text-[10px] text-muted-foreground"><RelativeTime date={msg.createdAt} /></span>
                                   {msg.isPinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
                                 </div>
                               )}

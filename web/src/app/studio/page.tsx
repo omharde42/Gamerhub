@@ -17,6 +17,9 @@ import {
   RefreshCw, Circle, Pointer, Laugh
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type Clip = {
@@ -139,7 +142,7 @@ export default function StudioPage() {
                 <EditorTab clip={selectedClip} clips={clips} setClips={handleClipsUpdate} />
               </TabsContent>
               <TabsContent value="export" className="h-full m-0 p-0 data-[state=active]:flex flex-col">
-                <ExportTab clip={selectedClip} />
+                <ExportTab clip={selectedClip} setClips={handleClipsUpdate} setSelectedClipId={setSelectedClipId} setActiveTab={setActiveTab} />
               </TabsContent>
             </div>
           </Tabs>
@@ -217,6 +220,7 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
+  const pathname = usePathname();
   const previewRef = useRef<HTMLVideoElement>(null);
   const cameraPreviewRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -455,7 +459,9 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
       if (err.name === 'NotAllowedError') toast.error('Screen capture permission denied');
       else toast.error('Failed to start recording');
     }
-  }, [audioEnabled, showCamera, qualityPreset, clips.length, setClips, setSelectedClipId]);
+    // `qualityPreset` is only used for the on-screen badge, not by the recorder,
+    // so it must not be a dependency (changes would restart the recording).
+  }, [audioEnabled, showCamera, clips.length, setClips, setSelectedClipId]);
 
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
@@ -529,6 +535,22 @@ function RecorderTab({ clips, setClips, setSelectedClipId, setActiveTab }: {
 
   return (
     <div className="flex-1 flex flex-col">
+      {/* Studio sub-nav: Recorder | Clip Library | Montages */}
+      <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-border/50 bg-background/60 backdrop-blur-md max-w-6xl mx-auto w-full">
+        <Badge className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border-emerald-500/40">STUDIO</Badge>
+        <Link href="/studio" className={cn("px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors",
+          pathname === '/studio' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50" : "text-muted-foreground hover:text-foreground")}>
+          Recorder
+        </Link>
+        <Link href="/studio/clips" className={cn("px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors",
+          pathname?.startsWith('/studio/clips') ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50" : "text-muted-foreground hover:text-foreground")}>
+          Clip Library
+        </Link>
+        <Link href="/studio/projects" className={cn("px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors",
+          pathname?.startsWith('/studio/projects') ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50" : "text-muted-foreground hover:text-foreground")}>
+          Montages
+        </Link>
+      </div>
       <div ref={containerRef} className="flex-1 relative bg-black/90 flex items-center justify-center overflow-hidden">
         {screenStream ? (
           <>
@@ -663,9 +685,14 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
+  // Guard so the reset effect only fires when a *different* clip is selected:
+  // renaming a clip replaces the clip object (new reference, same id) and must
+  // not wipe the current editing session.
+  const lastResetClipIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    if (clip) {
+    if (clip?.id && lastResetClipIdRef.current !== clip.id) {
+      lastResetClipIdRef.current = clip.id;
       setTrimStart(0);
       setTrimEnd(clip.duration);
       setCurrentTime(0);
@@ -674,7 +701,7 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
       setPlaybackRate(1);
       setClipName(clip.name);
     }
-  }, [clip?.id]);
+  }, [clip]);
 
   useEffect(() => {
     if (!videoRef.current || !clip) return;
@@ -802,7 +829,7 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
       const stream = canvas.captureStream(30);
       const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
       const chunks: Blob[] = [];
-      let lastProgress = 0;
+      const lastProgress = 0;
       recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
       recorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
@@ -971,11 +998,33 @@ function EditorTab({ clip, clips, setClips }: { clip: Clip | undefined; clips: C
   );
 }
 
-function ExportTab({ clip }: { clip: Clip | undefined }) {
+function ExportTab({ clip, setClips, setSelectedClipId, setActiveTab }: {
+  clip: Clip | undefined;
+  setClips?: (fn: (prev: Clip[]) => Clip[]) => void;
+  setSelectedClipId?: (id: string) => void;
+  setActiveTab?: (tab: string) => void;
+}) {
   const [quality, setQuality] = useState('1080p');
   const [format, setFormat] = useState('webm');
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const newClip: Clip = {
+      id: Date.now().toString(),
+      blob: file,
+      url,
+      name: file.name.replace(/\.[^/.]+$/, ''),
+      duration: 10,
+      createdAt: Date.now(),
+    };
+    if (setClips) setClips(prev => [newClip, ...prev]);
+    if (setSelectedClipId) setSelectedClipId(newClip.id);
+    toast.success('Video clip imported for export!');
+  };
 
   const handleExport = async () => {
     if (!clip) return toast.error('No clip selected');
@@ -1001,11 +1050,28 @@ function ExportTab({ clip }: { clip: Clip | undefined }) {
 
   if (!clip) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <Download className="h-12 w-12 text-muted-foreground/30 mx-auto" />
-          <h3 className="text-sm font-medium text-muted-foreground">No clip selected</h3>
-          <p className="text-xs text-muted-foreground/60">Select a clip from the media library to export</p>
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+            <Download className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-foreground">Export Game Clip</h3>
+            <p className="text-xs text-muted-foreground mt-1">Select a recorded clip or import a video file to download</p>
+          </div>
+          <div className="flex flex-col gap-2 pt-2">
+            <label className="cursor-pointer">
+              <input type="file" accept="video/*" className="hidden" onChange={handleFileImport} />
+              <Button variant="gradient" className="w-full gap-2 text-xs font-bold">
+                <FileVideo className="h-4 w-4" /> Import Video File
+              </Button>
+            </label>
+            {setActiveTab && (
+              <Button variant="outline" className="w-full gap-2 text-xs" onClick={() => setActiveTab('record')}>
+                <Monitor className="h-4 w-4" /> Record New Clip
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );

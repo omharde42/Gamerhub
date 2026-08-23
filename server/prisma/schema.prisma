@@ -1,134 +1,12 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-}
-
-enum UserRole {
-  USER
-  MODERATOR
-  ADMIN
-  SUPER_ADMIN
-}
-enum AccountProvider {
-  GOOGLE
-  DISCORD
-  STEAM
-  APPLE
-  CREDENTIALS
-}
-enum PostType {
-  POST
-  ARTICLE
-  CLIP
-  POLL
-}
-enum NotificationType {
-  LIKE
-  COMMENT
-  FOLLOW
-  MESSAGE
-  TEAM_INVITE
-  TEAM_APPLICATION
-  TOURNAMENT_START
-  TOURNAMENT_RESULT
-  JOB_APPLICATION
-  ACHIEVEMENT
-  SYSTEM
-  MATCH_FOUND
-}
-enum TeamRole {
-  CAPTAIN
-  MANAGER
-  COACH
-  MEMBER
-  TRIAL
-}
-enum TeamStatus {
-  ACTIVE
-  INACTIVE
-  DISBANDED
-}
-enum TournamentStatus {
-  DRAFT
-  REGISTRATION_OPEN
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-enum TournamentType {
-  SINGLE_ELIMINATION
-  DOUBLE_ELIMINATION
-  ROUND_ROBIN
-  SWISS
-}
-enum MatchStatus {
-  SCHEDULED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-enum OrgMemberRole {
-  OWNER
-  ADMIN
-  MEMBER
-  SCOUT
-}
-enum JobType {
-  PLAYER
-  COACH
-  ANALYST
-  MANAGER
-  CASTER
-  OTHER
-}
-enum JobStatus {
-  DRAFT
-  OPEN
-  CLOSED
-  FILLED
-}
-enum ReportReason {
-  HARASSMENT
-  CHEATING
-  TOXICITY
-  SPAM
-  IMPERSONATION
-  OTHER
-}
-enum SubscriptionTier {
-  PRO
-  ELITE
-  TEAM_PRO
-}
-enum ServerMemberRole {
-  OWNER
-  ADMIN
-  MODERATOR
-  MEMBER
-}
-enum ChannelType {
-  TEXT
-  VOICE
-  ANNOUNCEMENT
-}
-enum FriendRequestStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-  BLOCKED
-}
-enum UserPresence {
-  ONLINE
-  IDLE
-  DND
-  INVISIBLE
-  OFFLINE
 }
 
 model User {
@@ -141,6 +19,20 @@ model User {
   twoFactorSecret String?
   banned          Boolean  @default(false)
   banReason       String?
+  discordId           String?   @unique
+  discordUsername     String?
+  discordDisplayName  String?
+  discordAvatar       String?
+  discordEmail        String?
+  discordAccessToken  String?
+  discordRefreshToken String?
+  discordConnectedAt  DateTime?
+  steamId             String?   @unique
+  steamUsername       String?
+  steamAvatar         String?
+  steamProfileUrl     String?
+  steamLevel          Int?
+  steamConnectedAt    DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   profile         Profile?
@@ -185,8 +77,58 @@ model User {
   messageReactions    MessageReaction[]
   createdEvents       ServerEvent[]
   gameRequests        GameRequest[]
+  gameAccounts        GameAccount[]
+  clashTagChangeCount Int        @default(0)
+  clashTagHistory     Json?
+  partnershipApplications PartnershipApplication[]
+  challengesSent      Challenge[] @relation("ChallengesSent")
+  challengesReceived  Challenge[] @relation("ChallengesReceived")
+  challengeTeams      ChallengeTeam[]
+  challengeParticipants ChallengeParticipant[]
+  challengeNotifications ChallengeNotification[]
+  userBlocks          UserBlock[]  @relation("UserBlocks")
+  blockedBy           UserBlock[]  @relation("BlockedBy")
+  videoClips          VideoClip[]
+  montageProjects     MontageProject[]
+  profileViews        ProfileView[]
+  postViews           PostView[]
+  chatMessageReactions ChatMessageReaction[]
+  matchDisputes       MatchDispute[]
   @@index([email])
   @@index([role])
+}
+
+model GameAccount {
+  id             String    @id @default(uuid())
+  userId         String
+  game           String
+  inGameUid      String
+  inGameName     String
+  changeCount    Int       @default(0)
+  region         String?
+  rank           String?
+  level          Int?
+  kdRatio        Float?
+  winRate        Float?
+  totalMatches   Int?
+  rankRating     Int?
+  headshotPct    Float?
+  elo            Int?
+  steamLevel     Int?
+  hoursPlayed    Float?
+  recentMatches  Json?
+  achievements   Json?
+  avatarUrl      String?
+  verified       Boolean   @default(false)
+  syncStatus     String?   @default("IDLE")
+  lastSyncedAt   DateTime? @default(now())
+  verifiedAt     DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, game])
+  @@index([userId])
+  @@index([game, inGameUid])
 }
 
 model Account {
@@ -285,6 +227,7 @@ model Profile {
   improvementRate   Float    @default(0)
   aiSummary         String?
   verified          Boolean  @default(false)
+  allowComparison   Boolean  @default(true)
   twitch            String?
   youtube           String?
   discord           String?
@@ -304,6 +247,7 @@ model Profile {
   connectedGames    ConnectedGame[]
   skills            GamerSkill[]
   endorsements      Endorsement[]
+  views             ProfileView[]
   @@index([username])
   @@index([rank])
   @@index([country])
@@ -373,13 +317,17 @@ model Endorsement {
 
 model Achievement {
   id          String   @id @default(uuid())
+  key         String?
   title       String
   description String?
   icon        String?
   rarity      String?
+  progress    Int      @default(0)
+  progressMax Int?
   unlockedAt  DateTime @default(now())
   profileId   String
   profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  @@unique([profileId, key])
   @@index([profileId])
 }
 
@@ -423,8 +371,33 @@ model Post {
   likes       Like[]
   hashtags    PostHashtag[]
   poll        Poll?
+  views       PostView[]
   @@index([userId])
   @@index([createdAt])
+}
+
+model ProfileView {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  viewerId  String?
+  viewer    User?    @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+  viewerIp  String?
+  createdAt DateTime @default(now())
+  @@index([profileId, createdAt])
+  @@index([viewerId])
+}
+
+model PostView {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  viewerId  String?
+  viewer    User?    @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+  viewerIp  String?
+  createdAt DateTime @default(now())
+  @@index([postId, createdAt])
+  @@index([viewerId])
 }
 
 model Poll {
@@ -548,6 +521,11 @@ model Message {
   fileSize   Int?
   isEdited   Boolean  @default(false)
   isDeleted  Boolean  @default(false)
+  isPinned   Boolean  @default(false)
+  parentId   String?
+  parent     Message? @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies    Message[] @relation("MessageReplies")
+  reactions  ChatMessageReaction[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   chatId     String
@@ -557,7 +535,21 @@ model Message {
   readBy     MessageRead[]
   @@index([chatId])
   @@index([senderId])
+  @@index([parentId])
   @@index([createdAt])
+}
+
+model ChatMessageReaction {
+  id        String   @id @default(uuid())
+  emoji     String
+  createdAt DateTime @default(now())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([messageId, userId, emoji])
+  @@index([userId])
+  @@index([messageId])
 }
 
 model MessageRead {
@@ -689,6 +681,7 @@ model Tournament {
   teams           TournamentTeam[]
   matches         Match[]
   participants    TournamentParticipant[]
+  disputes        MatchDispute[]
   @@index([status])
   @@index([game])
   @@index([startDate])
@@ -745,7 +738,29 @@ model Match {
   team1         TournamentTeam? @relation("Team1", fields: [team1Id], references: [id])
   team2Id       String?
   team2         TournamentTeam? @relation("Team2", fields: [team2Id], references: [id])
+  disputes      MatchDispute[]
   @@index([tournamentId])
+}
+
+// ─── Match disputes (result verification / appeals) ────────────────────────
+
+model MatchDispute {
+  id           String   @id @default(uuid())
+  reason       String
+  description  String?
+  status       String   @default("OPEN") // OPEN | RESOLVED | DISMISSED
+  resolution   String?
+  createdAt    DateTime @default(now())
+  resolvedAt   DateTime?
+  matchId      String
+  match        Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  reporterId   String
+  reporter     User     @relation(fields: [reporterId], references: [id])
+  @@index([matchId])
+  @@index([tournamentId])
+  @@index([status])
 }
 
 model Organization {
@@ -828,6 +843,25 @@ model SavedJob {
   job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   savedAt   DateTime @default(now())
   @@unique([userId, jobId])
+}
+
+model PartnershipApplication {
+  id               String   @id @default(uuid())
+  type             String
+  organizationName String
+  contactName      String
+  contactEmail     String
+  website          String?
+  description      String
+  audience         String?
+  status           String   @default("PENDING")
+  adminNote        String?
+  reviewedAt       DateTime?
+  createdAt        DateTime @default(now())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([status])
 }
 
 model Notification {
@@ -1034,10 +1068,217 @@ model ServerEvent {
   updatedAt   DateTime @updatedAt
 }
 
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserPresence {
+  ONLINE
+  IDLE
+  DND
+  INVISIBLE
+  OFFLINE
+}
+
+enum AccountProvider {
+  GOOGLE
+  DISCORD
+  STEAM
+  APPLE
+  CREDENTIALS
+}
+
+enum PostType {
+  POST
+  ARTICLE
+  VIDEO
+  NEWS
+  POLL
+  CLIP
+}
+
+enum TeamStatus {
+  ACTIVE
+  INACTIVE
+  OPEN
+  DISBANDED
+}
+
+enum TeamRole {
+  LEADER
+  CO_LEADER
+  CAPTAIN
+  MEMBER
+  MANAGER
+  COACH
+  TRIAL
+}
+
+enum TournamentType {
+  SINGLE_ELIMINATION
+  DOUBLE_ELIMINATION
+  ROUND_ROBIN
+  SWISS
+  BATTLE_ROYALE
+}
+
+enum TournamentStatus {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REGISTRATION_OPEN
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum OrgMemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+  SCOUT
+}
+
+enum JobType {
+  PLAYER
+  COACH
+  MANAGER
+  CASTER
+  ANALYST
+  CONTENT_CREATOR
+  OTHER
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+  FILLED
+  ON_HOLD
+  DRAFT
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  LIKE
+  COMMENT
+  FOLLOW
+  MESSAGE
+  TEAM_INVITE
+  TOURNAMENT
+  SYSTEM
+  TEAM_APPLICATION
+  TOURNAMENT_START
+  TOURNAMENT_RESULT
+  JOB_APPLICATION
+  ACHIEVEMENT
+  MATCH_FOUND
+  CHALLENGE_RECEIVED
+  CHALLENGE_ACCEPTED
+  CHALLENGE_DECLINED
+  CHALLENGE_CANCELLED
+  CHALLENGE_EXPIRED
+  CHALLENGE_COMPLETED
+  VIDEO_RENDER
+  PARTNERSHIP_UPDATED
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  CHEATING
+  TOXIC_BEHAVIOR
+  INAPPROPRIATE_CONTENT
+  OTHER
+  TOXICITY
+  IMPERSONATION
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+  PRO
+  ENTERPRISE
+  ELITE
+  TEAM_PRO
+}
+
+enum ChannelType {
+  TEXT
+  VOICE
+  ANNOUNCEMENT
+}
+
+enum ServerMemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REJECTED
+  BLOCKED
+}
+
 enum GameRequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum ChallengeType {
+  ONE_VS_ONE
+  TEAM_VS_TEAM
+}
+
+enum ChallengeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+  COMPLETED
+}
+
+enum ChallengeTeamRole {
+  CHALLENGER
+  OPPONENT
+}
+
+enum ClipStatus {
+  UPLOADED
+  TRIMMING
+  TRIMMED
+  FAILED
+}
+
+enum MontageStatus {
+  DRAFT
+  RENDERING
+  READY
+  FAILED
+}
+
+enum ChallengeNotificationType {
+  NEW_CHALLENGE
+  CHALLENGE_ACCEPTED
+  CHALLENGE_DECLINED
+  CHALLENGE_CANCELLED
+  CHALLENGE_EXPIRED
+  CHALLENGE_COMPLETED
 }
 
 model GameRequest {
@@ -1053,4 +1294,136 @@ model GameRequest {
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([status])
   @@index([userId])
+}
+
+// ─── Direct Matchmaking & Challenge System (Clash of Clans / PUBG) ─────────
+
+model Challenge {
+  id            String             @id @default(uuid())
+  game          String
+  challengeType ChallengeType
+  gameMode      String
+  message       String?
+  status        ChallengeStatus    @default(PENDING)
+  scheduledAt   DateTime
+  expiresAt     DateTime
+  result        String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  challengerId  String
+  challenger    User               @relation("ChallengesSent", fields: [challengerId], references: [id], onDelete: Cascade)
+  opponentId    String
+  opponent      User               @relation("ChallengesReceived", fields: [opponentId], references: [id], onDelete: Cascade)
+  teams         ChallengeTeam[]
+  participants  ChallengeParticipant[]
+  notifications ChallengeNotification[]
+
+  @@index([challengerId])
+  @@index([opponentId])
+  @@index([status])
+  @@index([game])
+  @@index([expiresAt])
+}
+
+model ChallengeTeam {
+  id          String                @id @default(uuid())
+  teamRole    ChallengeTeamRole
+  name        String?
+  challengeId String
+  challenge   Challenge             @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  captainId   String
+  captain     User                  @relation(fields: [captainId], references: [id], onDelete: Cascade)
+  members     ChallengeParticipant[]
+
+  @@index([challengeId])
+  @@index([captainId])
+}
+
+model ChallengeParticipant {
+  id          String         @id @default(uuid())
+  challengeId String
+  challenge   Challenge      @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  teamId      String?
+  team        ChallengeTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+  @@index([challengeId])
+  @@index([userId])
+}
+
+model ChallengeNotification {
+  id          String                    @id @default(uuid())
+  type        ChallengeNotificationType
+  isRead      Boolean                   @default(false)
+  createdAt   DateTime                  @default(now())
+  challengeId String
+  challenge   Challenge                 @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([challengeId])
+  @@index([userId])
+}
+
+model UserBlock {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  blockerId String
+  blocker   User     @relation("UserBlocks", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+// ─── Video Editing (Tier 1: clips & trimming) ──────────────────────────────
+
+model VideoClip {
+  id              String     @id @default(uuid())
+  title           String
+  sourceUrl       String
+  sourcePublicId  String?
+  trimmedUrl      String?
+  trimmedPublicId String?
+  thumbnailUrl    String?
+  durationSec     Float?
+  trimStartSec    Float?
+  trimEndSec      Float?
+  status          ClipStatus @default(UPLOADED)
+  sizeBytes       Int?
+  mimeType        String?
+  error           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ─── Video Editing (Tier 2: montage projects, EDL-driven) ───────────────────
+
+model MontageProject {
+  id           String        @id @default(uuid())
+  title        String
+  edl          Json          // Edit Decision List: { segments: [{clipId, sourceUrl, start, end, transition}], music: {url, publicId, volume, trimStart}, overlays: [{text, x, y, fontSize, color, start, end}], resolution, fps }
+  status       MontageStatus @default(DRAFT)
+  previewUrl   String?
+  renderUrl    String?
+  thumbnailUrl String?
+  renderError  String?
+  isAiGenerated Boolean      @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }

@@ -2,9 +2,30 @@ import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { chatService } from '../services/chat.service';
 import { asyncHandler } from '../utils/asyncHandler';
-import { sendSuccess } from '../utils/response';
+import { sendSuccess, sendError } from '../utils/response';
+import { mediaStorageService } from '../utils/storage';
 
 export class ChatController {
+  uploadMedia = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      return sendError(res, 400, 'No files uploaded. Please select an image or video.');
+    }
+
+    const uploadPromises = files.map(async (file) => {
+      const result = await mediaStorageService.uploadMedia(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+        'chat'
+      );
+      return result.url;
+    });
+
+    const urls = await Promise.all(uploadPromises);
+    sendSuccess(res, { urls }, 'Chat media uploaded successfully');
+  });
+
   createDirectMessage = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { userId } = req.body;
     const chat = await chatService.createDirectMessage(req.user!.userId, userId);
@@ -25,6 +46,7 @@ export class ChatController {
   getChatMessages = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { page, limit } = req.query;
     const result = await chatService.getChatMessages(
+      req.user!.userId,
       req.params.id,
       page ? parseInt(page as string) : undefined,
       limit ? parseInt(limit as string) : undefined,
@@ -37,9 +59,46 @@ export class ChatController {
     sendSuccess(res, message, undefined, 201);
   });
 
+  editMessage = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const message = await chatService.editMessage(req.params.id, req.params.messageId, req.user!.userId, req.body.content);
+    sendSuccess(res, message, 'Message edited');
+  });
+
+  deleteMessage = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const message = await chatService.deleteMessage(req.params.id, req.params.messageId, req.user!.userId);
+    sendSuccess(res, message, 'Message deleted');
+  });
+
+  toggleReaction = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await chatService.toggleReaction(req.params.id, req.params.messageId, req.user!.userId, req.body.emoji);
+    sendSuccess(res, result);
+  });
+
+  setPinned = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const message = await chatService.setPinned(req.params.id, req.params.messageId, req.user!.userId, req.body.isPinned);
+    sendSuccess(res, message, req.body.isPinned ? 'Message pinned' : 'Message unpinned');
+  });
+
+  searchMessages = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { q, page, limit } = req.query;
+    const result = await chatService.searchMessages(
+      req.params.id,
+      req.user!.userId,
+      (q as string) || '',
+      page ? parseInt(page as string) : undefined,
+      limit ? parseInt(limit as string) : undefined,
+    );
+    sendSuccess(res, result.data, undefined, 200, result.meta);
+  });
+
   markAsRead = asyncHandler(async (req: AuthRequest, res: Response) => {
     const result = await chatService.markAsRead(req.params.id, req.user!.userId);
     sendSuccess(res, result);
+  });
+
+  getUnreadCounts = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const counts = await chatService.getUnreadCounts(req.user!.userId);
+    sendSuccess(res, counts);
   });
 
   setTyping = asyncHandler(async (req: AuthRequest, res: Response) => {
