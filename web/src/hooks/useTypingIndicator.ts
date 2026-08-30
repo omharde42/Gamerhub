@@ -9,6 +9,18 @@ export function useTypingIndicator(chatId: string | null) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef(false);
 
+  const stopTyping = useCallback(() => {
+    if (!socket || !chatId || !user?.id) return;
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      socket.emit('typing:stop', { userId: user.id, chatId });
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, [socket, chatId, user]);
+
   const startTyping = useCallback(() => {
     if (!socket || !chatId || !user?.id) return;
     if (!isTypingRef.current) {
@@ -24,19 +36,7 @@ export function useTypingIndicator(chatId: string | null) {
     timeoutRef.current = setTimeout(() => {
       stopTyping();
     }, 3000);
-  }, [socket, chatId, user?.id, user?.profile?.username]);
-
-  const stopTyping = useCallback(() => {
-    if (!socket || !chatId || !user?.id) return;
-    if (isTypingRef.current) {
-      isTypingRef.current = false;
-      socket.emit('typing:stop', { userId: user.id, chatId });
-    }
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  }, [socket, chatId, user?.id]);
+  }, [socket, chatId, user, stopTyping]);
 
   useEffect(() => {
     return () => {
