@@ -4,7 +4,7 @@ services:
     env: node
     region: singapore
     plan: free
-    buildCommand: npx prisma generate && npm run build && npm prune --omit=dev --legacy-peer-deps
+    buildCommand: npm install --production=false --legacy-peer-deps --force && npm run build && npm prune --omit=dev --legacy-peer-deps
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -15,6 +15,8 @@ services:
         fromDatabase:
           name: gamerhub-db
           property: connectionString
+      - key: DIRECT_URL
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET

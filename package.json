@@ -12,7 +12,8 @@
     "db:push": "cd server && npx prisma db push",
     "db:seed": "cd server && npx prisma db seed",
     "db:generate": "cd server && npx prisma generate",
-    "db:migrate": "cd server && npx prisma migrate dev"
+    "db:migrate": "cd server && npx prisma migrate dev",
+    "db:deploy": "cd server && npx prisma migrate deploy"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
