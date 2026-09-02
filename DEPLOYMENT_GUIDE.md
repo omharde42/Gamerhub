@@ -9,7 +9,8 @@
 ## Environment Variables
 Copy `server/.env` and fill in all values:
 ```
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://... (Pooled connection string)
+DIRECT_URL=postgresql://... (Direct connection string for migrations)
 JWT_SECRET=...
 JWT_REFRESH_SECRET=...
 OPENAI_API_KEY=...
@@ -52,9 +53,11 @@ docker-compose up --build
 3. Connect your GitHub repo
 4. Set:
    - **Root Directory**: `server`
-   - **Build Command**: `npm install && npx prisma generate`
-   - **Start Command**: `npx tsx src/index.ts`
-5. Add a **PostgreSQL database** in Render (region: Singapore)
+   - **Build Command**: `npm install --production=false --legacy-peer-deps --force && npm run build && npm prune --omit=dev --legacy-peer-deps`
+   - **Start Command**: `npm start` (Runs `prisma migrate deploy && node dist/index.js`)
+5. Configure database URLs in Render Environment Variables:
+   - `DATABASE_URL`: Supabase Transaction Pooler URL (`postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true`)
+   - `DIRECT_URL`: Supabase Direct DB URL (`postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres`)
 6. Set all required environment variables in Render dashboard (secrets marked `sync: false` in `render.yaml`)
 7. Deploy
 
