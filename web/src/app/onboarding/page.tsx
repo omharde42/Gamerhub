@@ -205,7 +205,7 @@ export default function OnboardingPage() {
           </div>
 
           {/* Content */}
-          <AnimatePresence>
+          <AnimatePresence mode="wait">
             <motion.div
               key={step}
               initial={{ opacity: 0, x: 15 }}

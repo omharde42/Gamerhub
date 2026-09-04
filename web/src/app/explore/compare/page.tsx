@@ -182,7 +182,7 @@ export default function ComparePage() {
               <div className="h-16 bg-white/5 rounded-2xl" />
             </div>
           ) : leaderboardData ? (
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               <motion.div
                 key={selectedGameId}
                 initial={{ opacity: 0, y: 10 }}

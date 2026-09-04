@@ -150,7 +150,7 @@ export function ModularGameHub({ userId, isOwner }: ModularGameHubProps) {
       </div>
 
       {/* Selected Game Animated Stats View */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {activeConnectedGame && (
           <motion.div
             key={activeConnectedGame.config.id}

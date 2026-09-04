@@ -24,10 +24,9 @@ const SUGGESTED_PLAYERS = [
 ];
 
 export default function FeedPage() {
-  const { user } = useAuthStore();
+  const { user, accessToken } = useAuthStore();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>('all');
-  const socketRef = useRef<any>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const observerInstanceRef = useRef<IntersectionObserver | null>(null);
 
@@ -67,7 +66,6 @@ export default function FeedPage() {
   useEffect(() => {
     const socket = getSharedSocket();
     if (!socket) return;
-    socketRef.current = socket;
 
     let throttleTimeout: NodeJS.Timeout | null = null;
     const handleNewPost = () => {
@@ -85,7 +83,7 @@ export default function FeedPage() {
       if (throttleTimeout) clearTimeout(throttleTimeout);
       socket.off('post:new', handleNewPost);
     };
-  }, [queryClient]);
+  }, [accessToken, queryClient]);
 
   // Stable intersection observer for infinite scroll - avoids re-creating on every render
   useEffect(() => {

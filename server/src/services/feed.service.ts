@@ -42,12 +42,16 @@ Welcome to GamerHub! 🚀`,
 };
 
 let isWelcomePostInitialized = false;
+let welcomePostInitializationPromise: Promise<void> | null = null;
 
 export class FeedService {
-  async ensureOfficialWelcomePostExists() {
+  async ensureOfficialWelcomePostExists(): Promise<void> {
     if (isWelcomePostInitialized) return;
+    if (welcomePostInitializationPromise) {
+      return welcomePostInitializationPromise;
+    }
 
-    try {
+    welcomePostInitializationPromise = Promise.resolve().then(async () => {
       // Find or create official system user in database
       const systemUser = await prisma.user.upsert({
         where: { email: 'official@gamerhub.com' },
@@ -83,9 +87,13 @@ export class FeedService {
       });
 
       isWelcomePostInitialized = true;
-    } catch (err) {
+    }).catch((err) => {
       console.warn('Official welcome post database initialization warning:', err);
-    }
+    }).finally(() => {
+      welcomePostInitializationPromise = null;
+    });
+
+    return welcomePostInitializationPromise;
   }
 
   async getFeed(userId: string, page: number = 1, limit: number = 20) {

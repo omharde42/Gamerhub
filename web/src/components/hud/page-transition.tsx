@@ -34,7 +34,7 @@ export function PageTransition({ pathname, children }: PageTransitionProps) {
   const exitX = direction * -96;
 
   return (
-    <AnimatePresence initial={false}>
+    <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={pathname}
         className="cinema-page w-full min-w-0"
