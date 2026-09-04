@@ -374,6 +374,7 @@ model Post {
   views       PostView[]
   @@index([userId])
   @@index([createdAt])
+  @@index([isPublished, createdAt])
 }
 
 model ProfileView {
@@ -537,6 +538,7 @@ model Message {
   @@index([senderId])
   @@index([parentId])
   @@index([createdAt])
+  @@index([chatId, createdAt])
 }
 
 model ChatMessageReaction {

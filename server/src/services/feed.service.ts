@@ -41,8 +41,12 @@ Welcome to GamerHub! 🚀`,
   },
 };
 
+let isWelcomePostInitialized = false;
+
 export class FeedService {
   async ensureOfficialWelcomePostExists() {
+    if (isWelcomePostInitialized) return;
+
     try {
       // Find or create official system user in database
       const systemUser = await prisma.user.upsert({
@@ -77,6 +81,8 @@ export class FeedService {
           createdAt: WELCOME_POST_DATA.createdAt,
         },
       });
+
+      isWelcomePostInitialized = true;
     } catch (err) {
       console.warn('Official welcome post database initialization warning:', err);
     }

@@ -205,13 +205,13 @@ export default function OnboardingPage() {
           </div>
 
           {/* Content */}
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             <motion.div
               key={step}
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 15 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, x: -15 }}
+              transition={{ duration: 0.15 }}
               className="max-h-[40vh] overflow-y-auto pr-1"
             >
               {current.content}

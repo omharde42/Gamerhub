@@ -34,14 +34,14 @@ export function PageTransition({ pathname, children }: PageTransitionProps) {
   const exitX = direction * -96;
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
+    <AnimatePresence initial={false}>
       <motion.div
         key={pathname}
         className="cinema-page w-full min-w-0"
-        initial={{ opacity: 0, x: enterX, y: 16, scale: 0.985 }}
-        animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-        exit={{ opacity: 0, x: exitX, y: -12, scale: 0.99 }}
-        transition={{ duration: 0.42, ease: EASE }}
+        initial={{ opacity: 0, x: enterX, scale: 0.99 }}
+        animate={{ opacity: 1, x: 0, scale: 1 }}
+        exit={{ opacity: 0, x: exitX, scale: 0.99 }}
+        transition={{ duration: 0.15, ease: EASE }}
       >
         <span className="cinema-sweep" aria-hidden />
         {children}
