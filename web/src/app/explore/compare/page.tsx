@@ -185,10 +185,10 @@ export default function ComparePage() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={selectedGameId}
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.15 }}
                 className="space-y-6"
               >
                 {/* COMPETITIVE INDICATOR & GAP HEADER */}

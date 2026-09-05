@@ -10,7 +10,7 @@ const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
-  timeout: 60000,
+  timeout: 15000,
 });
 
 // ── Token Refresh Queue ──────────────────────────────────────────

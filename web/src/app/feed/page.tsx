@@ -7,10 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Users, Gamepad2, RefreshCw, Newspaper, ExternalLink, Loader2, Zap, Sparkles } from 'lucide-react';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { io } from 'socket.io-client';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { SOCKET_URL } from '@/lib/constants';
+import { getSharedSocket } from '@/lib/socket-client';
 import { getInitials } from '@/lib/utils';
 import { PostCard } from '@/components/post/post-card';
 import { PostCardSkeleton } from '@/components/post/post-card-skeleton';
@@ -25,10 +24,9 @@ const SUGGESTED_PLAYERS = [
 ];
 
 export default function FeedPage() {
-  const { user } = useAuthStore();
+  const { user, accessToken } = useAuthStore();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>('all');
-  const socketRef = useRef<any>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const observerInstanceRef = useRef<IntersectionObserver | null>(null);
 
@@ -66,25 +64,26 @@ export default function FeedPage() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token } });
-    socketRef.current = socket;
-    
+    const socket = getSharedSocket();
+    if (!socket) return;
+
     let throttleTimeout: NodeJS.Timeout | null = null;
-    socket.on('post:new', () => {
+    const handleNewPost = () => {
       if (!throttleTimeout) {
         throttleTimeout = setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ['feed'] });
           throttleTimeout = null;
         }, 2000);
       }
-    });
+    };
+
+    socket.on('post:new', handleNewPost);
+
     return () => {
       if (throttleTimeout) clearTimeout(throttleTimeout);
-      socket.disconnect();
+      socket.off('post:new', handleNewPost);
     };
-  }, [queryClient]);
+  }, [accessToken, queryClient]);
 
   // Stable intersection observer for infinite scroll - avoids re-creating on every render
   useEffect(() => {
