@@ -9,13 +9,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { getInitials } from '@/lib/utils';
-import { UserPlus, UserX, Check, X, Loader2, Users, MessageCircle, Search, Sparkles } from 'lucide-react';
+import { UserPlus, UserX, Check, X, Loader2, Users, MessageCircle, Search, Sparkles, Globe, Flame, Share2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { BackHeader } from '@/components/common/back-header';
+import { PostCard } from '@/components/post/post-card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const STATUS_COLORS: Record<string, string> = {
   ONLINE: 'bg-success',
@@ -55,6 +57,13 @@ export default function FriendsPage() {
   const { data: suggestions } = useQuery({
     queryKey: ['suggested-people'],
     queryFn: () => api.get('/profiles/search?limit=15').then(r => r.data.data)
+  });
+
+  // Fetch all gamer posts for the Global Community Showcase tab
+  const { data: communityPosts = [], isLoading: postsLoading } = useQuery({
+    queryKey: ['community-posts'],
+    queryFn: () => api.get('/posts?limit=30').then(r => r.data.data || []),
+    staleTime: 30 * 1000,
   });
 
   const sendRequest = useMutation({
@@ -105,17 +114,19 @@ export default function FriendsPage() {
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Back navigation button */}
-      <BackHeader title="Network" />
+      <BackHeader title="Global Community" />
 
       <motion.div className="flex items-center justify-between" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Friends Network</h1>
-          <p className="text-xs text-muted-foreground">{friends?.length || 0} connections in total</p>
+          <h1 className="text-xl font-extrabold flex items-center gap-2 tracking-tight">
+            <Globe className="h-5 w-5 text-emerald-400" /> Global Community & Creator Showcase
+          </h1>
+          <p className="text-xs text-muted-foreground">Discover posts, gameplay highlights & connect with gamers worldwide</p>
         </div>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Friends Panel */}
+        {/* Main Community & Friends Panel */}
         <div className="lg:col-span-2 space-y-6">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <Card variant="glass">
@@ -123,7 +134,7 @@ export default function FriendsPage() {
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search players by username..." className="pl-9" variant="neon" />
+                    <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search gamers or creators..." className="pl-9" variant="neon" />
                   </div>
                 </div>
                 {debouncedQuery.trim().length >= 2 && (
@@ -131,7 +142,7 @@ export default function FriendsPage() {
                     {searching ? (
                       <div className="flex items-center justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
                     ) : searchResults?.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-6">No players found for &quot;{debouncedQuery}&quot;</p>
+                      <p className="text-sm text-muted-foreground text-center py-6">No gamers found for &quot;{debouncedQuery}&quot;</p>
                     ) : (
                       <div className="divide-y divide-border/20 max-h-64 overflow-y-auto">
                         {searchResults?.filter((p: any) => p.userId !== user?.id).map((profile: any) => {
@@ -145,7 +156,7 @@ export default function FriendsPage() {
                                   <AvatarFallback className="text-xs">{getInitials(profile.username)}</AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold truncate hover:text-primary transition-colors text-foreground">{profile.displayName || profile.username}</p>
+                                  <p className="text-sm font-semibold truncate hover:text-emerald-400 transition-colors text-foreground">{profile.displayName || profile.username}</p>
                                   <p className="text-xs text-muted-foreground">@{profile.username}</p>
                                 </div>
                               </Link>
@@ -172,15 +183,72 @@ export default function FriendsPage() {
             </Card>
           </motion.div>
 
-          <Tabs defaultValue="online">
+          <Tabs defaultValue="showcase">
             <TabsList className="bg-card/60 border border-white/10 p-1 rounded-2xl flex md:inline-flex overflow-x-auto whitespace-nowrap scrollbar-none justify-start gap-1">
+              <TabsTrigger value="showcase" className="shrink-0 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 data-[state=active]:shadow-[0_0_20px_rgba(16,185,129,0.35)] font-bold gap-1.5">
+                <Flame className="h-3.5 w-3.5 text-emerald-400 animate-pulse" /> Gamer Feed & Showcases
+              </TabsTrigger>
               <TabsTrigger value="online" className="shrink-0 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 data-[state=active]:shadow-[0_0_20px_rgba(16,185,129,0.35)] font-bold">Online</TabsTrigger>
-              <TabsTrigger value="all" className="shrink-0 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 data-[state=active]:shadow-[0_0_20px_rgba(16,185,129,0.35)] font-bold">All Friends</TabsTrigger>
+              <TabsTrigger value="all" className="shrink-0 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 data-[state=active]:shadow-[0_0_20px_rgba(16,185,129,0.35)] font-bold">All Connections</TabsTrigger>
               <TabsTrigger value="pending" className="shrink-0 rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border data-[state=active]:border-emerald-500/50 data-[state=active]:shadow-[0_0_20px_rgba(16,185,129,0.35)] font-bold relative">
                 Pending
                 {requests?.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-500 text-black font-extrabold">{requests.length}</span>}
               </TabsTrigger>
             </TabsList>
+
+            {/* TAB 1: Global Creator Feed & Showcase */}
+            <TabsContent value="showcase" className="mt-4 space-y-4">
+              {/* Creator Banner */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-purple-500/15 border border-emerald-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="space-y-1 min-w-0">
+                  <h3 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-emerald-400" /> Share Your Gameplay & Promote Your Content!
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Post your highlights, clips, streams, and gamer achievements so all creators across GamerZ Hub can see them!
+                  </p>
+                </div>
+                <Link href="/feed">
+                  <Button variant="gradient" size="sm" className="h-9 px-4 text-xs font-bold rounded-xl shrink-0 gap-1.5" animate>
+                    <Share2 className="h-3.5 w-3.5" /> Post Highlight
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Feed Posts */}
+              {postsLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="p-4 bg-card/20 rounded-2xl border border-white/5 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-16 w-full rounded-xl" />
+                    </div>
+                  ))}
+                </div>
+              ) : communityPosts.length === 0 ? (
+                <Card variant="glass">
+                  <CardContent className="p-6 text-center">
+                    <EmptyState
+                      title="No community posts yet"
+                      description="Be the first creator to share a post or video highlight with the GamerZ Hub community!"
+                      icon={Flame}
+                    />
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {communityPosts.map((post: any) => (
+                    <PostCard key={post.id} post={post} />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
             <TabsContent value="online" className="mt-3">
               <Card variant="glass">
@@ -258,7 +326,7 @@ export default function FriendsPage() {
           <Card variant="glass">
             <CardHeader className="pb-3 border-b border-border/40">
               <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground">
-                <Sparkles className="h-4 w-4 text-primary" /> Suggested People
+                <Sparkles className="h-4 w-4 text-emerald-400" /> Suggested Creators & Gamers
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
@@ -275,9 +343,9 @@ export default function FriendsPage() {
                           <AvatarFallback className="text-[10px]">{getInitials(p.username)}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-foreground truncate hover:text-primary transition-colors">{p.displayName || p.username}</p>
+                          <p className="text-xs font-semibold text-foreground truncate hover:text-emerald-400 transition-colors">{p.displayName || p.username}</p>
                           <p className="text-[10px] text-muted-foreground">@{p.username}</p>
-                          <p className="text-[9px] text-primary/75 mt-0.5">{mutualsCount} mutual connection{mutualsCount > 1 ? 's' : ''}</p>
+                          <p className="text-[9px] text-emerald-400/80 mt-0.5">{mutualsCount} mutual connection{mutualsCount > 1 ? 's' : ''}</p>
                         </div>
                       </Link>
                       <Button 
@@ -316,14 +384,14 @@ function FriendRow({ friend, onRemove }: { friend: any; onRemove: (id: string) =
           <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background ${STATUS_COLORS[friend.presence || 'OFFLINE']}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate hover:text-primary transition-colors text-foreground">{friend.profile?.displayName || friend.profile?.username}</p>
+          <p className="text-sm font-semibold truncate hover:text-emerald-400 transition-colors text-foreground">{friend.profile?.displayName || friend.profile?.username}</p>
           {friend.profile?.bio && <p className="text-xs text-muted-foreground truncate max-w-[240px] mt-0.5">{friend.profile.bio}</p>}
           <p className="text-[10px] text-muted-foreground capitalize mt-0.5">{friend.presence?.toLowerCase() || 'Offline'}</p>
         </div>
       </Link>
       <div className="flex items-center gap-1 shrink-0 flex md:hidden group-hover:flex ml-3">
         <Link href={`/messages?userId=${friend.id}`}>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-emerald-400 rounded-xl">
             <MessageCircle className="h-4 w-4" />
           </Button>
         </Link>
