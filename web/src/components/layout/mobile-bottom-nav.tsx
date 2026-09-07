@@ -55,7 +55,7 @@ export function MobileBottomNav({ hidden = false }: { hidden?: boolean }) {
       inert={hidden}
     >
       <div className="bg-background/95 backdrop-blur-xl border-t border-primary/20 shadow-[0_-4px_20px_hsl(var(--background)/0.9)] safe-area-bottom">
-        <div className="flex items-center justify-between px-1.5 py-1.5 w-full">
+        <div className="grid grid-cols-4 items-center justify-items-center w-full px-1 py-1.5">
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item);
