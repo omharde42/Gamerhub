@@ -50,7 +50,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const isLegalRoute = LEGAL_ROUTES.some((route) => pathname === route || pathname?.startsWith(`${route}/`));
   const isPublicRoute = isAuthOrLanding || isLegalRoute;
   const hideSidebar = isPublicRoute || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
-  const hideBottomNav = isPublicRoute || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
+  const hideBottomNav = isPublicRoute;
   const isServerPage = pathname?.startsWith('/servers/');
   const isMessages = pathname?.startsWith('/messages');
   const isSearch = pathname?.startsWith('/search');
@@ -143,7 +143,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       {/* Big Animation System: animated aurora + particles + panning grid */}
       <GamerBackground />
 
-      <header role="banner" className={isMessages || isSearch ? "hidden" : "block relative z-30"}>
+      <header role="banner" className={isMessages ? "hidden" : "block relative z-30"}>
         <Navbar hidden={navHidden} />
       </header>
       
