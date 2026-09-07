@@ -18,13 +18,14 @@ export class TournamentController {
   });
 
   list = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page, limit, status, game, search } = req.query;
+    const { page, limit, status, game, search, q } = req.query;
     const result = await tournamentService.list({
       page: page ? parseInt(page as string) : undefined,
       limit: limit ? parseInt(limit as string) : undefined,
       status: status ? (status as TournamentStatus) : undefined,
       game: game as string,
-      search: search as string,
+      search: (search || q) as string,
+      q: (q || search) as string,
     });
     sendSuccess(res, result.data, undefined, 200, result.meta);
   });

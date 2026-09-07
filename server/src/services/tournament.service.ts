@@ -110,15 +110,17 @@ export class TournamentService {
     }
     return tournament;
   }
-  async list(params: { page?: number; limit?: number; status?: TournamentStatus; game?: string; search?: string }) {
-    const { page = 1, limit = 20, status, game, search } = params;
-    const where: { status?: TournamentStatus; game?: string; OR?: Array<{ title?: { contains: string; mode: 'insensitive' }; game?: { contains: string; mode: 'insensitive' } }> } = {};
+  async list(params: { page?: number; limit?: number; status?: TournamentStatus; game?: string; search?: string; q?: string }) {
+    const { page = 1, limit = 20, status, game, search, q } = params;
+    const searchTerm = (search || q || '').trim();
+    const where: any = {};
     if (status) where.status = status;
     if (game) where.game = game;
-    if (search) {
+    if (searchTerm) {
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { game: { contains: search, mode: 'insensitive' } },
+        { title: { contains: searchTerm, mode: 'insensitive' } },
+        { game: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
       ];
     }
     const [tournaments, total] = await Promise.all([

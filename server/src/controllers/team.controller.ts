@@ -17,12 +17,14 @@ export class TeamController {
   });
 
   list = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page, limit, region, rank } = req.query;
+    const { page, limit, region, rank, q, search } = req.query;
     const result = await teamService.list({
       page: page ? parseInt(page as string) : undefined,
       limit: limit ? parseInt(limit as string) : undefined,
       region: region as string,
       rank: rank as string,
+      q: q as string,
+      search: search as string,
     });
     sendSuccess(res, result.data, undefined, 200, result.meta);
   });

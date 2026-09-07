@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   ArrowLeft, Search, X, Users, Trophy, Gamepad2, Clock,
-  TrendingUp, Sparkles, UserPlus, ChevronRight, AlertTriangle
+  TrendingUp, Sparkles, UserPlus, ChevronRight, AlertTriangle, MessageSquare
 } from 'lucide-react';
 import api from '@/lib/api';
 import { getInitials } from '@/lib/utils';
@@ -37,10 +37,12 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Stale request guard counter
+  const latestRequestId = useRef(0);
+
   // Focus input synchronously whenever search overlay opens
   useEffect(() => {
     if (isOpen) {
-      // Focus synchronously and with a micro-task backup to ensure keyboard opens on mobile
       inputRef.current?.focus();
       const raf = requestAnimationFrame(() => {
         inputRef.current?.focus();
@@ -137,7 +139,7 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
     },
   });
 
-  // Perform search query
+  // Perform search query with 350ms debouncing and stale request guard
   useEffect(() => {
     if (!isOpen || query.trim().length < 2) {
       setResults([]);
@@ -146,17 +148,29 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
       return;
     }
 
+    const currentRequestId = ++latestRequestId.current;
+
     const delay = setTimeout(async () => {
+      if (currentRequestId !== latestRequestId.current) return;
+
       setLoading(true);
       setSearchError(null);
       try {
-        const [playersRes, teamsRes, tournamentsRes] = await Promise.allSettled([
+        const [playersRes, teamsRes, tournamentsRes, postsRes] = await Promise.allSettled([
           api.get(`/profiles/search?q=${encodeURIComponent(query)}&limit=10`),
           api.get(`/teams?q=${encodeURIComponent(query)}`),
           api.get(`/tournaments?q=${encodeURIComponent(query)}`),
+          api.get(`/posts?q=${encodeURIComponent(query)}&limit=10`),
         ]);
 
-        const allRejected = playersRes.status === 'rejected' && teamsRes.status === 'rejected' && tournamentsRes.status === 'rejected';
+        if (currentRequestId !== latestRequestId.current) return;
+
+        const allRejected =
+          playersRes.status === 'rejected' &&
+          teamsRes.status === 'rejected' &&
+          tournamentsRes.status === 'rejected' &&
+          postsRes.status === 'rejected';
+
         if (allRejected) {
           setSearchError('Unable to connect to search service. Please check your network.');
           setResults([]);
@@ -166,6 +180,7 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
         const players = playersRes.status === 'fulfilled' ? playersRes.value.data.data || [] : [];
         const teams = teamsRes.status === 'fulfilled' ? teamsRes.value.data.data || [] : [];
         const tournaments = tournamentsRes.status === 'fulfilled' ? tournamentsRes.value.data.data || [] : [];
+        const posts = postsRes.status === 'fulfilled' ? postsRes.value.data.data || [] : [];
 
         let combined: any[] = [];
         if (activeTab === 'all') {
@@ -173,6 +188,7 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
             ...players.map((p: any) => ({ ...p, _type: 'player' })),
             ...teams.map((t: any) => ({ ...t, _type: 'team' })),
             ...tournaments.map((t: any) => ({ ...t, _type: 'tournament' })),
+            ...posts.map((p: any) => ({ ...p, _type: 'post' })),
           ];
         } else if (activeTab === 'players') {
           combined = players.map((p: any) => ({ ...p, _type: 'player' }));
@@ -180,17 +196,22 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
           combined = teams.map((t: any) => ({ ...t, _type: 'team' }));
         } else if (activeTab === 'tournaments') {
           combined = tournaments.map((t: any) => ({ ...t, _type: 'tournament' }));
+        } else if (activeTab === 'posts') {
+          combined = posts.map((p: any) => ({ ...p, _type: 'post' }));
         }
 
         setResults(combined);
       } catch (err: any) {
+        if (currentRequestId !== latestRequestId.current) return;
         console.error('Search query error:', err);
         setSearchError('Search operation failed. Please try again.');
         setResults([]);
       } finally {
-        setLoading(false);
+        if (currentRequestId === latestRequestId.current) {
+          setLoading(false);
+        }
       }
-    }, 250);
+    }, 350);
 
     return () => clearTimeout(delay);
   }, [query, activeTab, isOpen]);
@@ -255,7 +276,7 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
             <Search className="absolute left-3.5 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               ref={inputRef}
-              placeholder="Search players, teams, tournaments..."
+              placeholder="Search players, teams, tournaments, posts..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -285,7 +306,7 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
         {query.trim().length > 0 && (
           <div className="px-4 py-2.5 shrink-0 border-b border-border/20 bg-card/20 z-10">
             <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val)} className="w-full">
-              <TabsList className="bg-muted/20 p-1 rounded-xl flex w-full justify-start gap-1">
+              <TabsList className="bg-muted/20 p-1 rounded-xl flex w-full justify-start gap-1 overflow-x-auto">
                 <TabsTrigger value="all" className="flex-1 rounded-lg text-xs font-bold data-[state=active]:bg-emerald-500 data-[state=active]:text-black">
                   All
                 </TabsTrigger>
@@ -298,6 +319,9 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
                 <TabsTrigger value="tournaments" className="flex-1 rounded-lg text-xs font-bold data-[state=active]:bg-emerald-500 data-[state=active]:text-black">
                   🏆 Tournaments
                 </TabsTrigger>
+                <TabsTrigger value="posts" className="flex-1 rounded-lg text-xs font-bold data-[state=active]:bg-emerald-500 data-[state=active]:text-black">
+                  💬 Posts
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -305,7 +329,7 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
 
         {/* 3. Scrollable Search Content */}
         <div className="flex-1 overflow-y-auto p-4 max-w-3xl mx-auto w-full space-y-6">
-          {/* CASE A: No active query typed */}
+          {/* CASE A: No active query typed (Idle state) */}
           {query.trim().length === 0 && (
             <div className="space-y-6">
               {/* If HISTORY exists -> SHOW RECENT SEARCHES */}
@@ -432,7 +456,7 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
             </div>
           )}
 
-          {/* CASE B: Query is typed & results are loading */}
+          {/* CASE B: Query is typed & results are loading (Loading state) */}
           {query.trim().length > 0 && loading && (
             <div className="space-y-3 pt-2">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -463,7 +487,7 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
             </div>
           )}
 
-          {/* CASE D: Query is typed & 0 results returned */}
+          {/* CASE D: Query is typed & 0 results returned (No Results state) */}
           {query.trim().length > 0 && !loading && !searchError && results.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
               <div className="w-16 h-16 rounded-3xl bg-muted/20 flex items-center justify-center border border-border/20 text-muted-foreground">
@@ -478,7 +502,7 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
             </div>
           )}
 
-          {/* CASE E: Query is typed & results returned */}
+          {/* CASE E: Query is typed & results returned (Results state) */}
           {query.trim().length > 0 && !loading && !searchError && results.length > 0 && (
             <div className="space-y-2.5">
               <AnimatePresence>
@@ -561,6 +585,32 @@ export function SearchOverlay({ isOpen, onClose, isStandalonePage = false }: Sea
                         <Badge variant="outline" className="text-xs font-bold gap-1 rounded-xl bg-gaming-purple/10 text-gaming-purple border-gaming-purple/20">
                           <Trophy className="h-3.5 w-3.5" />
                           Tournament
+                        </Badge>
+                      </motion.div>
+                    );
+                  } else if (item._type === 'post') {
+                    return (
+                      <motion.div
+                        key={`post-${item.id || idx}`}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.03 }}
+                        onClick={() => handleSelectResult(`/post/${item.id}`, item.content?.slice(0, 20))}
+                        className="p-3.5 bg-card/30 border border-white/[0.04] rounded-2xl hover:bg-muted/25 hover:border-emerald-500/40 transition-all cursor-pointer flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <Avatar className="h-11 w-11 border border-border/30 shrink-0">
+                            <AvatarImage src={item.user?.profile?.avatar || ''} />
+                            <AvatarFallback className="text-xs font-bold">{getInitials(item.user?.profile?.username || 'P')}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold truncate text-foreground">{highlightMatch(item.content || 'Post', query)}</p>
+                            <p className="text-xs text-muted-foreground truncate">By @{item.user?.profile?.username || 'user'}</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-xs font-bold gap-1 rounded-xl bg-pink-500/10 text-pink-400 border-pink-500/20">
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          Post
                         </Badge>
                       </motion.div>
                     );
