@@ -149,7 +149,13 @@ app.use(generalLimiter);
 // CSRF Protection (double-submit cookie pattern for browser-based requests)
 app.use(csrfProtection);
 
-// Health check
+// Health check & root endpoints
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', service: 'GamerHub API', timestamp: new Date().toISOString() });
+});
+app.get('/health', (_req, res) => {
+  res.json({ success: true, message: 'GamerHub API is running', timestamp: new Date().toISOString() });
+});
 app.get('/api/health', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'gamerzhub-api', message: 'GamerZHub API is running', timestamp: new Date().toISOString() });
 });
