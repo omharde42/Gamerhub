@@ -2,62 +2,45 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Home, Search, Plus, MessageSquare, User
-} from 'lucide-react';
+import { Home, Trophy, Globe, MessageSquare } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { useOverlayStore, type PanelType } from '@/store/overlayStore';
-import { usePanelNav } from '@/hooks/usePanelNav';
 import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
 
 const mobileNavItems: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  panel?: PanelType;
 }[] = [
   { href: '/feed', icon: Home, label: 'Home' },
-  { href: '/search', icon: Search, label: 'Search' },
-  { href: '/feed', icon: Plus, label: 'Create' },
+  { href: '/tournaments', icon: Trophy, label: 'Tournaments' },
+  { href: '/friends', icon: Globe, label: 'Global Community' },
   { href: '/messages', icon: MessageSquare, label: 'Chat' },
-  { href: '/profile', icon: User, label: 'Profile', panel: 'profile' },
 ];
 
 export function MobileBottomNav({ hidden = false }: { hidden?: boolean }) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const panel = useOverlayStore((s) => s.panel);
-  const openPanelFromNav = usePanelNav();
 
   useNotificationRealtime();
 
   const { data: chatUnreadData } = useQuery({
     queryKey: ['chat-unread'],
-    queryFn: () => api.get('/chat/unread-counts').then(r => r.data.data || {}),
+    queryFn: () => api.get('/chat/unread-counts').then((r) => r.data.data || {}),
     refetchInterval: 15000,
     enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
   });
 
-  const { data: notifData } = useQuery({
-    queryKey: ['notifications-unread'],
-    queryFn: () => api.get('/notifications/unread-count').then(r => r.data.data),
-    refetchInterval: 30000,
-    enabled: !!user && pathname !== '/' && !pathname?.startsWith('/auth'),
-  });
-
-  const totalChatUnread = Object.values(chatUnreadData || {}).reduce((sum: number, c: any) => sum + (c as number), 0);
+  const totalChatUnread = Object.values(chatUnreadData || {}).reduce(
+    (sum: number, c: any) => sum + (c as number),
+    0
+  );
 
   const isActive = (item: (typeof mobileNavItems)[number]) => {
-    if (item.panel) {
-      const onRoute = pathname === item.href || pathname?.startsWith(item.href + '/');
-      if (item.panel === 'profile') {
-        const onProfilePage = pathname?.startsWith('/profile/') && !pathname?.endsWith('/settings');
-        return onProfilePage || panel === 'profile';
-      }
-      return onRoute || panel === item.panel;
+    if (item.href === '/feed') {
+      return pathname === '/feed' || pathname === '/';
     }
     return pathname === item.href || pathname?.startsWith(item.href + '/');
   };
@@ -71,65 +54,39 @@ export function MobileBottomNav({ hidden = false }: { hidden?: boolean }) {
       aria-hidden={hidden || undefined}
       inert={hidden}
     >
-      <div className="bg-background/90 backdrop-blur-xl border-t border-primary/20 shadow-[0_-4px_20px_hsl(var(--background)/0.8)] safe-area-bottom">
-        <div className="flex items-center justify-around px-1 py-1.5">
+      <div className="bg-background/95 backdrop-blur-xl border-t border-primary/20 shadow-[0_-4px_20px_hsl(var(--background)/0.9)] safe-area-bottom">
+        <div className="flex items-center justify-between px-1.5 py-1.5 w-full">
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item);
             const isChat = item.href === '/messages';
-            const isProfile = item.href === '/profile';
-            const panelType = item.panel;
-
-            // Dynamically resolve /profile to current user's profile
-            const targetHref = isProfile && user?.profile?.username
-              ? `/profile/${user.profile.username}`
-              : item.href;
-
-            const className = `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all duration-200 min-w-[56px] relative ${
-              active
-                ? 'text-primary'
-                : 'text-muted-foreground/70 hover:text-foreground'
-            }`;
-
-            const content = (
-              <>
-                <div className="relative">
-                  <Icon className={`h-5 w-5 transition-all duration-200 ${
-                    active ? 'drop-shadow-[0_0_6px_hsl(var(--primary)/0.4)]' : ''
-                  }`} />
-                  {isChat && totalChatUnread > 0 && (
-                    <span className="absolute -top-1 -right-2 h-3.5 min-w-[14px] px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center shadow-sm">
-                      {totalChatUnread > 9 ? '9+' : totalChatUnread}
-                    </span>
-                  )}
-                </div>
-                <span className="truncate max-w-[56px]">{item.label}</span>
-                {active && (
-                  <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />
-                )}
-              </>
-            );
-
-            if (panelType) {
-              return (
-                <button
-                  key={item.href}
-                  onClick={() => openPanelFromNav(panelType, panelType === 'profile' ? { username: user?.profile?.username } : undefined)}
-                  className={className}
-                  aria-label={item.label}
-                >
-                  {content}
-                </button>
-              );
-            }
 
             return (
               <Link
                 key={item.href}
-                href={targetHref}
-                className={className}
+                href={item.href}
+                className={`flex-1 flex flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-[9.5px] xs:text-[10px] font-bold transition-all duration-200 min-w-0 relative select-none ${
+                  active ? 'text-emerald-400' : 'text-muted-foreground/75 hover:text-foreground'
+                }`}
               >
-                {content}
+                <div className="relative">
+                  <Icon
+                    className={`h-5 w-5 transition-all duration-200 ${
+                      active ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)] scale-110' : 'text-muted-foreground/80'
+                    }`}
+                  />
+                  {isChat && totalChatUnread > 0 && (
+                    <span className="absolute -top-1 -right-2.5 h-3.5 min-w-[14px] px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-black flex items-center justify-center shadow-sm">
+                      {totalChatUnread > 9 ? '9+' : totalChatUnread}
+                    </span>
+                  )}
+                </div>
+                <span className="truncate max-w-full text-center leading-tight tracking-tight px-0.5">
+                  {item.label}
+                </span>
+                {active && (
+                  <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                )}
               </Link>
             );
           })}
