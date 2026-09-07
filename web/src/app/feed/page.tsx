@@ -52,12 +52,12 @@ export default function FeedPage() {
 
   const posts = data?.pages.flatMap((page: any) => page.data || []) || [];
 
-  const { data: trending } = useQuery({
+  const { data: trending, isLoading: isTrendingLoading } = useQuery({
     queryKey: ['trending'],
     queryFn: () => api.get('/posts/trending').then(r => r.data.data).catch(() => []),
   });
 
-  const { data: newsData } = useQuery({
+  const { data: newsData, isLoading: isNewsLoading } = useQuery({
     queryKey: ['gaming-news'],
     queryFn: () => api.get('/news').then(r => r.data.data).catch(() => []),
     refetchInterval: 60000,
@@ -185,7 +185,7 @@ export default function FeedPage() {
               <h2 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Zap className="h-4 w-4 text-indigo-500" /> Trending Topics</h2>
             </CardHeader>
             <CardContent className="space-y-1 pt-0">
-              {isLoading ? (
+              {isTrendingLoading ? (
                 <div className="space-y-2 pt-2">
                   {[1, 2, 3, 4, 5].map((i) => (
                     <div key={i} className="flex items-center justify-between p-2">
@@ -223,7 +223,7 @@ export default function FeedPage() {
               <h2 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Newspaper className="h-4 w-4 text-primary" /> Gaming News</h2>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
-              {isLoading ? (
+              {isNewsLoading ? (
                 <div className="space-y-2 pt-2">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="flex items-start gap-2.5 p-2">
@@ -293,35 +293,20 @@ export default function FeedPage() {
               <h2 className="font-semibold text-sm flex items-center gap-2 text-foreground"><Users className="h-4 w-4 text-primary" /> Suggested Players</h2>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
-              {isLoading ? (
-                <div className="space-y-2 pt-2">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center gap-2.5 p-2">
-                      <Skeleton className="h-9 w-9 rounded-full shrink-0" />
-                      <div className="flex-1 space-y-2 min-w-0">
-                        <Skeleton className="h-3 w-24" />
-                        <Skeleton className="h-2 w-32" />
-                      </div>
-                      <Skeleton className="h-5 w-14 rounded-full" />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                SUGGESTED_PLAYERS.map((p, i) => (
-                  <motion.div key={i} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/60 transition-all cursor-pointer group" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                    <Avatar className="h-9 w-9 border border-border/40">
-                      <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{getInitials(p.username)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{p.username}</p>
-                      <p className="text-xs text-muted-foreground truncate">{p.rank} &bull; {p.role}</p>
-                    </div>
-                    <Badge variant="secondary" className="text-[10px] gap-1 bg-muted text-muted-foreground select-none">
-                      <Gamepad2 className="h-3 w-3 shrink-0" /> {p.game}
-                    </Badge>
-                  </motion.div>
-                ))
-              )}
+              {SUGGESTED_PLAYERS.map((p, i) => (
+                <motion.div key={i} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/60 transition-all cursor-pointer group" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                  <Avatar className="h-9 w-9 border border-border/40">
+                    <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">{getInitials(p.username)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{p.username}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.rank} &bull; {p.role}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] gap-1 bg-muted text-muted-foreground select-none">
+                    <Gamepad2 className="h-3 w-3 shrink-0" /> {p.game}
+                  </Badge>
+                </motion.div>
+              ))}
             </CardContent>
           </Card>
         </div>

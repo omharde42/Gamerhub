@@ -375,6 +375,7 @@ model Post {
   @@index([userId])
   @@index([createdAt])
   @@index([isPublished, createdAt])
+  @@index([userId, isPublished, createdAt(sort: Desc)])
 }
 
 model ProfileView {

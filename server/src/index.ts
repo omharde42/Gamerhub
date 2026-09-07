@@ -146,8 +146,11 @@ app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
 app.use(generalLimiter);
 
+import { requestTimingMiddleware } from './middleware/timing';
+
 // CSRF Protection (double-submit cookie pattern for browser-based requests)
 app.use(csrfProtection);
+app.use(requestTimingMiddleware);
 
 // Health check & root endpoints
 app.get('/', (_req, res) => {
@@ -158,6 +161,14 @@ app.get('/health', (_req, res) => {
 });
 app.get('/api/health', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'gamerzhub-api', message: 'GamerZHub API is running', timestamp: new Date().toISOString() });
+});
+app.get('/ready', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ status: 'ready', database: 'connected', timestamp: new Date().toISOString() });
+  } catch (err: any) {
+    res.status(503).json({ status: 'unready', database: 'disconnected', error: err?.message || 'Database error' });
+  }
 });
 
 // Routes

@@ -52,10 +52,24 @@ function sanitizeArticles(articles: any[]): NewsItem[] {
   return result;
 }
 
+interface NewsCache {
+  data: NewsItem[];
+  timestamp: number;
+}
+const newsCacheByRegion = new Map<string, NewsCache>();
+const NEWS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export class NewsController {
   list = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const apiKey = process.env.GNEWS_API_KEY || process.env.GNEWS_KEY;
     const region = (req.query.region as string) || 'global';
+    const cached = newsCacheByRegion.get(region);
+
+    if (cached && (Date.now() - cached.timestamp < NEWS_CACHE_TTL_MS)) {
+      sendSuccess(res, cached.data);
+      return;
+    }
+
+    const apiKey = process.env.GNEWS_API_KEY || process.env.GNEWS_KEY;
 
     // 1. Primary source: GNews API (real headlines only).
     if (apiKey) {
@@ -73,6 +87,7 @@ export class NewsController {
 
         const articles = sanitizeArticles(response.data?.articles);
         if (articles.length > 0) {
+          newsCacheByRegion.set(region, { data: articles, timestamp: Date.now() });
           sendSuccess(res, articles);
           return;
         }
@@ -100,12 +115,19 @@ export class NewsController {
           publishedAt: item.pubDate || undefined,
         })));
         if (items.length > 0) {
+          newsCacheByRegion.set(region, { data: items, timestamp: Date.now() });
           sendSuccess(res, items);
           return;
         }
       }
     } catch {
       // ignore — every real source failed; return an empty feed below
+    }
+
+    // Return cached stale data if available before empty
+    if (cached?.data?.length) {
+      sendSuccess(res, cached.data);
+      return;
     }
 
     // 3. No fabricated headlines: signal an empty feed so the client renders
