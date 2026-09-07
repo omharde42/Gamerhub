@@ -39,12 +39,15 @@ export function Providers({ children }: { children: ReactNode }) {
     window.addEventListener('error', handleChunkError);
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
-    // Warm up backend API container on startup
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://gamerhub-c944.onrender.com/api';
-    const baseUrl = apiUrl.replace(/\/api\/?$/, '');
-    fetch(`${baseUrl}/health`).catch(() => {});
+    // Warm up backend API container asynchronously after initial page load & paint
+    const warmupTimer = setTimeout(() => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://gamerhub-c944.onrender.com/api';
+      const baseUrl = apiUrl.replace(/\/api\/?$/, '');
+      fetch(`${baseUrl}/health`).catch(() => {});
+    }, 4000);
 
     return () => {
+      clearTimeout(warmupTimer);
       window.removeEventListener('error', handleChunkError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };

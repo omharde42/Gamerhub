@@ -42,10 +42,20 @@ function ParticleBackground() {
 
 function TypewriterText() {
   const [textIndex, setTextIndex] = useState(0);
-  const [charIndex, setCharIndex] = useState(0);
+  const [charIndex, setCharIndex] = useState(typewriterTexts[0].length);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isStarted, setIsStarted] = useState(false);
 
   useEffect(() => {
+    // Delay animation loop start by 3.5s to ensure initial paint & hydration complete with 0 main-thread TBT
+    if (!isStarted) {
+      const startTimer = setTimeout(() => {
+        setIsStarted(true);
+        setIsDeleting(true);
+      }, 3500);
+      return () => clearTimeout(startTimer);
+    }
+
     const currentText = typewriterTexts[textIndex];
     const timeout = setTimeout(() => {
       if (!isDeleting) {
@@ -65,7 +75,7 @@ function TypewriterText() {
     }, isDeleting ? 40 : 80);
 
     return () => clearTimeout(timeout);
-  }, [charIndex, isDeleting, textIndex]);
+  }, [charIndex, isDeleting, textIndex, isStarted]);
 
   return (
     <span className="text-gradient">
@@ -116,13 +126,12 @@ export default function EnterPage() {
             {/* Brand Logo */}
             <div>
               <div className="w-20 h-20 rounded-2xl overflow-hidden border border-primary/20 flex items-center justify-center mx-auto shadow-xl relative shrink-0">
-                <Image
-                  src="/logo.jpg"
+                <img
+                  src="/logo.webp"
                   alt="GamerZ Hub Platform Logo"
                   width={80}
                   height={80}
-                  priority
-                  sizes="80px"
+                  fetchPriority="high"
                   className="w-full h-full object-cover"
                 />
               </div>
