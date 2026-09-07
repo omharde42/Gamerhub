@@ -120,7 +120,7 @@ function AuthCallbackContent() {
         }
 
         // 5. Supabase auth state listener fallback if session hydration takes a moment
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event: any, newSession: any) => {
           if (newSession && newSession.access_token && isSubscribed) {
             try {
               const provider = newSession.user?.app_metadata?.provider || 'google';

@@ -7,8 +7,9 @@ import { sendSuccess } from '../utils/response';
 export class FeedController {
   getFeed = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { page, limit } = req.query;
+    const userId = req.user?.userId;
     const result = await feedService.getFeed(
-      req.user!.userId,
+      userId,
       page ? parseInt(page as string) : undefined,
       limit ? parseInt(limit as string) : undefined,
     );

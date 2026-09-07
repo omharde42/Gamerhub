@@ -18,11 +18,12 @@ import toast from 'react-hot-toast';
 import { gamerLevel, levelTitle, levelColor } from '@/lib/gamer-level';
 import { LevelChip } from '@/components/hud/level-chip';
 import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
+import { SearchOverlay } from '@/components/search/search-overlay';
 import {
   Search, Bell, MessageSquare, Users,
-  LogOut, User, Settings, Crown, Home, ChevronDown,
-  Bookmark, Shield,  BarChart3, Gamepad2 as GamepadIcon, MoreHorizontal,
-  Globe, Loader2, Sun, Moon, Palette, Menu, X, Sparkles, Newspaper, Film, Heart, Reply,
+  LogOut, User, Settings, Home, ChevronDown,
+  Bookmark, Shield, Gamepad2 as GamepadIcon, MoreHorizontal,
+  Globe, Sun, Moon, Menu, X, Newspaper, Film,
   Trophy, UserCheck
 } from 'lucide-react';
 
@@ -39,10 +40,10 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [scrolled, setScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { theme: activeTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openPanelFromNav = usePanelNav();
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,17 +69,6 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
     }, 300);
     return () => clearTimeout(delay);
   }, [searchQuery]);
-
-  const sendConnectRequest = useMutation({
-    mutationFn: (userId: string) => api.post('/friends/request', { userId }),
-    onSuccess: () => {
-      toast.success('Connect request sent!');
-      queryClient.invalidateQueries({ queryKey: ['suggested-people'] });
-    },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Failed to connect');
-    }
-  });
 
   useEffect(() => {
     setMounted(true);
@@ -173,17 +163,17 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
           <span className="text-base font-extrabold hidden sm:block text-foreground group-hover:text-primary transition-colors tracking-tight">GamerZ Hub</span>
         </Link>
 
-        {/* Center: Maximized Search Bar on mobile, redirects to the dedicated full-screen search experience */}
-        <div className="flex relative flex-1 mx-1 md:mx-0 max-w-full md:max-w-sm cursor-pointer" onClick={() => router.push('/search')}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        {/* Center: Maximized Search Bar on mobile & desktop, opens dedicated search interface instantly */}
+        <div className="flex relative flex-1 mx-1 md:mx-0 max-w-full md:max-w-sm cursor-pointer" onClick={() => setIsSearchOpen(true)}>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input 
-            className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full cursor-pointer pointer-events-auto"
+            className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full cursor-pointer pointer-events-auto placeholder:text-muted-foreground/70"
             placeholder="Search players, teams..."
             variant="ghost" 
             value=""
             readOnly
-            onClick={() => router.push('/search')}
-            onFocus={() => router.push('/search')}
+            onClick={() => setIsSearchOpen(true)}
+            onFocus={() => setIsSearchOpen(true)}
           />
         </div>
 
@@ -267,34 +257,25 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
                 <DropdownMenuItem onSelect={() => openPanelFromNav('settings')}>
                   <Settings className="h-4 w-4 mr-3" /> Settings
                 </DropdownMenuItem>
-                <Link href="/premium">
-                  <DropdownMenuItem><Crown className="h-4 w-4 mr-3" /> <span className="flex items-center gap-1">Premium <Sparkles className="h-3 w-3 text-yellow-500" /></span></DropdownMenuItem>
-                </Link>
                 <Link href="/explore">
                   <DropdownMenuItem><Home className="h-4 w-4 mr-3" /> Explore</DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />
-                {/* Single Theme Selector inside Profile Dropdown */}
+                {/* Single Dual-Theme Selector inside Profile Dropdown */}
                 <div className="px-3 py-2 space-y-1.5">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Appearance Theme</p>
-                  <div className="grid grid-cols-3 gap-1">
+                  <div className="grid grid-cols-2 gap-1.5">
                     <button
                       onClick={() => setTheme('dark')}
-                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'dark' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
+                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'dark' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
                     >
                       <Moon className="h-3.5 w-3.5" /> Dark
                     </button>
                     <button
                       onClick={() => setTheme('light')}
-                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'light' ? 'bg-orange-500/20 text-orange-400 border-orange-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
+                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'light' ? 'bg-orange-500/20 text-orange-400 border-orange-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
                     >
                       <Sun className="h-3.5 w-3.5" /> Light
-                    </button>
-                    <button
-                      onClick={() => setTheme('gray')}
-                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all border ${activeTheme === 'gray' ? 'bg-slate-500/20 text-slate-300 border-slate-500/50 shadow-sm' : 'bg-muted/30 text-muted-foreground border-transparent hover:text-foreground'}`}
-                    >
-                      <Palette className="h-3.5 w-3.5" /> Gray
                     </button>
                   </div>
                 </div>
@@ -377,15 +358,15 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
             <Shield className="h-4 w-4 text-primary" /> AI Resume & Passport
           </Link>
           <div className="my-3 border-t border-border/45" />
-          {/* Theme Selector Section in Mobile Drawer */}
+          {/* Dual Theme Selector Section in Mobile Drawer */}
           <div className="p-3 rounded-2xl bg-card/60 border border-border/40 space-y-2">
             <p className="text-[10px] font-mono font-bold uppercase text-muted-foreground tracking-wider px-1">Theme System</p>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               <button
                 type="button"
                 onClick={() => setTheme('light')}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold transition-all border",
+                  "flex items-center justify-center gap-1.5 p-2 rounded-xl text-[11px] font-bold transition-all border",
                   mounted && activeTheme === 'light' ? "bg-orange-500/15 text-orange-500 border-orange-500/40 shadow-sm" : "bg-card/40 text-muted-foreground border-transparent hover:bg-card/80"
                 )}
               >
@@ -396,23 +377,12 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
                 type="button"
                 onClick={() => setTheme('dark')}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold transition-all border",
+                  "flex items-center justify-center gap-1.5 p-2 rounded-xl text-[11px] font-bold transition-all border",
                   mounted && activeTheme === 'dark' ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40 shadow-sm" : "bg-card/40 text-muted-foreground border-transparent hover:bg-card/80"
                 )}
               >
                 <Moon className="h-4 w-4 text-emerald-400" />
                 <span>Dark</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme('gray')}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold transition-all border",
-                  mounted && activeTheme === 'gray' ? "bg-slate-500/15 text-slate-300 border-slate-500/40 shadow-sm" : "bg-card/40 text-muted-foreground border-transparent hover:bg-card/80"
-                )}
-              >
-                <Palette className="h-4 w-4 text-slate-400" />
-                <span>Gray</span>
               </button>
             </div>
           </div>
@@ -423,6 +393,7 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
           </Button>
         </div>
       </PremiumModal>
+      <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </motion.header>
   );
 }

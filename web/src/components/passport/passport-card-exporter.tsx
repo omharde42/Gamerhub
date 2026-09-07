@@ -1,10 +1,11 @@
 'use client';
+
 import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Shield, Download, FileText, Share2, Gamepad2, Trophy, Verified, Sparkles, MapPin, CheckCircle2, Star } from 'lucide-react';
+import { Shield, Download, Gamepad2, Trophy, Verified, Sparkles, MapPin, CheckCircle2, Star, Award, Loader2, QrCode } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -15,213 +16,229 @@ interface PassportCardExporterProps {
 
 export function PassportCardExporter({ passport, trigger }: PassportCardExporterProps) {
   const [open, setOpen] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const pdfRef = useRef<HTMLDivElement>(null);
 
   const p = passport || {};
+  const username = p.username || 'Gamer';
   const gamerScore = p.gamerScore || 85;
   const connectedGames = p.connectedGames || [];
+  const publicProfileUrl = `https://gamerhub.com/passport/${encodeURIComponent(username)}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(publicProfileUrl)}`;
 
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast.error('Please allow popups to print your Gamer Passport');
-      return;
+  const handleDownloadPdf = async () => {
+    try {
+      setIsGenerating(true);
+      toast.loading('Generating Gamer Passport...', { id: 'pdf-toast' });
+
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
+      const element = pdfRef.current;
+      if (!element) {
+        toast.error('Unable to generate passport. Please try again.', { id: 'pdf-toast' });
+        setIsGenerating(false);
+        return;
+      }
+
+      // Clone or render the capture container
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#060913',
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      const filename = `GamerHub_Passport_${username}.pdf`;
+      pdf.save(filename);
+
+      toast.success('✓ Gamer Passport downloaded', { id: 'pdf-toast' });
+    } catch (error) {
+      console.error('PDF Generation error:', error);
+      toast.error('Unable to generate passport. Please try again.', { id: 'pdf-toast' });
+    } finally {
+      setIsGenerating(false);
     }
-
-    const gamesList = (connectedGames.length > 0 ? connectedGames : [
-      { gameName: 'Clash of Clans', rank: 'Town Hall 17', uid: 'P928K01', playerId: p.username || 'ClashMaster', level: 180, winRate: 72 },
-      { gameName: 'VALORANT', rank: 'Ascendant 2', uid: 'VAL#NA1', playerId: `${p.username || 'Gamer'}#NA1`, kdRatio: 1.28, winRate: 64, matchesPlayed: 140 },
-    ]);
-
-    const gamesHtml = gamesList.map((g: any) => `
-      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; padding: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-size: 14px; font-weight: 800; color: #ffffff;">🎮 ${g.gameName || g.game || 'Game'}</span>
-          <span style="background: #10b981; color: #000000; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">${g.rank || 'CONNECTED'}</span>
-        </div>
-        <div style="font-size: 11px; color: #cbd5e1; line-height: 1.5;">
-          ${g.playerId || g.inGameName ? `<div><strong>IGN:</strong> ${g.playerId || g.inGameName}</div>` : ''}
-          ${g.uid || g.inGameUid ? `<div><strong>UID:</strong> <code style="background: rgba(16,185,129,0.2); color: #10b981; padding: 1px 5px; border-radius: 4px; font-family: monospace;">${g.uid || g.inGameUid}</code></div>` : ''}
-          ${g.level ? `<div><strong>Level:</strong> ${g.level}</div>` : ''}
-        </div>
-        <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
-          ${g.kdRatio || g.kd ? `<span style="background: rgba(16,185,129,0.15); color: #10b981; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">K/D: ${g.kdRatio || g.kd}</span>` : ''}
-          ${g.winRate ? `<span style="background: rgba(16,185,129,0.15); color: #10b981; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">Win: ${g.winRate}%</span>` : ''}
-          ${g.matchesPlayed ? `<span style="background: rgba(255,255,255,0.1); color: #ffffff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">Matches: ${g.matchesPlayed}</span>` : ''}
-        </div>
-      </div>
-    `).join('');
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>GamerZ Hub Official Passport - ${p.displayName || p.username}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-            @page { size: A4 portrait; margin: 8mm; }
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: 'Inter', sans-serif; background: #060913; color: #ffffff; padding: 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .passport-card { width: 100%; max-width: 750px; margin: 0 auto; background: linear-gradient(135deg, #0c1222 0%, #060913 100%); border: 2px solid #10b981; border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); position: relative; overflow: hidden; page-break-inside: avoid; }
-            .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(16, 185, 129, 0.3); padding-bottom: 12px; margin-bottom: 16px; }
-            .brand { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 900; color: #10b981; text-transform: uppercase; letter-spacing: 1px; }
-            .badge-verified { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; }
-            .profile-row { display: flex; gap: 16px; align-items: center; margin-bottom: 18px; background: rgba(255,255,255,0.03); padding: 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08); }
-            .avatar { width: 64px; height: 64px; border-radius: 50%; border: 3px solid #10b981; object-fit: cover; background: #10b981; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; color: #000; }
-            .user-info { flex: 1; }
-            .user-info h1 { font-size: 20px; font-weight: 900; margin-bottom: 2px; color: #ffffff; }
-            .user-info p { font-size: 11px; color: #94a3b8; font-family: monospace; }
-            .score-box { text-align: center; background: rgba(16, 185, 129, 0.12); border: 2px solid #10b981; padding: 8px 14px; border-radius: 14px; min-width: 90px; }
-            .score-box .num { font-size: 26px; font-weight: 900; color: #10b981; line-height: 1; }
-            .score-box .lbl { font-size: 9px; color: #94a3b8; text-transform: uppercase; font-weight: 800; margin-top: 2px; }
-            .section-title { font-size: 12px; font-weight: 900; text-transform: uppercase; color: #10b981; margin-bottom: 10px; letter-spacing: 0.5px; }
-            .games-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-            .footer-bar { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; margin-top: 14px; font-size: 10px; color: #64748b; font-family: monospace; }
-            @media print {
-              html, body { background: #060913 !important; padding: 0 !important; margin: 0 !important; }
-              .passport-card { border-color: #10b981 !important; box-shadow: none !important; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="passport-card">
-            <div class="header-bar">
-              <div class="brand">🛡️ GAMERZ HUB PASSPORT</div>
-              <div class="badge-verified">✓ VERIFIED GAMER PASSPORT</div>
-            </div>
-
-            <div class="profile-row">
-              <div class="avatar">${(p.displayName || p.username || 'G').charAt(0).toUpperCase()}</div>
-              <div class="user-info">
-                <h1>${p.displayName || p.username}</h1>
-                <p>@${p.username} ${p.country ? `• ${p.country}` : ''}</p>
-                <div style="margin-top: 6px; font-size: 10px; color: #10b981; font-weight: 700;">
-                  Rank: ${p.rank || 'Verified Gamer'} • Connected Games: ${gamesList.length}
-                </div>
-              </div>
-              <div class="score-box">
-                <div class="num">${gamerScore}</div>
-                <div class="lbl">GAMER SCORE</div>
-              </div>
-            </div>
-
-            <div class="section-title">🎮 CONNECTED GAME PROFILES (${gamesList.length})</div>
-            <div class="games-grid">
-              ${gamesHtml}
-            </div>
-
-            <div class="footer-bar">
-              <div>GamerZ Hub ID: ${p.userId || p.id || '9afe003c-e742-4f39-8b5a'}</div>
-              <div>Official Gaming Passport System</div>
-            </div>
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="default" size="sm" className="gap-2 font-bold shadow-md">
-            <Download className="h-4 w-4" /> Download Gamer Passport
+          <Button variant="default" size="sm" className="gap-2 font-bold shadow-md max-w-full text-xs sm:text-sm">
+            <Download className="h-4 w-4 shrink-0" /> <span className="truncate">Download Gamer Passport</span>
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-3xl bg-[#060913] text-foreground border-primary/30 max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/40 pr-8">
+      <DialogContent className="w-[95vw] max-w-3xl bg-[#060913] text-foreground border-primary/30 max-h-[92vh] overflow-y-auto p-3 sm:p-6 rounded-xl">
+        <DialogHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/40">
           <DialogTitle className="text-base sm:text-lg font-extrabold flex items-center gap-2 text-primary shrink-0">
             <Shield className="h-5 w-5 shrink-0" />
             <span className="truncate">Official Gamer Passport</span>
           </DialogTitle>
           <div className="flex items-center gap-2 shrink-0">
-            <Button size="sm" onClick={handlePrint} className="gap-1.5 font-bold shadow-sm h-8 text-xs sm:h-9 sm:text-sm">
-              <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Print / Save PDF
+            <Button
+              size="sm"
+              onClick={handleDownloadPdf}
+              disabled={isGenerating}
+              className="gap-1.5 font-bold shadow-sm h-8 text-xs sm:h-9 sm:text-sm w-full sm:w-auto"
+            >
+              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <Download className="h-4 w-4 shrink-0" />}
+              <span>{isGenerating ? 'Generating...' : 'Download Gamer Passport'}</span>
             </Button>
           </div>
         </DialogHeader>
 
-        {/* Printable Card Area */}
-        <div ref={printRef} className="py-2">
-          <div className="passport-card rounded-2xl bg-gradient-to-br from-[#0c1222] via-[#060913] to-[#04060c] border-2 border-primary/40 p-6 shadow-2xl relative overflow-hidden">
-            {/* Ambient Watermark Background */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[120px] font-black text-white/[0.015] pointer-events-none select-none tracking-tighter">
-              GAMERZ HUB
-            </div>
-
+        {/* Printable/Exportable Card Container */}
+        <div className="py-2 overflow-x-hidden">
+          <div
+            ref={pdfRef}
+            className="passport-card rounded-2xl bg-gradient-to-br from-[#0c1222] via-[#060913] to-[#04060c] border-2 border-primary/40 p-4 sm:p-6 shadow-2xl relative overflow-hidden text-white w-full max-w-full box-border"
+            style={{ width: '100%', minWidth: '0px' }}
+          >
             {/* Header */}
-            <div className="header-bar flex items-center justify-between border-b border-primary/30 pb-4 mb-5">
-              <div className="brand flex items-center gap-2 text-xl font-black text-primary tracking-wider uppercase">
-                <Shield className="h-6 w-6 text-primary" /> GamerZ Hub Passport
+            <div className="header-bar flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-primary/30 pb-4 mb-4">
+              <div className="brand flex items-center gap-2 text-lg sm:text-xl font-black text-primary tracking-wider uppercase">
+                <Shield className="h-6 w-6 text-primary shrink-0" />
+                <span className="break-words">GAMERHUB OFFICIAL GAMER PASSPORT</span>
               </div>
-              <div className="badge-verified flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">
-                <CheckCircle2 className="h-3.5 w-3.5" /> VERIFIED GAMER PASSPORT
+              <div className="badge-verified flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold w-fit">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> VERIFIED GAMER
               </div>
             </div>
 
-            {/* Player Info Row */}
-            <div className="profile-row flex items-center gap-4 bg-white/[0.03] border border-white/10 rounded-2xl p-4 mb-5">
+            {/* Profile Information */}
+            <div className="profile-row flex flex-col sm:flex-row items-center sm:items-start gap-4 bg-white/[0.03] border border-white/10 rounded-2xl p-4 mb-5 w-full">
               <Avatar className="h-20 w-20 border-2 border-primary ring-2 ring-primary/20 shrink-0">
                 <AvatarImage src={p.avatar || ''} />
                 <AvatarFallback className="text-2xl font-bold bg-primary/20 text-primary">{getInitials(p.displayName || p.username)}</AvatarFallback>
               </Avatar>
-              <div className="user-info min-w-0 flex-1">
-                <h1 className="text-xl font-black text-foreground truncate">{p.displayName || p.username}</h1>
-                <p className="text-xs text-muted-foreground font-mono">@{p.username} {p.country ? `• ${p.country}` : ''}</p>
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  {p.rank && <Badge variant="secondary" className="text-[10px] font-extrabold">{p.rank}</Badge>}
-                  {p.role && <Badge variant="outline" className="text-[10px]">{p.role}</Badge>}
+
+              <div className="user-info min-w-0 flex-1 text-center sm:text-left w-full break-words">
+                <h1 className="text-xl sm:text-2xl font-black text-white break-words">{p.displayName || p.username}</h1>
+                <p className="text-xs text-slate-400 font-mono break-all mt-0.5">
+                  @{p.username} {p.country ? `• ${p.country}` : ''} {p.city ? `(${p.city})` : ''}
+                </p>
+
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mt-2">
                   <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30">
-                    Connected Games: {connectedGames.length}
+                    GH ID: {p.id || p.userId || 'GH-PASSPORT'}
                   </Badge>
+                  <Badge variant="outline" className="text-[10px] text-cyan-400 border-cyan-500/30">
+                    Level {p.level || p.gamerLevel || 12}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/30">
+                    Status: {p.verified ? '✓ Verified Gamer' : 'Member'}
+                  </Badge>
+                  {p.createdAt && (
+                    <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-700">
+                      Member since {new Date(p.createdAt).getFullYear()}
+                    </Badge>
+                  )}
                 </div>
               </div>
-              <div className="score-box shrink-0 text-center bg-primary/10 border-2 border-primary rounded-2xl px-4 py-2.5">
-                <div className="num text-3xl font-black text-primary leading-none">{gamerScore}</div>
-                <div className="lbl text-[9px] font-bold text-muted-foreground uppercase mt-1">GAMER SCORE</div>
+
+              {/* Score & QR Code */}
+              <div className="flex items-center gap-3 shrink-0 self-center sm:self-start mt-2 sm:mt-0">
+                <div className="score-box text-center bg-primary/10 border-2 border-primary rounded-2xl px-3.5 py-2">
+                  <div className="num text-2xl sm:text-3xl font-black text-primary leading-none">{gamerScore}</div>
+                  <div className="lbl text-[9px] font-bold text-slate-400 uppercase mt-1">GAMER SCORE</div>
+                </div>
+
+                <div className="qr-container bg-white p-1.5 rounded-xl text-center shadow-md border border-white/20">
+                  <img src={qrCodeUrl} alt="GamerHub QR" className="w-14 h-14 object-contain mx-auto" />
+                  <span className="text-[8px] text-slate-900 font-extrabold block mt-0.5">SCAN PROFILE</span>
+                </div>
               </div>
             </div>
 
-            {/* Connected Games Section */}
+            {/* Achievements / Badges Section */}
+            {p.achievements?.length > 0 && (
+              <div className="mb-5">
+                <div className="section-title text-xs font-extrabold text-primary uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <Award className="h-4 w-4 shrink-0" /> Achievements & Credentials ({p.achievements.length})
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {p.achievements.map((a: any, idx: number) => (
+                    <div key={a.id || idx} className="flex items-center gap-1.5 bg-white/[0.05] border border-white/10 px-2.5 py-1.5 rounded-lg text-xs">
+                      <span>{a.icon || '🏆'}</span>
+                      <span className="font-semibold text-white">{a.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Connected Game Profiles Section */}
             <div className="mb-5">
               <div className="section-title text-xs font-extrabold text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Gamepad2 className="h-4 w-4" /> Connected Game Profiles ({connectedGames.length})
+                <Gamepad2 className="h-4 w-4 shrink-0" /> CONNECTED GAME PROFILES ({connectedGames.length})
               </div>
 
               {connectedGames.length === 0 ? (
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-center text-xs text-muted-foreground">
-                  No connected game accounts added yet.
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-center text-xs text-slate-400">
+                  No connected game accounts linked yet.
                 </div>
               ) : (
                 <div className="games-grid grid grid-cols-1 md:grid-cols-2 gap-3">
                   {connectedGames.map((game: any, idx: number) => (
-                    <div key={game.id || idx} className="game-card bg-white/[0.04] border border-white/10 rounded-xl p-3.5 hover:border-primary/30 transition-colors">
-                      <div className="game-title flex items-center justify-between font-bold text-sm text-foreground mb-1">
-                        <span className="truncate flex items-center gap-1.5">
-                          <Gamepad2 className="h-4 w-4 text-primary shrink-0" /> {game.gameName}
+                    <div key={game.id || idx} className="game-card bg-white/[0.04] border border-white/10 rounded-xl p-3.5 space-y-2 break-words">
+                      <div className="game-title flex items-center justify-between font-bold text-sm text-white border-b border-white/10 pb-2 gap-2">
+                        <span className="truncate flex items-center gap-1.5 text-emerald-400 font-extrabold">
+                          <Gamepad2 className="h-4 w-4 text-emerald-400 shrink-0" /> {game.gameName || game.game}
                         </span>
-                        {game.rank && <span className="game-rank bg-primary text-primary-foreground text-[10px] font-extrabold px-2 py-0.5 rounded-md">{game.rank}</span>}
+                        <span className="game-rank bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold px-2 py-0.5 rounded-md shrink-0">
+                          {game.verified ? '✓ Verified' : game.dataSource || 'Connected'}
+                        </span>
                       </div>
 
-                      <div className="game-detail text-[11px] text-muted-foreground space-y-0.5">
-                        {game.playerId && <div><strong className="text-foreground">IGN:</strong> {game.playerId}</div>}
-                        {game.uid && <div><strong className="text-foreground">UID:</strong> <code className="bg-white/10 px-1 py-0.5 rounded text-[10px] font-mono text-emerald-400">{game.uid}</code></div>}
-                        {game.server && <div><strong className="text-foreground">Server:</strong> {game.server}</div>}
-                        {game.level && <div><strong className="text-foreground">Level:</strong> {game.level}</div>}
+                      <div className="game-detail text-[11px] text-slate-300 space-y-1">
+                        {(game.playerId || game.inGameName) && (
+                          <div><strong className="text-white">IGN:</strong> {game.playerId || game.inGameName}</div>
+                        )}
+                        {(game.uid || game.inGameUid) && (
+                          <div><strong className="text-white">UID/Player Tag:</strong> <code className="bg-white/10 px-1.5 py-0.5 rounded text-[10px] font-mono text-emerald-400">{game.uid || game.inGameUid}</code></div>
+                        )}
+                        {game.rank && <div><strong className="text-white">Rank:</strong> {game.rank}</div>}
+                        {game.level && <div><strong className="text-white">XP Level:</strong> {game.level}</div>}
+                        {game.server && <div><strong className="text-white">Server/Region:</strong> {game.server}</div>}
+                        {game.townHall && <div><strong className="text-white">Town Hall:</strong> {game.townHall}</div>}
+                        {game.clan && <div><strong className="text-white">Clan:</strong> {game.clan} {game.clanRole ? `(${game.clanRole})` : ''}</div>}
                       </div>
 
-                      <div className="game-stats flex items-center gap-1.5 mt-2.5 pt-2 border-t border-white/5 flex-wrap">
-                        {game.kdRatio > 0 && <span className="stat-pill bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded">KD: {game.kdRatio}</span>}
-                        {game.winRate > 0 && <span className="stat-pill bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded">Win: {game.winRate}%</span>}
-                        {game.matchesPlayed > 0 && <span className="stat-pill bg-white/10 text-foreground text-[10px] font-bold px-2 py-0.5 rounded">Matches: {game.matchesPlayed}</span>}
-                        {game.preferredRole && <span className="stat-pill bg-purple-500/10 text-purple-400 text-[10px] font-bold px-2 py-0.5 rounded">Role: {game.preferredRole}</span>}
+                      {/* Dynamic Stats Badges */}
+                      <div className="game-stats flex items-center gap-1.5 pt-2 border-t border-white/5 flex-wrap">
+                        {game.trophies && <span className="bg-amber-500/10 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded">Trophies: {game.trophies}</span>}
+                        {game.kdRatio > 0 && <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded">K/D: {game.kdRatio}</span>}
+                        {game.winRate > 0 && <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded">Win Rate: {game.winRate}%</span>}
+                        {game.matchesPlayed > 0 && <span className="bg-white/10 text-white text-[10px] font-bold px-2 py-0.5 rounded">Matches: {game.matchesPlayed}</span>}
+                        {game.score && <span className="bg-blue-500/10 text-blue-300 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded">Score: {game.score}</span>}
                       </div>
                     </div>
                   ))}
@@ -229,20 +246,20 @@ export function PassportCardExporter({ passport, trigger }: PassportCardExporter
               )}
             </div>
 
-            {/* AI Summary Section */}
+            {/* AI Summary / Evaluation */}
             {p.aiSummary && !p.aiSummary.startsWith('{') && (
               <div className="mb-4 bg-primary/[0.04] border border-primary/20 rounded-xl p-3.5">
                 <div className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1 flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" /> AI Player Evaluation
                 </div>
-                <p className="text-xs text-muted-foreground italic leading-relaxed">&ldquo;{p.aiSummary}&rdquo;</p>
+                <p className="text-xs text-slate-300 italic leading-relaxed">&ldquo;{p.aiSummary}&rdquo;</p>
               </div>
             )}
 
             {/* Footer */}
-            <div className="footer-bar flex items-center justify-between border-t border-white/10 pt-3 text-[10px] text-muted-foreground font-mono">
-              <span>GamerZ Hub ID: {p.id || 'GH-PASS-2026'}</span>
-              <span>Official Gaming Passport System</span>
+            <div className="footer-bar flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-white/10 pt-3 text-[10px] text-slate-400 font-mono">
+              <span>GamerHub ID: {p.id || p.userId || 'GH-PASS-2026'}</span>
+              <span>Official GamerHub Gaming Credentials</span>
             </div>
           </div>
         </div>

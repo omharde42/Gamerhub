@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- GAMERZ Hub Brand Colors — Dark Theme (default) -->
+    <color name="colorPrimary">#10B981</color>
+    <color name="colorPrimaryDark">#059669</color>
+    <color name="colorAccent">#7C3AED</color>
+    <color name="colorBackground">#0A0E17</color>
+    <color name="colorSurface">#0B101D</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorOnBackground">#FFFFFF</color>
+    <color name="colorOnSurface">#FFFFFF</color>
+    <color name="colorError">#FF3D71</color>
+    <color name="colorOnError">#FFFFFF</color>
+
+    <!-- Notification accent -->
+    <color name="notification_accent">#10B981</color>
+
+    <!-- Icon background -->
+    <color name="ic_launcher_background">#0A0E17</color>
+</resources>

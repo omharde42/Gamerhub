@@ -14,13 +14,22 @@ function requiredEnv(name: string, fallback?: string): string {
 }
 
 const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DATABASE_URL || process.env.SUPABASE_DB_URL;
+if (databaseUrl && !process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = databaseUrl;
+}
+if (process.env.DATABASE_URL && !process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = process.env.DATABASE_URL;
+}
 
 export const config = {
   port: parseInt(process.env.PORT || '4000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   apiUrl: process.env.API_URL || process.env.BACKEND_URL || 'http://localhost:4000',
-  database: { url: databaseUrl || requiredEnv('DATABASE_URL') },
+  database: {
+    url: databaseUrl || requiredEnv('DATABASE_URL'),
+    directUrl: process.env.DIRECT_URL || databaseUrl || requiredEnv('DATABASE_URL'),
+  },
   supabase: {
     url: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     anonKey: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',

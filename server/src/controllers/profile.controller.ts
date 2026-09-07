@@ -40,54 +40,60 @@ export class ProfileController {
     });
     if (!profile) throw new NotFoundError('Profile');
 
-    const [sentCount, receivedCount] = await Promise.all([
-      prisma.friendRequest.count({ where: { senderId: profile.userId, status: 'ACCEPTED' } }),
-      prisma.friendRequest.count({ where: { receiverId: profile.userId, status: 'ACCEPTED' } }),
-    ]);
-    const connectionsCount = sentCount + receivedCount;
-
-    // Real view tracking: record one deduped view per viewer (or IP for
-    // anonymous visitors) per 24h window. Own profile views are not counted.
     const viewerId = req.user?.userId ?? undefined;
+
+    // Non-blocking view tracking: record view in background
     if (viewerId !== profile.userId) {
       const viewerIp = viewerId ? undefined : hashIp(req.ip || req.socket?.remoteAddress || '');
       const since = new Date(Date.now() - VIEW_WINDOW_MS);
-      const existing = await prisma.profileView.findFirst({
-        where: viewerId
-          ? { profileId: profile.id, viewerId, createdAt: { gte: since } }
-          : viewerIp
-            ? { profileId: profile.id, viewerIp, createdAt: { gte: since } }
-            : { profileId: profile.id },
-        select: { id: true },
-      });
-      if (!existing) {
-        await prisma.profileView.create({
-          data: viewerId
-            ? { profileId: profile.id, viewerId }
-            : viewerIp
-              ? { profileId: profile.id, viewerIp }
-              : { profileId: profile.id },
-        });
-      }
+      (async () => {
+        try {
+          const existing = await prisma.profileView.findFirst({
+            where: viewerId
+              ? { profileId: profile.id, viewerId, createdAt: { gte: since } }
+              : viewerIp
+                ? { profileId: profile.id, viewerIp, createdAt: { gte: since } }
+                : { profileId: profile.id },
+            select: { id: true },
+          });
+          if (!existing) {
+            await prisma.profileView.create({
+              data: viewerId
+                ? { profileId: profile.id, viewerId }
+                : viewerIp
+                  ? { profileId: profile.id, viewerIp }
+                  : { profileId: profile.id },
+            });
+          }
+        } catch (err: any) {
+          console.warn('[profileView] Background view tracking warning:', err?.message);
+        }
+      })();
     }
 
-    let friendshipStatus: 'friends' | 'pending' | null = null;
-    if (req.user) {
-      const relationship = await prisma.friendRequest.findFirst({
-        where: {
-          OR: [
-            { senderId: req.user.userId, receiverId: profile.userId },
-            { senderId: profile.userId, receiverId: req.user.userId },
-          ],
-        },
-      });
+    // Parallelize friend counts & relationship status queries
+    const [sentCount, receivedCount, relationship] = await Promise.all([
+      prisma.friendRequest.count({ where: { senderId: profile.userId, status: 'ACCEPTED' } }),
+      prisma.friendRequest.count({ where: { receiverId: profile.userId, status: 'ACCEPTED' } }),
+      req.user
+        ? prisma.friendRequest.findFirst({
+            where: {
+              OR: [
+                { senderId: req.user.userId, receiverId: profile.userId },
+                { senderId: profile.userId, receiverId: req.user.userId },
+              ],
+            },
+          })
+        : Promise.resolve(null),
+    ]);
 
-      if (relationship) {
-        if (relationship.status === 'ACCEPTED') {
-          friendshipStatus = 'friends';
-        } else if (relationship.status === 'PENDING') {
-          friendshipStatus = 'pending';
-        }
+    const connectionsCount = sentCount + receivedCount;
+    let friendshipStatus: 'friends' | 'pending' | null = null;
+    if (relationship) {
+      if (relationship.status === 'ACCEPTED') {
+        friendshipStatus = 'friends';
+      } else if (relationship.status === 'PENDING') {
+        friendshipStatus = 'pending';
       }
     }
 

@@ -1,6 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -374,6 +374,8 @@ model Post {
   views       PostView[]
   @@index([userId])
   @@index([createdAt])
+  @@index([isPublished, createdAt])
+  @@index([userId, isPublished, createdAt(sort: Desc)])
 }
 
 model ProfileView {
@@ -537,6 +539,7 @@ model Message {
   @@index([senderId])
   @@index([parentId])
   @@index([createdAt])
+  @@index([chatId, createdAt])
 }
 
 model ChatMessageReaction {

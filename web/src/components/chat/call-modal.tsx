@@ -51,8 +51,12 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<any>(null);
+  const callStateRef = useRef(callState);
+  callStateRef.current = callState;
 
   const targetUser = callState?.mode === 'incoming' ? callState.fromUser : callState?.toUser;
+  const targetUserRef = useRef(targetUser);
+  targetUserRef.current = targetUser;
 
   const ringtoneIntervalRef = useRef<any>(null);
 
@@ -151,7 +155,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
       if (event.candidate) {
         socket.emit('call:ice-candidate', {
           toUserId: targetUserId,
-          chatId: callState?.chatId,
+          chatId: callStateRef.current?.chatId,
           candidate: event.candidate,
         });
       }
@@ -164,17 +168,15 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
         try {
           const offer = await pc.createOffer({ iceRestart: true });
           await pc.setLocalDescription(offer);
-          socket.emit('call:ice-restart', { toUserId: targetUserId, chatId: callState?.chatId, sdp: offer });
+          socket.emit('call:ice-restart', { toUserId: targetUserId, chatId: callStateRef.current?.chatId, sdp: offer });
         } catch (err) {
           console.warn('ICE restart attempt failed:', err);
         }
       }
     };
 
-    // Optional chaining on `callState` reads the object itself, so the compiler
-    // infers a dependency on the whole `callState` — match it exactly.
     return pc;
-  }, [socket, callState]);
+  }, [socket]);
 
   // Initialize WebRTC Media, Ringtone & Socket Listeners
   useEffect(() => {
@@ -218,19 +220,24 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
 
     const handleOffer = async (data: { fromUserId: string; sdp: any }) => {
       try {
-        if (!peerConnectionRef.current && targetUser?.id) {
-          await createPeerConnection(targetUser.id);
+        if (!localStreamRef.current) {
+          const type = callStateRef.current?.type || 'audio';
+          await getMediaStream(type, facingMode);
+        }
+        if (!peerConnectionRef.current && targetUserRef.current?.id) {
+          await createPeerConnection(targetUserRef.current.id);
         }
         const pc = peerConnectionRef.current;
         if (pc) {
           await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          socket.emit('call:answer', { toUserId: data.fromUserId, chatId: callState.chatId, sdp: answer });
+          socket.emit('call:answer', { toUserId: data.fromUserId, chatId: callStateRef.current?.chatId, sdp: answer });
           setConnectionStatus('Connected');
         }
       } catch (err) {
         console.error('Error handling offer:', err);
+        toast.error('Failed to connect call');
       }
     };
 
@@ -264,7 +271,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
           await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          socket.emit('call:answer', { toUserId: data.fromUserId, chatId: callState.chatId, sdp: answer });
+          socket.emit('call:answer', { toUserId: data.fromUserId, chatId: callStateRef.current?.chatId, sdp: answer });
         }
       } catch (err) {
         console.error('Error handling ICE restart:', err);
@@ -282,7 +289,7 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
       socket.off('call:ice-candidate', handleIceCandidate);
       socket.off('call:ice-restart', handleIceRestart);
     };
-  }, [socket, callState, targetUser, createPeerConnection]);
+  }, [socket, callState?.active, createPeerConnection]);
 
   const getMediaStream = async (type: 'audio' | 'video', facing: 'user' | 'environment' = 'user') => {
     try {
@@ -324,6 +331,8 @@ export function CallModal({ socket, user, callState, onEndCall, onAcceptCall }: 
       socket.emit('call:offer', { toUserId: targetUser.id, chatId: callState.chatId, sdp: offer });
       onAcceptCall();
     } catch (err) {
+      console.error('Error accepting call:', err);
+      toast.error('Failed to accept call');
       handleEndCall();
     }
   };

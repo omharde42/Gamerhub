@@ -50,7 +50,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const isLegalRoute = LEGAL_ROUTES.some((route) => pathname === route || pathname?.startsWith(`${route}/`));
   const isPublicRoute = isAuthOrLanding || isLegalRoute;
   const hideSidebar = isPublicRoute || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
-  const hideBottomNav = isPublicRoute || pathname?.startsWith('/messages') || pathname?.startsWith('/search');
+  const hideBottomNav = isPublicRoute;
   const isServerPage = pathname?.startsWith('/servers/');
   const isMessages = pathname?.startsWith('/messages');
   const isSearch = pathname?.startsWith('/search');
@@ -111,10 +111,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   // Public landing page (/) renders immediately on initial paint.
   if ((!hasHydrated || isRedirectingAuthenticatedUser || isRedirectingUnauthenticatedUser) && !isLanding) {
     return (
-      <div className="min-h-screen bg-[#05070E] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 safe-area-all">
         <div className="flex flex-col items-center gap-4 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl overflow-hidden border border-primary/20 shadow-xl relative shrink-0">
-            <img src="/logo.webp" alt="GamerZ Hub" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+            <img src="/logo.webp" alt="GamerZ Hub" className="w-full h-full object-cover" loading="eager" decoding="async" />
           </div>
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
@@ -128,7 +128,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   // Dedicated lightweight landing shell: zero dashboard navigation DOM/JS mounted on landing page
   if (isLanding) {
     return (
-      <div className="min-h-screen bg-[#030509] text-foreground overflow-x-hidden relative">
+      <div className="min-h-screen bg-background text-foreground overflow-x-hidden relative safe-area-all">
         <GamerBackground dense />
         <main id="main-content" role="main" className="w-full min-h-screen relative z-10">
           <PageTransition pathname={pathname}>{children}</PageTransition>
@@ -142,12 +142,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden relative">
       {/* Big Animation System: animated aurora + particles + panning grid */}
       <GamerBackground />
-      {/* Background Floating Cybernetic Artifact Glow (kept for depth on top of aurora) */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-20">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full bg-gradient-to-tr from-emerald-500/20 via-purple-600/20 to-transparent blur-[120px]" />
-      </div>
 
-      <header role="banner" className={isMessages || isSearch ? "hidden" : "block relative z-30"}>
+      <header role="banner" className={isMessages ? "hidden" : "block relative z-30"}>
         <Navbar hidden={navHidden} />
       </header>
       

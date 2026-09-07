@@ -1,0 +1,28 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportHeight="288"
+    android:viewportWidth="288">
+
+    <!-- Splash screen icon — centered G logo with glow, fits 2/3 safe circle -->
+    <!-- Glow ring -->
+    <path
+        android:fillColor="#10B981"
+        android:fillAlpha="0.2"
+        android:pathData="M144,144m-80,0a80,80 0,1 1,160 0a80,80 0,1 1,-160 0" />
+
+    <!-- Stylized G -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M170,105 C170,85 154,69 134,69 C114,69 98,85 98,105 C98,125 114,141 134,141 L134,141 L158,141 L158,156 L134,156 C106,156 84,134 84,105 C84,76 106,54 134,54 C162,54 184,76 184,105 L184,125 L170,125 Z" />
+
+    <!-- Horizontal bar -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M134,125 L170,125 L170,141 L134,141 Z" />
+
+    <!-- Neon dot -->
+    <path
+        android:fillColor="#7C3AED"
+        android:pathData="M175,111m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+</vector>

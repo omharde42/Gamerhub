@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'react-hot-toast';
 import { ReactNode, useState, useEffect } from 'react';
+import { API_URL } from '@/lib/constants';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { staleTime: 60 * 1000, retry: 1, refetchOnWindowFocus: false } } }));
@@ -41,8 +42,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
     // Warm up backend API container asynchronously after initial page load & paint
     const warmupTimer = setTimeout(() => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://gamerhub-c944.onrender.com/api';
-      const baseUrl = apiUrl.replace(/\/api\/?$/, '');
+      const baseUrl = API_URL.replace(/\/api\/?$/, '');
       fetch(`${baseUrl}/health`).catch(() => {});
     }, 4000);
 
@@ -55,7 +55,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark" themes={['light', 'dark', 'gray']} enableSystem={false}>
+      <ThemeProvider attribute="class" defaultTheme="dark" themes={['light', 'dark']} enableSystem={false}>
         <Toaster
           position="top-right"
           toastOptions={{

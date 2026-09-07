@@ -55,11 +55,19 @@ export class TeamService {
     return team;
   }
 
-  async list(params: { page?: number; limit?: number; region?: string; rank?: string }) {
-    const { page = 1, limit = 20, region, rank } = params;
-    const where: Record<string, unknown> = { status: 'ACTIVE' };
+  async list(params: { page?: number; limit?: number; region?: string; rank?: string; search?: string; q?: string }) {
+    const { page = 1, limit = 20, region, rank, search, q } = params;
+    const searchTerm = (search || q || '').trim();
+    const where: any = { status: 'ACTIVE' };
     if (region) where.region = region;
     if (rank) where.rank = rank;
+    if (searchTerm) {
+      where.OR = [
+        { name: { contains: searchTerm, mode: 'insensitive' } },
+        { tag: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
+      ];
+    }
 
     const [teams, total] = await Promise.all([
       prisma.team.findMany({

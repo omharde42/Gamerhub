@@ -8,6 +8,9 @@ const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DATABASE_UR
 if (databaseUrl && !process.env.DATABASE_URL) {
   process.env.DATABASE_URL = databaseUrl;
 }
+if (process.env.DATABASE_URL && !process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = process.env.DATABASE_URL;
+}
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 

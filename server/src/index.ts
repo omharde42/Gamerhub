@@ -146,12 +146,29 @@ app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
 app.use(generalLimiter);
 
+import { requestTimingMiddleware } from './middleware/timing';
+
 // CSRF Protection (double-submit cookie pattern for browser-based requests)
 app.use(csrfProtection);
+app.use(requestTimingMiddleware);
 
-// Health check
-app.get('/api/health', (_req, res) => {
+// Health check & root endpoints
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', service: 'GamerHub API', timestamp: new Date().toISOString() });
+});
+app.get('/health', (_req, res) => {
   res.json({ success: true, message: 'GamerHub API is running', timestamp: new Date().toISOString() });
+});
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({ status: 'ok', service: 'gamerzhub-api', message: 'GamerZHub API is running', timestamp: new Date().toISOString() });
+});
+app.get('/ready', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ status: 'ready', database: 'connected', timestamp: new Date().toISOString() });
+  } catch (err: any) {
+    res.status(503).json({ status: 'unready', database: 'disconnected', error: err?.message || 'Database error' });
+  }
 });
 
 // Routes
@@ -180,7 +197,7 @@ app.use('/api/game-requests', gameRequestRoutes);
 app.use('/api/crypto', cryptoRoutes);
 app.use('/api/steam', steamRoutes);
 // Public keep-alive health check (no auth, no DB, used by the Render keep-alive workflow)
-app.get('/health', (_req: any, res: any) => res.json({ status: 'ok', service: 'GamerZHub API' }));
+app.get('/health', (_req: any, res: any) => res.status(200).json({ status: 'ok', service: 'gamerzhub-api', message: 'GamerZHub API is running', timestamp: new Date().toISOString() }));
 app.get('/riot.txt', (_req: any, res: any) => {
   res.setHeader('Content-Type', 'text/plain');
   res.status(200).send('71dcd910-804e-42e8-8e2a-91d7bb1b93af\n');
@@ -226,7 +243,7 @@ httpServer.listen(config.port, () => {
   }
 
   // Self Keep-Alive ping to keep Render web service warm and eliminate cold starts
-  const BACKEND_URL = process.env.BACKEND_URL || 'https://gamerhub-c944.onrender.com';
+  const BACKEND_URL = process.env.BACKEND_URL || 'https://gamerhub-api-6lga.onrender.com';
   setInterval(() => {
     try {
       const http = BACKEND_URL.startsWith('https') ? require('https') : require('http');
