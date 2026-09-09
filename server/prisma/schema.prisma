@@ -94,6 +94,7 @@ model User {
   postViews           PostView[]
   chatMessageReactions ChatMessageReaction[]
   matchDisputes       MatchDispute[]
+  organizerRatings    TournamentOrganizerRating[]
   @@index([email])
   @@index([role])
 }
@@ -661,48 +662,59 @@ model Scrim {
 }
 
 model Tournament {
-  id              String           @id @default(uuid())
-  title           String
-  description     String?
-  game            String
-  type            TournamentType   @default(SINGLE_ELIMINATION)
-  status          TournamentStatus @default(DRAFT)
-  maxTeams        Int
-  minTeamSize     Int              @default(1)
-  maxTeamSize     Int              @default(5)
-  prizePool       Float            @default(0)
-  entryFee        Float            @default(0)
-  rules           String?
-  bracketUrl      String?
-  startDate       DateTime
-  endDate         DateTime?
-  registrationEnd DateTime?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  organizerId     String
-  organizer       Organization     @relation(fields: [organizerId], references: [id], onDelete: Cascade)
-  teams           TournamentTeam[]
-  matches         Match[]
-  participants    TournamentParticipant[]
-  disputes        MatchDispute[]
+  id                    String                   @id @default(uuid())
+  title                 String
+  description           String?
+  game                  String
+  type                  TournamentType           @default(SINGLE_ELIMINATION)
+  status                TournamentStatus         @default(DRAFT)
+  maxTeams              Int
+  minTeamSize           Int                      @default(1)
+  maxTeamSize           Int                      @default(5)
+  prizePool             Float                    @default(0)
+  entryFee              Float                    @default(0)
+  rules                 String?
+  bracketUrl            String?
+  customFields          Json?
+  checkInWindowMinutes  Int                      @default(30)
+  startDate             DateTime
+  endDate               DateTime?
+  registrationEnd       DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  organizerId           String
+  organizer             Organization             @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  teams                 TournamentTeam[]
+  matches               Match[]
+  participants          TournamentParticipant[]
+  disputes              MatchDispute[]
+  announcements         TournamentAnnouncement[]
+  organizerRatings      TournamentOrganizerRating[]
   @@index([status])
   @@index([game])
   @@index([startDate])
 }
 
 model TournamentTeam {
-  id            String     @id @default(uuid())
-  seed          Int?
-  placement     Int?
-  registeredAt  DateTime   @default(now())
-  tournamentId  String
-  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  teamId        String
-  team          Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  members       TournamentTeamMember[]
-  matchesAsTeam1 Match[] @relation("Team1")
-  matchesAsTeam2 Match[] @relation("Team2")
+  id              String             @id @default(uuid())
+  seed            Int?
+  placement       Int?
+  status          RegistrationStatus @default(PENDING)
+  rejectionReason String?
+  customResponses Json?
+  checkInStatus   CheckInStatus      @default(NOT_CHECKED_IN)
+  checkedInAt     DateTime?
+  registeredAt    DateTime           @default(now())
+  tournamentId    String
+  tournament      Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  teamId          String
+  team            Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  members         TournamentTeamMember[]
+  matchesAsTeam1  Match[]            @relation("Team1")
+  matchesAsTeam2  Match[]            @relation("Team2")
   @@unique([tournamentId, teamId])
+  @@index([status])
+  @@index([checkInStatus])
 }
 
 model TournamentTeamMember {
@@ -711,6 +723,7 @@ model TournamentTeamMember {
   tournamentTeam    TournamentTeam     @relation(fields: [tournamentTeamId], references: [id], onDelete: Cascade)
   userId            String
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isSubstitute      Boolean            @default(false)
   @@unique([tournamentTeamId, userId])
 }
 
@@ -725,24 +738,54 @@ model TournamentParticipant {
 }
 
 model Match {
-  id            String      @id @default(uuid())
-  round         Int
-  matchIndex    Int
-  status        MatchStatus @default(SCHEDULED)
-  scheduledAt   DateTime?
-  completedAt   DateTime?
-  winnerId      String?
-  scoreTeam1    Int?
-  scoreTeam2    Int?
-  bracket       Json?
-  tournamentId  String
-  tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  team1Id       String?
-  team1         TournamentTeam? @relation("Team1", fields: [team1Id], references: [id])
-  team2Id       String?
-  team2         TournamentTeam? @relation("Team2", fields: [team2Id], references: [id])
-  disputes      MatchDispute[]
+  id                String          @id @default(uuid())
+  round             Int
+  matchIndex        Int
+  status            MatchStatus     @default(SCHEDULED)
+  scheduledAt       DateTime?
+  completedAt       DateTime?
+  winnerId          String?
+  scoreTeam1        Int?
+  scoreTeam2        Int?
+  roomId            String?
+  roomPassword      String?
+  instructions      String?
+  evidenceUrl       String?
+  submittedByUserId String?
+  bracket           Json?
+  tournamentId      String
+  tournament        Tournament      @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team1Id           String?
+  team1             TournamentTeam? @relation("Team1", fields: [team1Id], references: [id])
+  team2Id           String?
+  team2             TournamentTeam? @relation("Team2", fields: [team2Id], references: [id])
+  disputes          MatchDispute[]
   @@index([tournamentId])
+}
+
+model TournamentAnnouncement {
+  id           String     @id @default(uuid())
+  title        String
+  content      String
+  isPinned     Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  @@index([tournamentId])
+}
+
+model TournamentOrganizerRating {
+  id           String     @id @default(uuid())
+  rating       Int
+  feedback     String?
+  createdAt    DateTime   @default(now())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([tournamentId, userId])
+  @@index([tournamentId])
+  @@index([userId])
 }
 
 // ─── Match disputes (result verification / appeals) ────────────────────────
@@ -1142,6 +1185,17 @@ enum MatchStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum RegistrationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum CheckInStatus {
+  NOT_CHECKED_IN
+  CHECKED_IN
 }
 
 enum OrgMemberRole {

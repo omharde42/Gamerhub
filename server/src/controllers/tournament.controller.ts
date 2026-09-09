@@ -74,6 +74,46 @@ export class TournamentController {
     const dispute = await tournamentService.resolveDispute(req.params.id, req.params.disputeId, req.user!.userId, req.body);
     sendSuccess(res, dispute, 'Dispute resolved');
   });
+
+  acceptTeam = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await tournamentService.acceptTeamRegistration(req.params.id, req.params.teamId, req.user!.userId);
+    sendSuccess(res, result, 'Team accepted');
+  });
+
+  rejectTeam = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await tournamentService.rejectTeamRegistration(req.params.id, req.params.teamId, req.user!.userId, req.body.rejectionReason);
+    sendSuccess(res, result, 'Team rejected');
+  });
+
+  checkIn = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await tournamentService.processCheckIn(req.params.id, req.user!.userId);
+    sendSuccess(res, result, 'Checked in successfully');
+  });
+
+  setMatchCredentials = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await tournamentService.setMatchCredentials(req.params.id, req.params.matchId, req.user!.userId, req.body);
+    sendSuccess(res, result, 'Match room credentials saved');
+  });
+
+  createAnnouncement = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const announcement = await tournamentService.createAnnouncement(req.params.id, req.user!.userId, req.body);
+    sendSuccess(res, announcement, 'Announcement published', 201);
+  });
+
+  getAnnouncements = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const announcements = await tournamentService.getAnnouncements(req.params.id);
+    sendSuccess(res, announcements);
+  });
+
+  rateOrganizer = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const rating = await tournamentService.rateOrganizer(req.params.id, req.user!.userId, req.body);
+    sendSuccess(res, rating, 'Rating submitted');
+  });
+
+  getAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const analytics = await tournamentService.getAnalytics(req.params.id, req.user!.userId);
+    sendSuccess(res, analytics);
+  });
 }
 
 export const tournamentController = new TournamentController();
