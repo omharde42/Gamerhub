@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { tournamentController } from '../controllers/tournament.controller';
-import { authenticate } from '../middleware/auth';
+import { authenticate, optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import {
   createTournamentValidation,
@@ -16,13 +16,16 @@ import {
 } from '../validators/tournament';
 
 const router = Router();
-router.get('/my', authenticate, tournamentController.myTournaments.bind(tournamentController));
-router.get('/', authenticate, tournamentController.list.bind(tournamentController));
-router.get('/:id', authenticate, tournamentIdParamValidation, validate, tournamentController.getById.bind(tournamentController));
-router.get('/:id/standings', authenticate, tournamentIdParamValidation, validate, tournamentController.getStandings.bind(tournamentController));
-router.get('/:id/announcements', authenticate, tournamentIdParamValidation, validate, tournamentController.getAnnouncements.bind(tournamentController));
-router.get('/:id/analytics', authenticate, tournamentIdParamValidation, validate, tournamentController.getAnalytics.bind(tournamentController));
 
+// Protected user-specific list
+router.get('/my', authenticate, tournamentController.myTournaments.bind(tournamentController));
+
+// Public / optional auth read endpoints
+router.get('/', optionalAuth, tournamentController.list.bind(tournamentController));
+router.get('/:id', optionalAuth, tournamentIdParamValidation, validate, tournamentController.getById.bind(tournamentController));
+router.get('/:id/standings', optionalAuth, tournamentIdParamValidation, validate, tournamentController.getStandings.bind(tournamentController));
+
+// Protected mutation endpoints
 router.post('/', authenticate, createTournamentValidation, validate, tournamentController.create.bind(tournamentController));
 router.post('/:id/register', authenticate, registerTournamentValidation, validate, tournamentController.registerTeam.bind(tournamentController));
 router.post('/:id/check-in', authenticate, tournamentIdParamValidation, validate, tournamentController.checkIn.bind(tournamentController));
