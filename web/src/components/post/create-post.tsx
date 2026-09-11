@@ -55,13 +55,62 @@ export function CreatePost({ isFullScreen = false, onClose }: CreatePostProps) {
         } : undefined,
       });
     },
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['feed'] });
+
+      const optimisticPost = {
+        id: `temp-${Date.now()}`,
+        content: content.trim(),
+        type: showPoll ? 'POLL' : media.some(m => m.match(/\.(mp4|webm|ogg|mov)$/i) || m.includes('/video/')) ? 'VIDEO' : 'POST',
+        media: media || [],
+        tags: tags || [],
+        createdAt: new Date().toISOString(),
+        user: {
+          id: user?.id,
+          profile: user?.profile || { username: user?.profile?.username || 'Gamer', displayName: user?.profile?.displayName }
+        },
+        _count: { likes: 0, comments: 0 },
+        isLiked: false,
+        isOptimistic: true,
+      };
+
+      queryClient.setQueryData(['feed', 'all'], (oldData: any) => {
+        if (!oldData || !oldData.pages) return oldData;
+        const firstPage = oldData.pages[0];
+        const updatedFirstPage = {
+          ...firstPage,
+          data: [optimisticPost, ...(firstPage.data || [])],
+        };
+        return {
+          ...oldData,
+          pages: [updatedFirstPage, ...oldData.pages.slice(1)],
+        };
+      });
+
       setContent(''); setTags([]); setMedia([]); setShowPoll(false); setPollQuestion(''); setPollOptions(['', '']);
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-      toast.success('Posted to the community!');
       onClose?.();
+
+      return { optimisticPost };
     },
-    onError: (err: any) => {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      toast.success('Posted to the community!', { icon: '🎮' });
+    },
+    onError: (err: any, _vars, context: any) => {
+      if (context?.optimisticPost) {
+        queryClient.setQueryData(['feed', 'all'], (oldData: any) => {
+          if (!oldData || !oldData.pages) return oldData;
+          const firstPage = oldData.pages[0];
+          const updatedFirstPage = {
+            ...firstPage,
+            data: (firstPage.data || []).filter((p: any) => p.id !== context.optimisticPost.id),
+          };
+          return {
+            ...oldData,
+            pages: [updatedFirstPage, ...oldData.pages.slice(1)],
+          };
+        });
+      }
       const msg = err.response?.data?.message || err.message || 'Failed to create post. Please try again.';
       toast.error(msg);
     },

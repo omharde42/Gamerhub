@@ -40,13 +40,15 @@ export class PostController {
   });
 
   list = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page, limit, hashtag, userId, following } = req.query;
+    const { page, limit, hashtag, userId, following, q, search } = req.query;
     const result = await postService.list({
       page: page ? parseInt(page as string) : undefined,
       limit: limit ? parseInt(limit as string) : undefined,
       hashtag: hashtag as string,
       userId: userId as string,
       following: following as string,
+      q: q as string,
+      search: search as string,
     });
     sendSuccess(res, result.data, undefined, 200, result.meta);
   });

@@ -9,6 +9,10 @@ import {
   submitResultValidation,
   disputeValidation,
   resolveDisputeValidation,
+  teamRegistrationDecisionValidation,
+  matchCredentialsValidation,
+  announcementValidation,
+  organizerRatingValidation,
 } from '../validators/tournament';
 
 const router = Router();
@@ -24,7 +28,15 @@ router.get('/:id/standings', optionalAuth, tournamentIdParamValidation, validate
 // Protected mutation endpoints
 router.post('/', authenticate, createTournamentValidation, validate, tournamentController.create.bind(tournamentController));
 router.post('/:id/register', authenticate, registerTournamentValidation, validate, tournamentController.registerTeam.bind(tournamentController));
+router.post('/:id/check-in', authenticate, tournamentIdParamValidation, validate, tournamentController.checkIn.bind(tournamentController));
 router.post('/:id/brackets', authenticate, tournamentIdParamValidation, validate, tournamentController.generateBrackets.bind(tournamentController));
+router.post('/:id/announcements', authenticate, announcementValidation, validate, tournamentController.createAnnouncement.bind(tournamentController));
+router.post('/:id/rate-organizer', authenticate, organizerRatingValidation, validate, tournamentController.rateOrganizer.bind(tournamentController));
+
+router.post('/:id/registrations/:teamId/accept', authenticate, teamRegistrationDecisionValidation, validate, tournamentController.acceptTeam.bind(tournamentController));
+router.post('/:id/registrations/:teamId/reject', authenticate, teamRegistrationDecisionValidation, validate, tournamentController.rejectTeam.bind(tournamentController));
+
+router.post('/:id/matches/:matchId/credentials', authenticate, matchCredentialsValidation, validate, tournamentController.setMatchCredentials.bind(tournamentController));
 router.post('/:id/matches/:matchId/result', authenticate, submitResultValidation, validate, tournamentController.submitResult.bind(tournamentController));
 router.post('/:id/matches/:matchId/disputes', authenticate, disputeValidation, validate, tournamentController.fileDispute.bind(tournamentController));
 router.patch('/:id/disputes/:disputeId', authenticate, resolveDisputeValidation, validate, tournamentController.resolveDispute.bind(tournamentController));

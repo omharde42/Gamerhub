@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { gamerLevel, levelTitle, levelColor } from '@/lib/gamer-level';
 import { LevelChip } from '@/components/hud/level-chip';
 import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
+import { SearchOverlay } from '@/components/search/search-overlay';
 import {
   Search, Bell, MessageSquare, Users,
   LogOut, User, Settings, Home, ChevronDown,
@@ -42,6 +43,7 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
 
   const { theme: activeTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openPanelFromNav = usePanelNav();
   const [searchQuery, setSearchQuery] = useState('');
@@ -156,22 +158,22 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
         {/* Desktop Brand Logo */}
         <Link href="/dashboard" className="hidden md:flex items-center gap-2.5 shrink-0 group">
           <div className="w-9 h-9 rounded-xl overflow-hidden border border-primary/20 shadow-sm transition-all duration-300 group-hover:scale-105 group-hover:border-primary/40 shrink-0">
-            <img src="/logo.jpg" alt="GamerZ Hub" className="w-full h-full object-cover" />
+            <img src="/logo.webp" alt="GamerZ Hub" className="w-full h-full object-cover" />
           </div>
           <span className="text-base font-extrabold hidden sm:block text-foreground group-hover:text-primary transition-colors tracking-tight">GamerZ Hub</span>
         </Link>
 
-        {/* Center: Maximized Search Bar on mobile, redirects to the dedicated full-screen search experience */}
-        <div className="flex relative flex-1 mx-1 md:mx-0 max-w-full md:max-w-sm cursor-pointer" onClick={() => router.push('/search')}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        {/* Center: Maximized Search Bar on mobile & desktop, opens dedicated search interface instantly */}
+        <div className="flex relative flex-1 mx-1 md:mx-0 max-w-full md:max-w-sm cursor-pointer" onClick={() => setIsSearchOpen(true)}>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input 
-            className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full cursor-pointer pointer-events-auto"
+            className="h-9 pl-9 bg-muted/50 border-0 rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/30 w-full cursor-pointer pointer-events-auto placeholder:text-muted-foreground/70"
             placeholder="Search players, teams..."
             variant="ghost" 
             value=""
             readOnly
-            onClick={() => router.push('/search')}
-            onFocus={() => router.push('/search')}
+            onClick={() => setIsSearchOpen(true)}
+            onFocus={() => setIsSearchOpen(true)}
           />
         </div>
 
@@ -391,6 +393,7 @@ export function Navbar({ hidden = false }: { hidden?: boolean }) {
           </Button>
         </div>
       </PremiumModal>
+      <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </motion.header>
   );
 }

@@ -79,14 +79,18 @@ export class PostService {
     return post;
   }
 
-  async list(params: { page?: number; limit?: number; hashtag?: string; userId?: string; following?: string }) {
-    const { page = 1, limit = 20, hashtag, userId, following } = params;
+  async list(params: { page?: number; limit?: number; hashtag?: string; userId?: string; following?: string; search?: string; q?: string }) {
+    const { page = 1, limit = 20, hashtag, userId, following, search, q } = params;
+    const searchTerm = (search || q || '').trim();
     const where: Record<string, unknown> = { isPublished: true };
     if (hashtag) where.hashtags = { some: { hashtag: { name: hashtag.toLowerCase() } } };
     if (userId) where.userId = userId;
     if (following) {
       const follows = await prisma.follow.findMany({ where: { followerId: following }, select: { followingId: true } });
       where.userId = { in: [...follows.map((f) => f.followingId), following] };
+    }
+    if (searchTerm) {
+      where.content = { contains: searchTerm, mode: 'insensitive' };
     }
 
     const [posts, total] = await Promise.all([

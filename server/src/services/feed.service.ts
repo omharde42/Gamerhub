@@ -96,34 +96,43 @@ export class FeedService {
     return welcomePostInitializationPromise;
   }
 
-  async getFeed(userId: string, page: number = 1, limit: number = 20) {
-    await this.ensureOfficialWelcomePostExists();
+  async getFeed(userId?: string, page: number = 1, limit: number = 20) {
+    // Non-blocking background check for welcome post initialization
+    if (!isWelcomePostInitialized) {
+      this.ensureOfficialWelcomePostExists().catch(() => {});
+    }
 
-    const following = await prisma.follow.findMany({
-      where: { followerId: userId },
-      select: { followingId: true },
+    let whereClause: any = { isPublished: true };
+    if (userId) {
+      const following = await prisma.follow.findMany({
+        where: { followerId: userId },
+        select: { followingId: true },
+      });
+      const followingIds = Array.from(new Set([userId, 'gamerhub-official-system', ...following.map((f) => f.followingId)]));
+      whereClause.userId = { in: followingIds };
+    }
+
+    // Fetch 1 extra post to efficiently calculate hasNext without extra DB count query on pagination
+    const posts = await prisma.post.findMany({
+      where: whereClause,
+      skip: (page - 1) * limit,
+      take: limit + 1,
+      include: {
+        user: { select: { id: true, profile: true } },
+        _count: { select: { likes: true, comments: true } },
+        likes: userId ? { where: { userId }, take: 1 } : false,
+        poll: { include: { options: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
-    const followingIds = Array.from(new Set([userId, 'gamerhub-official-system', ...following.map((f) => f.followingId)]));
 
-    const [posts, total] = await Promise.all([
-      prisma.post.findMany({
-        where: { isPublished: true, userId: { in: followingIds } },
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          user: { select: { id: true, profile: true } },
-          _count: { select: { likes: true, comments: true } },
-          likes: { where: { userId }, take: 1 },
-          poll: { include: { options: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.post.count({ where: { isPublished: true, userId: { in: followingIds } } }),
-    ]);
+    const hasNext = posts.length > limit;
+    const pagePosts = hasNext ? posts.slice(0, limit) : posts;
+    const total = page === 1 && !hasNext ? pagePosts.length : (page * limit + (hasNext ? 1 : 0));
 
-    const formattedPosts = posts.map((post) => ({
+    const formattedPosts = pagePosts.map((post) => ({
       ...post,
-      isLiked: post.likes.length > 0,
+      isLiked: Array.isArray(post.likes) && post.likes.length > 0,
       likes: undefined,
       isOfficialWelcome: post.id === WELCOME_POST_ID,
     }));
@@ -135,7 +144,7 @@ export class FeedService {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
-        hasNext: page * limit < total,
+        hasNext,
         hasPrev: page > 1,
       },
     };
